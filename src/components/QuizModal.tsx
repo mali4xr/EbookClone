@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera, Volume2, Keyboard, Camera as FlipCamera } from 'lucide-react';
+import { X, Camera, Volume2, Keyboard } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
@@ -30,12 +30,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [showScore, setShowScore] = useState(false);
   const [spellingAnswer, setSpellingAnswer] = useState('');
   const [isReading, setIsReading] = useState(false);
-  const [inputMode, setInputMode] = useState<'text' | 'camera'>('camera');
+  const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState<string | null>(null);
   const [showSpelling, setShowSpelling] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
   const quiz = pageContent.quiz || {
     multipleChoice: {
@@ -115,10 +114,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       readQuestion("That's not correct. Try again next time!");
       setShowSpelling(true);
     }
-  };
-
-  const toggleCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
   const captureImage = async () => {
@@ -243,15 +238,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                   
                   <div className="flex items-center justify-center space-x-4">
                     <button
-                      onClick={() => setInputMode('camera')}
-                      className={`flex items-center gap-2 p-2 rounded ${
-                        inputMode === 'camera' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
-                      }`}
-                    >
-                      <Camera size={20} />
-                      <span>Camera</span>
-                    </button>
-                    <button
                       onClick={() => setInputMode('text')}
                       className={`flex items-center gap-2 p-2 rounded ${
                         inputMode === 'text' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
@@ -259,6 +245,15 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     >
                       <Keyboard size={20} />
                       <span>Type</span>
+                    </button>
+                    <button
+                      onClick={() => setInputMode('camera')}
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        inputMode === 'camera' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
+                      }`}
+                    >
+                      <Camera size={20} />
+                      <span>Camera</span>
                     </button>
                   </div>
 
@@ -284,25 +279,16 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
                       </div>
                       
-                      <div className="relative">
-                        <Webcam
-                          ref={webcamRef}
-                          screenshotFormat="image/jpeg"
-                          className="w-full rounded-lg border"
-                          videoConstraints={{
-                            width: 320,
-                            height: 240,
-                            facingMode
-                          }}
-                        />
-                        <button
-                          onClick={toggleCamera}
-                          className="absolute top-2 right-2 p-2 bg-white/80 rounded-full hover:bg-white transition-colors"
-                          aria-label="Toggle camera"
-                        >
-                          <FlipCamera size={20} className="text-gray-700" />
-                        </button>
-                      </div>
+                      <Webcam
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        className="w-full rounded-lg border"
+                        videoConstraints={{
+                          width: 320,
+                          height: 240,
+                          facingMode: "user"
+                        }}
+                      />
                       
                       {capturedText && (
                         <div className="p-3 bg-gray-50 rounded-lg">
