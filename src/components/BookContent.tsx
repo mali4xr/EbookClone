@@ -5,7 +5,6 @@ import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
 import { QuizModal } from './QuizModal';
-import { Users } from 'lucide-react';
 
 const BookContent = () => {
   const { 
@@ -15,9 +14,11 @@ const BookContent = () => {
     currentWord,
     isReading,
     hasStartedReading,
-    isAudioPlaying,
-    setVoiceIndex,
-    availableVoices
+    // Add these audio-related states from your BookContext
+    isAudioPlaying, // Assuming you have this in your context
+    // or alternatively:
+    // speechSynthesis, // if you're using Web Speech API
+    // audioRef, // if you're using HTML5 audio
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -30,6 +31,7 @@ const BookContent = () => {
     return () => clearTimeout(timeout);
   }, [currentPage]);
 
+  // Track page completion - check if current word has reached the end of the page
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const totalWords = pageContent.text.split(' ').length;
@@ -38,16 +40,64 @@ const BookContent = () => {
     }
   }, [currentWord, pageContent]);
 
+  // Reset page completion when page changes
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
   }, [currentPage]);
 
+  // Show quiz only when reading stops AND the page is complete AND audio is not playing
   useEffect(() => {
+    console.log('Quiz conditions:', {
+      hasStartedReading,
+      isReading,
+      isPageComplete,
+      isAudioPlaying,
+      showQuiz
+    });
+    
+    // Updated condition with audio check
     if (hasStartedReading && !isReading && isPageComplete && !isAudioPlaying) {
+      console.log('Setting showQuiz to true');
       setShowQuiz(true);
     }
   }, [isReading, hasStartedReading, isPageComplete, isAudioPlaying]);
+
+  // Alternative implementation if you're using Web Speech API directly
+  /*
+  useEffect(() => {
+    const checkSpeechStatus = () => {
+      const isSpeaking = window.speechSynthesis.speaking;
+      
+      if (hasStartedReading && !isReading && isPageComplete && !isSpeaking) {
+        setShowQuiz(true);
+      }
+    };
+
+    // Check immediately
+    checkSpeechStatus();
+
+    // Set up interval to check speech status
+    const interval = setInterval(checkSpeechStatus, 100);
+    
+    return () => clearInterval(interval);
+  }, [isReading, hasStartedReading, isPageComplete]);
+  */
+
+  // Alternative implementation if you're using HTML5 audio
+  /*
+  useEffect(() => {
+    if (hasStartedReading && !isReading && isPageComplete) {
+      // Check if audio element exists and is not playing
+      const audioElement = document.querySelector('audio'); // or use a ref
+      const isAudioNotPlaying = !audioElement || audioElement.paused || audioElement.ended;
+      
+      if (isAudioNotPlaying) {
+        setShowQuiz(true);
+      }
+    }
+  }, [isReading, hasStartedReading, isPageComplete]);
+  */
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -62,23 +112,6 @@ const BookContent = () => {
         {word}
       </span>
     ));
-  };
-
-  const handleVoiceChange = (type: 'dad' | 'mom' | 'child') => {
-    const voice = availableVoices.findIndex(v => {
-      const name = v.name.toLowerCase();
-      switch(type) {
-        case 'dad':
-          return name.includes('male') || name.includes('man');
-        case 'mom':
-          return name.includes('female') || name.includes('woman');
-        case 'child':
-          return name.includes('child') || name.includes('kid');
-        default:
-          return false;
-      }
-    });
-    if (voice !== -1) setVoiceIndex(voice);
   };
 
   return (
@@ -101,6 +134,7 @@ const BookContent = () => {
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
+              {/* Optional: Show completion indicator */}
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2">
                   ✓ Page completed
@@ -114,7 +148,7 @@ const BookContent = () => {
               <img 
                 src={pageContent.image} 
                 alt={`Illustration for page ${currentPage + 1}`} 
-                className="rounded-full shadow-xl max-h-[300px] md:max-h-[400px] object-cover aspect-square"
+                className="rounded-lg shadow-xl max-h-[300px] md:max-h-[400px] object-contain"
               />
               <InteractiveElements page={currentPage} />
             </div>
@@ -127,30 +161,6 @@ const BookContent = () => {
           <PageCounter current={currentPage + 1} total={totalPages} />
           <PageTurner />
           <Controls />
-          
-          <div className="flex items-center gap-2 ml-4">
-            <button
-              onClick={() => handleVoiceChange('dad')}
-              className="w-10 h-10 rounded-full bg-blue-100 hover:bg-blue-200 flex items-center justify-center text-blue-600"
-              title="Dad's voice"
-            >
-              <Users size={20} />
-            </button>
-            <button
-              onClick={() => handleVoiceChange('mom')}
-              className="w-10 h-10 rounded-full bg-pink-100 hover:bg-pink-200 flex items-center justify-center text-pink-600"
-              title="Mom's voice"
-            >
-              <Users size={20} />
-            </button>
-            <button
-              onClick={() => handleVoiceChange('child')}
-              className="w-10 h-10 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center text-green-600"
-              title="Child's voice"
-            >
-              <Users size={20} />
-            </button>
-          </div>
         </div>
       </div>
 
