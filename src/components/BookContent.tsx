@@ -7,10 +7,8 @@ import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
 
 const BookContent = () => {
-  const { currentPage, pages } = useBook();
+  const { currentPage, totalPages, pageContent } = useBook();
   const [showQuiz, setShowQuiz] = useState(false);
-  
-  const pageContent = pages[currentPage];
   
   if (!pageContent) {
     return (
@@ -41,7 +39,7 @@ const BookContent = () => {
 
           {/* Interactive Elements */}
           <div className="mt-8">
-            <InteractiveElements />
+            <InteractiveElements page={currentPage} />
           </div>
 
           {/* Quiz Button */}
@@ -58,7 +56,7 @@ const BookContent = () => {
           <Controls />
           <div className="flex justify-between items-center mt-4">
             <PageTurner />
-            <PageCounter />
+            <PageCounter current={currentPage + 1} total={totalPages} />
           </div>
         </div>
       </div>
