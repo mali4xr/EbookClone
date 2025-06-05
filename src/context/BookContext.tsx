@@ -1,5 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { storyContent as initialStoryContent } from '../data/storyData';
+import { TavusClient } from 'tavus-js';
+
+const tavus = new TavusClient('22dd0f54ba6c443ba15f03990f302a1b');
 
 interface BookContextType {
   currentPage: number;
@@ -80,7 +83,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const [volume, setVolume] = useState(1);
   const [currentWord, setCurrentWord] = useState(-1);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [utterance, setUtterance] = useState<SpeechSynthesisUtterance | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   const totalPages = storyContent.length;
   const pageContent = storyContent[currentPage];
@@ -99,8 +102,8 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     updateVoices();
 
     return () => {
-      if (synth.speaking) {
-        synth.cancel();
+      if (audioElement) {
+        audioElement.pause();
       }
     };
   }, []);
@@ -109,51 +112,67 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     if (isReading && !isMuted) {
       setHasStartedReading(true);
       readCurrentPage();
-    } else if (!isReading && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+    } else if (!isReading && audioElement) {
+      audioElement.pause();
       setCurrentWord(-1);
     }
     
     return () => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+      if (audioElement) {
+        audioElement.pause();
         setCurrentWord(-1);
       }
     };
-  }, [isReading, isMuted, currentPage, voiceIndex, rate, pitch, volume]);
+  }, [isReading, isMuted, currentPage]);
 
-  const readCurrentPage = () => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+  const readCurrentPage = async () => {
+    if (audioElement) {
+      audioElement.pause();
     }
     
     setCurrentWord(-1);
     const text = pageContent.text;
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    if (availableVoices.length > 0) {
-      utterance.voice = availableVoices[voiceIndex];
-    }
-    
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-    
-    utterance.onboundary = (event) => {
-      if (event.name === 'word') {
-        const textUpToChar = text.slice(0, event.charIndex);
-        const wordIndex = textUpToChar.split(' ').length - 1;
-        setCurrentWord(wordIndex);
-      }
-    };
-    
-    utterance.onend = () => {
-      setCurrentWord(-1);
+
+    try {
+      // Generate audio using Tavus AI
+      const response = await tavus.generateAudio({
+        text,
+        voiceId: 'default', // Use your preferred Tavus voice ID
+      });
+
+      const audio = new Audio(response.audioUrl);
+      audio.volume = volume;
+      
+      audio.onplay = () => {
+        // Start word highlighting
+        const words = text.split(' ');
+        let wordIndex = 0;
+        const wordDuration = audio.duration / words.length;
+        
+        const highlightInterval = setInterval(() => {
+          setCurrentWord(wordIndex);
+          wordIndex++;
+          
+          if (wordIndex >= words.length) {
+            clearInterval(highlightInterval);
+            setCurrentWord(-1);
+            setIsReading(false);
+          }
+        }, wordDuration * 1000);
+
+        audio.onended = () => {
+          clearInterval(highlightInterval);
+          setCurrentWord(-1);
+          setIsReading(false);
+        };
+      };
+
+      setAudioElement(audio);
+      audio.play();
+    } catch (error) {
+      console.error('Error generating Tavus audio:', error);
       setIsReading(false);
-    };
-    
-    setUtterance(utterance);
-    window.speechSynthesis.speak(utterance);
+    }
   };
 
   const nextPage = () => {
@@ -180,8 +199,8 @@ export const BookProvider = ({ children }: BookProviderProps) => {
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    if (!isMuted && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+    if (!isMuted && audioElement) {
+      audioElement.pause();
       setCurrentWord(-1);
     }
   };
