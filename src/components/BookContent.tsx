@@ -22,9 +22,7 @@ interface QuizModalProps {
   };
 }
 
-
-
-const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
+const BookContent = ({ onClose, pageContent }: QuizModalProps) => {
   const { voiceIndex, rate, pitch, volume, availableVoices } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
