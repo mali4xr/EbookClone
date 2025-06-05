@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBook } from '../context/BookContext';
 
-const QuizModal = ({ onClose, pageContent }) => {
+export const QuizModal = ({ onClose, pageContent }) => {
   const { setQuizScore } = useBook();
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
@@ -189,5 +189,3 @@ const QuizModal = ({ onClose, pageContent }) => {
     </div>
   );
 };
-
-export default QuizModal;
