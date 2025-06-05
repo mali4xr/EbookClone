@@ -62,7 +62,8 @@ const BookContent = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': '22dd0f54ba6c443ba15f03990f302a1b'
+          'x-api-key': '22dd0f54ba6c443ba15f03990f302a1b',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
           replica_id: 'r9fa0878977a',
@@ -73,13 +74,16 @@ const BookContent = () => {
             max_call_duration: 3600,
             enable_recording: false,
             participant_left_timeout: 60,
-            participant_absent_timeout: 300
+            participant_absent_timeout: 300,
+            enable_video: true,
+            enable_audio: true
           }
         })
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
@@ -91,7 +95,7 @@ const BookContent = () => {
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
-      setAvatarError('Failed to create avatar conversation. Please try again.');
+      setAvatarError(`Failed to create avatar conversation: ${error.message}`);
       return null;
     } finally {
       setIsLoadingAvatar(false);
