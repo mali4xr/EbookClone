@@ -16,7 +16,7 @@
     "react-dom": "^18.3.1",
     "react-webcam": "^7.2.0",
     "tesseract.js": "^5.0.5",
-    "tavus-js": "^1.0.0"
+    "@tavus/js": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
