@@ -21,13 +21,13 @@ const BookContent = () => {
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [showAvatar, setShowAvatar] = useState(false);
-  const [avatarText, setAvatarText] = useState('');
-  const avatarRef = useRef(null);
+  const [conversationUrl, setConversationUrl] = useState('');
+  const [isLoadingAvatar, setIsLoadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const callRef = useRef(null);
+  const avatarContainerRef = useRef(null);
   
-  // Tavus Avatar configuration
-  const TAVUS_API_KEY = '22dd0f54ba6c443ba15f03990f302a1b'; // Replace with your actual API key
-  const AVATAR_ID = 'r9fa0878977a'; // Replace with your avatar ID
-  
+  // Your existing useEffects...
   useEffect(() => {
     setIsPageTurning(true);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
@@ -53,66 +53,188 @@ const BookContent = () => {
     }
   }, [isReading, hasStartedReading, isPageComplete]);
 
-  // Initialize Tavus Avatar when component mounts
-  useEffect(() => {
-    const loadTavusSDK = async () => {
-      if (!window.TavusSDK) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.tavus.io/sdk/v1/tavus-sdk.js';
-        script.onload = () => {
-          initializeTavusAvatar();
-        };
-        document.head.appendChild(script);
+  // Create Tavus conversation
+  const createConversation = async () => {
+    setIsLoadingAvatar(true);
+    setAvatarError('');
+    
+    try {
+      const response = await fetch('https://tavusapi.com/v2/conversations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': '22dd0f54ba6c443ba15f03990f302a1b' // Replace with your actual API key
+        },
+        body: JSON.stringify({
+          replica_id: 'r9fa0878977a', // Replace with your replica ID
+          persona_id: 'your-persona-id', // Replace with your persona ID
+          conversation_name: 'Book Reading Session',
+          conversational_context: 'You are helping a user read through a book. Provide encouragement and help explain content when needed. Be friendly and supportive.',
+          properties: {
+            max_call_duration: 3600,
+            enable_recording: false,
+            participant_left_timeout: 60,
+            participant_absent_timeout: 300
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data.conversation_url) {
+        setConversationUrl(data.conversation_url);
+        return data.conversation_url;
       } else {
-        initializeTavusAvatar();
+        throw new Error('No conversation URL returned');
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      setAvatarError('Failed to create avatar conversation. Please try again.');
+      return null;
+    } finally {
+      setIsLoadingAvatar(false);
+    }
+  };
+
+  // Initialize Daily iframe for avatar
+  const initializeAvatar = async (url) => {
+    if (!window.Daily) {
+      // Load Daily SDK
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@daily-co/daily-js';
+      script.onload = () => setupDailyCall(url);
+      script.onerror = () => {
+        setAvatarError('Failed to load Daily SDK');
+        setIsLoadingAvatar(false);
+      };
+      document.head.appendChild(script);
+    } else {
+      setupDailyCall(url);
+    }
+  };
+
+  const setupDailyCall = (url) => {
+    if (avatarContainerRef.current && url) {
+      try {
+        callRef.current = window.Daily.createFrame({
+          iframeStyle: {
+            width: '100%',
+            height: '100%',
+            border: '0',
+            borderRadius: '8px'
+          },
+          showLeaveButton: false,
+          showFullscreenButton: false
+        });
+
+        avatarContainerRef.current.appendChild(callRef.current.iframe());
+        
+        callRef.current.on('joined-meeting', () => {
+          console.log('Successfully joined avatar conversation');
+          setIsLoadingAvatar(false);
+        });
+        
+        callRef.current.on('left-meeting', () => {
+          console.log('Left avatar conversation');
+        });
+        
+        callRef.current.on('error', (error) => {
+          console.error('Daily call error:', error);
+          setAvatarError('Avatar connection failed');
+          setIsLoadingAvatar(false);
+        });
+
+        callRef.current.on('app-message', (event) => {
+          console.log('Avatar message:', event);
+        });
+
+        callRef.current.join({ url });
+      } catch (error) {
+        console.error('Error setting up Daily call:', error);
+        setAvatarError('Failed to setup avatar call');
+        setIsLoadingAvatar(false);
+      }
+    }
+  };
+
+  // Send message to avatar
+  const sendMessageToAvatar = (text) => {
+    if (callRef.current && text) {
+      try {
+        const interaction = {
+          message_type: 'conversation',
+          event_type: 'conversation.echo',
+          conversation_id: conversationUrl.split('/').pop(),
+          properties: { text }
+        };
+        
+        callRef.current.sendAppMessage(interaction, '*');
+      } catch (error) {
+        console.error('Error sending message to avatar:', error);
+      }
+    }
+  };
+
+  // Handle avatar toggle
+  const handleAvatarToggle = async () => {
+    if (!showAvatar) {
+      if (!conversationUrl) {
+        const url = await createConversation();
+        if (url) {
+          await initializeAvatar(url);
+        } else {
+          return; // Don't show avatar if conversation creation failed
+        }
+      }
+      setShowAvatar(true);
+    } else {
+      // Clean up Daily call
+      if (callRef.current) {
+        try {
+          callRef.current.leave();
+          callRef.current.destroy();
+          callRef.current = null;
+        } catch (error) {
+          console.error('Error cleaning up Daily call:', error);
+        }
+      }
+      setShowAvatar(false);
+    }
+  };
+
+  // Send page content to avatar
+  const handleReadPage = () => {
+    if (pageContent && pageContent.text && callRef.current) {
+      sendMessageToAvatar(`Please read this page: ${pageContent.text}`);
+    } else if (!callRef.current) {
+      setAvatarError('Avatar not connected. Please show avatar first.');
+    }
+  };
+
+  // Trigger avatar when page is complete
+  useEffect(() => {
+    if (isPageComplete && showAvatar && pageContent && callRef.current) {
+      const congratsMessage = `Great job! You've completed page ${currentPage + 1}. ${pageContent.summary || 'Ready for the next page?'}`;
+      sendMessageToAvatar(congratsMessage);
+    }
+  }, [isPageComplete, showAvatar, currentPage, pageContent]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (callRef.current) {
+        try {
+          callRef.current.leave();
+          callRef.current.destroy();
+        } catch (error) {
+          console.error('Error cleaning up on unmount:', error);
+        }
       }
     };
-
-    loadTavusSDK();
   }, []);
-
-  const initializeTavusAvatar = () => {
-    if (avatarRef.current && window.TavusSDK) {
-      window.TavusSDK.init({
-        apiKey: TAVUS_API_KEY,
-        container: avatarRef.current,
-        avatarId: AVATAR_ID,
-        onReady: () => {
-          console.log('Tavus Avatar is ready');
-        },
-        onError: (error) => {
-          console.error('Tavus Avatar error:', error);
-        }
-      });
-    }
-  };
-
-  const speakWithAvatar = (text) => {
-    if (window.TavusSDK && text) {
-      setAvatarText(text);
-      setShowAvatar(true);
-      
-      window.TavusSDK.speak({
-        text: text,
-        onStart: () => {
-          console.log('Avatar started speaking');
-        },
-        onComplete: () => {
-          console.log('Avatar finished speaking');
-          // Optionally hide avatar after speaking
-          // setTimeout(() => setShowAvatar(false), 2000);
-        }
-      });
-    }
-  };
-
-  // Trigger avatar to speak when page is complete
-  useEffect(() => {
-    if (isPageComplete && pageContent) {
-      const congratsMessage = `Great job! You've completed page ${currentPage + 1}. ${pageContent.summary || 'Ready for the next page?'}`;
-      speakWithAvatar(congratsMessage);
-    }
-  }, [isPageComplete, currentPage, pageContent]);
 
   const renderHighlightedText = (text) => {
     const words = text.split(' ');
@@ -127,16 +249,6 @@ const BookContent = () => {
         {word}
       </span>
     ));
-  };
-
-  const handleAvatarToggle = () => {
-    setShowAvatar(!showAvatar);
-  };
-
-  const handleReadPage = () => {
-    if (pageContent && pageContent.text) {
-      speakWithAvatar(pageContent.text);
-    }
   };
 
   return (
@@ -182,17 +294,45 @@ const BookContent = () => {
         {/* Tavus Avatar Container */}
         {showAvatar && (
           <div className="absolute bottom-4 left-4 z-50">
-            <div className="bg-white rounded-lg p-2 shadow-xl border-2 border-blue-300">
+            <div className="bg-white rounded-lg p-3 shadow-xl border-2 border-blue-300 max-w-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-700">Reading Assistant</h3>
+                <button
+                  onClick={() => setShowAvatar(false)}
+                  className="text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+              
               <div 
-                ref={avatarRef}
-                className="w-48 h-36 rounded-lg overflow-hidden bg-gray-100"
-                style={{ minHeight: '144px' }}
-              />
-              <div className="mt-2 text-xs text-gray-600 max-w-48">
-                {avatarText && (
-                  <p className="bg-blue-50 p-2 rounded text-center">
-                    "{avatarText.substring(0, 60)}..."
-                  </p>
+                ref={avatarContainerRef}
+                className="w-80 h-48 rounded-lg overflow-hidden bg-gray-100 relative"
+              >
+                {isLoadingAvatar && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-600">Loading avatar...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {avatarError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+                    <div className="text-center p-4">
+                      <p className="text-sm text-red-600 mb-2">{avatarError}</p>
+                      <button
+                        onClick={() => {
+                          setAvatarError('');
+                          handleAvatarToggle();
+                        }}
+                        className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -210,18 +350,19 @@ const BookContent = () => {
           <div className="flex gap-2">
             <button
               onClick={handleAvatarToggle}
+              disabled={isLoadingAvatar}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 showAvatar 
                   ? 'bg-blue-500 text-white hover:bg-blue-600' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              } ${isLoadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {showAvatar ? 'Hide Avatar' : 'Show Avatar'}
+              {isLoadingAvatar ? 'Loading...' : showAvatar ? 'Hide Avatar' : 'Show Avatar'}
             </button>
             <button
               onClick={handleReadPage}
-              className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
-              disabled={!pageContent}
+              className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!pageContent || !callRef.current}
             >
               Read Page
             </button>
