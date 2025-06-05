@@ -4,7 +4,7 @@ import PageTurner from './PageTurner';
 import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
-import { QuizModal } from './QuizModal';
+import QuizModal from './QuizModal';
 
 const BookContent = () => {
   const { 
@@ -18,6 +18,7 @@ const BookContent = () => {
   
   const [isPageTurning, setIsPageTurning] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [isPageComplete, setIsPageComplete] = useState(false);
   
   useEffect(() => {
     setIsPageTurning(true);
@@ -25,11 +26,35 @@ const BookContent = () => {
     return () => clearTimeout(timeout);
   }, [currentPage]);
 
+  // Track page completion - check if current word has reached the end of the page
   useEffect(() => {
-    if (hasStartedReading && !isReading) {
+    if (pageContent && pageContent.text) {
+      const totalWords = pageContent.text.split(' ').length;
+      const isComplete = currentWord >= totalWords - 1;
+      setIsPageComplete(isComplete);
+    }
+  }, [currentWord, pageContent]);
+
+  // Reset page completion when page changes
+  useEffect(() => {
+    setIsPageComplete(false);
+    setShowQuiz(false);
+  }, [currentPage]);
+
+  // Show quiz only when reading stops AND the page is complete
+  useEffect(() => {
+    console.log('Quiz conditions:', {
+      hasStartedReading,
+      isReading,
+      isPageComplete,
+      showQuiz
+    });
+    
+    if (hasStartedReading && !isReading && isPageComplete) {
+      console.log('Setting showQuiz to true');
       setShowQuiz(true);
     }
-  }, [isReading, hasStartedReading]);
+  }, [isReading, hasStartedReading, isPageComplete]);
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -37,7 +62,8 @@ const BookContent = () => {
       <span
         key={index}
         className={`inline-block transition-all duration-150 mx-[2px] px-1 rounded ${
-          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105' : ''
+          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105' : 
+          index < currentWord ? 'bg-green-100' : ''
         }`}
       >
         {word}
@@ -65,6 +91,12 @@ const BookContent = () => {
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
+              {/* Optional: Show completion indicator */}
+              {isPageComplete && (
+                <div className="text-sm text-green-600 font-semibold mt-2">
+                  ✓ Page completed
+                </div>
+              )}
             </div>
           </div>
           
@@ -89,30 +121,16 @@ const BookContent = () => {
         </div>
       </div>
 
-      {showQuiz && !isReading && (
+      {showQuiz && (
         <QuizModal
           onClose={() => setShowQuiz(false)}
-          pageContent={{
-            ...pageContent,
-            quiz: pageContent.quiz || {
-              multipleChoice: {
-                question: "What happened in this part of the story?",
-                options: [
-                  { text: pageContent.text.substring(0, 50) + "...", isCorrect: true },
-                  { text: "Something else happened...", isCorrect: false },
-                  { text: "None of the above", isCorrect: false }
-                ]
-              },
-              spelling: {
-                word: pageContent.text.split(' ').find(word => word.length > 4) || "story",
-                hint: "Try spelling this word from the story"
-              }
-            }
-          }}
+          pageContent={pageContent}
         />
       )}
     </div>
   );
 };
+
+export default BookContent;
 
 export default BookContent;
