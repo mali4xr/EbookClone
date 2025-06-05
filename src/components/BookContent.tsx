@@ -5,6 +5,7 @@ import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
 import { QuizModal } from './QuizModal';
+import Narrator from './Narrator';
 
 const BookContent = () => {
   const { 
@@ -98,6 +99,7 @@ const BookContent = () => {
               />
             </div>
             <InteractiveElements page={currentPage} />
+            <Narrator />
           </div>
         </div>
       </div>
