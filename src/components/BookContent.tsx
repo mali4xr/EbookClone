@@ -4,7 +4,7 @@ import PageTurner from './PageTurner';
 import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
-import { QuizModal } from './QuizModal';
+import QuizModal from './QuizModal';
 
 const BookContent = () => {
   const { 
@@ -16,8 +16,8 @@ const BookContent = () => {
     hasStartedReading,
     isAudioPlaying,
     quizScore,
-    setVoiceType, // Add voice control function
-    voiceType // Add current voice type
+    setVoiceType,
+    voiceType
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -30,7 +30,6 @@ const BookContent = () => {
     return () => clearTimeout(timeout);
   }, [currentPage]);
 
-  // Track page completion - check if current word has reached the end of the page
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const totalWords = pageContent.text.split(' ').length;
@@ -39,13 +38,11 @@ const BookContent = () => {
     }
   }, [currentWord, pageContent]);
 
-  // Reset page completion when page changes
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
   }, [currentPage]);
 
-  // Show quiz only when reading stops AND the page is complete AND audio is not playing
   useEffect(() => {
     console.log('Quiz conditions:', {
       hasStartedReading,
@@ -55,48 +52,11 @@ const BookContent = () => {
       showQuiz
     });
     
-    // Updated condition with audio check
     if (hasStartedReading && !isReading && isPageComplete && !isAudioPlaying) {
       console.log('Setting showQuiz to true');
       setShowQuiz(true);
     }
   }, [isReading, hasStartedReading, isPageComplete, isAudioPlaying]);
-
-  // Alternative implementation if you're using Web Speech API directly
-  /*
-  useEffect(() => {
-    const checkSpeechStatus = () => {
-      const isSpeaking = window.speechSynthesis.speaking;
-      
-      if (hasStartedReading && !isReading && isPageComplete && !isSpeaking) {
-        setShowQuiz(true);
-      }
-    };
-
-    // Check immediately
-    checkSpeechStatus();
-
-    // Set up interval to check speech status
-    const interval = setInterval(checkSpeechStatus, 100);
-    
-    return () => clearInterval(interval);
-  }, [isReading, hasStartedReading, isPageComplete]);
-  */
-
-  // Alternative implementation if you're using HTML5 audio
-  /*
-  useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete) {
-      // Check if audio element exists and is not playing
-      const audioElement = document.querySelector('audio'); // or use a ref
-      const isAudioNotPlaying = !audioElement || audioElement.paused || audioElement.ended;
-      
-      if (isAudioNotPlaying) {
-        setShowQuiz(true);
-      }
-    }
-  }, [isReading, hasStartedReading, isPageComplete]);
-  */
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -133,7 +93,6 @@ const BookContent = () => {
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
-              {/* Optional: Show completion indicator */}
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2">
                   ✓ Page completed
@@ -161,7 +120,6 @@ const BookContent = () => {
           <PageTurner isQuizPassed={quizScore === 2} />
           <Controls />
           
-          {/* Voice Selection Buttons */}
           <div className="flex items-center gap-2 ml-4">
             <span className="text-sm text-gray-600">Voice:</span>
             <button
