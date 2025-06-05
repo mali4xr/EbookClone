@@ -1,0 +1,280 @@
+import React, { useState } from 'react';
+import { X } from 'lucide-react';
+
+interface EditPageModalProps {
+  onClose: () => void;
+  pageContent: {
+    text: string;
+    image: string;
+    background: string;
+    quiz?: {
+      multipleChoice: {
+        question: string;
+        options: { text: string; isCorrect: boolean; }[];
+      };
+      spelling: {
+        word: string;
+        hint: string;
+      };
+    };
+  };
+  onSave: (content: {
+    text: string;
+    image: string;
+    background: string;
+    quiz?: {
+      multipleChoice: {
+        question: string;
+        options: { text: string; isCorrect: boolean; }[];
+      };
+      spelling: {
+        word: string;
+        hint: string;
+      };
+    };
+  }) => void;
+}
+
+const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => {
+  const [content, setContent] = useState({
+    ...pageContent,
+    quiz: pageContent.quiz || {
+      multipleChoice: {
+        question: "What happened in this part of the story?",
+        options: [
+          { text: pageContent.text.substring(0, 50) + "...", isCorrect: true },
+          { text: "Something else happened...", isCorrect: false },
+          { text: "None of the above", isCorrect: false }
+        ]
+      },
+      spelling: {
+        word: pageContent.text.split(' ').find(word => word.length > 4) || "story",
+        hint: "Try spelling this word from the story"
+      }
+    }
+  });
+
+  const [showQuizEdit, setShowQuizEdit] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(content);
+    onClose();
+  };
+
+  const updateMultipleChoiceOption = (index: number, text: string, isCorrect: boolean) => {
+    setContent(prev => ({
+      ...prev,
+      quiz: {
+        ...prev.quiz!,
+        multipleChoice: {
+          ...prev.quiz!.multipleChoice,
+          options: prev.quiz!.multipleChoice.options.map((opt, i) => 
+            i === index ? { text, isCorrect } : { ...opt, isCorrect: isCorrect ? false : opt.isCorrect }
+          )
+        }
+      }
+    }));
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800">Edit Page Content</h2>
+          <button 
+            onClick={onClose}
+            className="p-1 rounded-full hover:bg-gray-100"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Story Text
+            </label>
+            <textarea
+              value={content.text}
+              onChange={(e) => setContent({ ...content, text: e.target.value })}
+              className="w-full h-32 p-2 border rounded-md"
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Image URL
+            </label>
+            <input
+              type="url"
+              value={content.image}
+              onChange={(e) => setContent({ ...content, image: e.target.value })}
+              className="w-full p-2 border rounded-md"
+              required
+            />
+            <div className="mt-2">
+              <img
+                src={content.image}
+                alt="Preview"
+                className="max-h-40 rounded-md"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image+URL';
+                }}
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Background Image URL
+            </label>
+            <input
+              type="url"
+              value={content.background}
+              onChange={(e) => setContent({ ...content, background: e.target.value })}
+              className="w-full p-2 border rounded-md"
+              required
+            />
+            <div className="mt-2">
+              <img
+                src={content.background}
+                alt="Background Preview"
+                className="max-h-40 rounded-md"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = 'https://via.placeholder.com/400x300?text=Invalid+Background+URL';
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setShowQuizEdit(!showQuizEdit)}
+              className="text-purple-600 hover:text-purple-700 font-medium"
+            >
+              {showQuizEdit ? 'Hide Quiz Editor' : 'Edit Quiz Questions'}
+            </button>
+
+            {showQuizEdit && (
+              <div className="space-y-6 p-4 bg-gray-50 rounded-lg">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Multiple Choice Question</h3>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Question
+                    </label>
+                    <input
+                      type="text"
+                      value={content.quiz?.multipleChoice.question}
+                      onChange={(e) => setContent(prev => ({
+                        ...prev,
+                        quiz: {
+                          ...prev.quiz!,
+                          multipleChoice: {
+                            ...prev.quiz!.multipleChoice,
+                            question: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-2 border rounded-md"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Answer Options
+                    </label>
+                    {content.quiz?.multipleChoice.options.map((option, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          checked={option.isCorrect}
+                          onChange={() => updateMultipleChoiceOption(index, option.text, true)}
+                          className="w-4 h-4 text-purple-600"
+                        />
+                        <input
+                          type="text"
+                          value={option.text}
+                          onChange={(e) => updateMultipleChoiceOption(index, e.target.value, option.isCorrect)}
+                          className="flex-1 p-2 border rounded-md"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Spelling Question</h3>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Word to Spell
+                    </label>
+                    <input
+                      type="text"
+                      value={content.quiz?.spelling.word}
+                      onChange={(e) => setContent(prev => ({
+                        ...prev,
+                        quiz: {
+                          ...prev.quiz!,
+                          spelling: {
+                            word: e.target.value,
+                            hint: `This word has ${e.target.value.length} letters`
+                          }
+                        }
+                      }))}
+                      className="w-full p-2 border rounded-md"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Hint
+                    </label>
+                    <input
+                      type="text"
+                      value={content.quiz?.spelling.hint}
+                      onChange={(e) => setContent(prev => ({
+                        ...prev,
+                        quiz: {
+                          ...prev.quiz!,
+                          spelling: {
+                            ...prev.quiz!.spelling,
+                            hint: e.target.value
+                          }
+                        }
+                      }))}
+                      className="w-full p-2 border rounded-md"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EditPageModal;

@@ -1,0 +1,2 @@
+This directory contains sound effect files for interactive elements.
+In a production app, you would include .mp3 files here with names matching the interactive element IDs.
