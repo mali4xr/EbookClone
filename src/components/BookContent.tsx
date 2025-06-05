@@ -113,7 +113,7 @@ const BookContent = () => {
         </div>
       </div>
 
-      {showQuiz && !isReading && isPageComplete && (
+      {showQuiz && isPageComplete && (
         <QuizModal
           onClose={() => setShowQuiz(false)}
           pageContent={pageContent}
