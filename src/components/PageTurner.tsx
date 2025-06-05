@@ -41,7 +41,7 @@ const PageTurner = ({ isLocked }: PageTurnerProps) => {
       >
         <ChevronRight size={24} />
         {isLocked && (
-          <Lock size={14} className="absolute -top-1 -right-1 text-gray-500" />
+          <Lock size={14} className="absolute -top-1 -right-1 text-red-500" />
         )}
       </button>
     </div>
