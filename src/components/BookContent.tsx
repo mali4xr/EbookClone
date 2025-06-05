@@ -13,7 +13,12 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading
+    hasStartedReading,
+    // Add these audio-related states from your BookContext
+    isAudioPlaying, // Assuming you have this in your context
+    // or alternatively:
+    // speechSynthesis, // if you're using Web Speech API
+    // audioRef, // if you're using HTML5 audio
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -41,20 +46,58 @@ const BookContent = () => {
     setShowQuiz(false);
   }, [currentPage]);
 
-  // Show quiz only when reading stops AND the page is complete
+  // Show quiz only when reading stops AND the page is complete AND audio is not playing
   useEffect(() => {
     console.log('Quiz conditions:', {
       hasStartedReading,
       isReading,
       isPageComplete,
+      isAudioPlaying,
       showQuiz
     });
     
-    if (hasStartedReading && !isReading && isPageComplete) {
+    // Updated condition with audio check
+    if (hasStartedReading && !isReading && isPageComplete && !isAudioPlaying) {
       console.log('Setting showQuiz to true');
       setShowQuiz(true);
     }
+  }, [isReading, hasStartedReading, isPageComplete, isAudioPlaying]);
+
+  // Alternative implementation if you're using Web Speech API directly
+  /*
+  useEffect(() => {
+    const checkSpeechStatus = () => {
+      const isSpeaking = window.speechSynthesis.speaking;
+      
+      if (hasStartedReading && !isReading && isPageComplete && !isSpeaking) {
+        setShowQuiz(true);
+      }
+    };
+
+    // Check immediately
+    checkSpeechStatus();
+
+    // Set up interval to check speech status
+    const interval = setInterval(checkSpeechStatus, 100);
+    
+    return () => clearInterval(interval);
   }, [isReading, hasStartedReading, isPageComplete]);
+  */
+
+  // Alternative implementation if you're using HTML5 audio
+  /*
+  useEffect(() => {
+    if (hasStartedReading && !isReading && isPageComplete) {
+      // Check if audio element exists and is not playing
+      const audioElement = document.querySelector('audio'); // or use a ref
+      const isAudioNotPlaying = !audioElement || audioElement.paused || audioElement.ended;
+      
+      if (isAudioNotPlaying) {
+        setShowQuiz(true);
+      }
+    }
+  }, [isReading, hasStartedReading, isPageComplete]);
+  */
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -130,5 +173,7 @@ const BookContent = () => {
     </div>
   );
 };
+
+export default BookContent;
 
 export default BookContent;
