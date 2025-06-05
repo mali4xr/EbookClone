@@ -14,11 +14,10 @@ const BookContent = () => {
     currentWord,
     isReading,
     hasStartedReading,
-    // Add these audio-related states from your BookContext
-    isAudioPlaying, // Assuming you have this in your context
-    // or alternatively:
-    // speechSynthesis, // if you're using Web Speech API
-    // audioRef, // if you're using HTML5 audio
+    isAudioPlaying,
+    quizScore,
+    setVoiceType, // Add voice control function
+    voiceType // Add current voice type
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -148,7 +147,7 @@ const BookContent = () => {
               <img 
                 src={pageContent.image} 
                 alt={`Illustration for page ${currentPage + 1}`} 
-                className="rounded-lg shadow-xl max-h-[300px] md:max-h-[400px] object-contain"
+                className="rounded-full shadow-xl w-[300px] h-[300px] md:w-[400px] md:h-[400px] object-cover border-4 border-white"
               />
               <InteractiveElements page={currentPage} />
             </div>
@@ -159,8 +158,35 @@ const BookContent = () => {
       <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
           <PageCounter current={currentPage + 1} total={totalPages} />
-          <PageTurner />
+          <PageTurner isQuizPassed={quizScore === 2} />
           <Controls />
+          
+          {/* Voice Selection Buttons */}
+          <div className="flex items-center gap-2 ml-4">
+            <span className="text-sm text-gray-600">Voice:</span>
+            <button
+              onClick={() => setVoiceType('male')}
+              className={`w-10 h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-sm font-bold ${
+                voiceType === 'male' 
+                  ? 'bg-blue-500 border-blue-600 text-white shadow-lg' 
+                  : 'bg-white border-gray-300 text-gray-600 hover:border-blue-400'
+              }`}
+              title="Dad's Voice (Male)"
+            >
+              👨
+            </button>
+            <button
+              onClick={() => setVoiceType('female')}
+              className={`w-10 h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-sm font-bold ${
+                voiceType === 'female' 
+                  ? 'bg-pink-500 border-pink-600 text-white shadow-lg' 
+                  : 'bg-white border-gray-300 text-gray-600 hover:border-pink-400'
+              }`}
+              title="Mum's Voice (Female)"
+            >
+              👩
+            </button>
+          </div>
         </div>
       </div>
 
