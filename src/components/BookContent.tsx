@@ -4,7 +4,7 @@ import PageTurner from './PageTurner';
 import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
-import QuizModal from './QuizModal';
+import { QuizModal } from './QuizModal';
 
 const BookContent = () => {
   const { 
