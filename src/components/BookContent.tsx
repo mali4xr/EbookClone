@@ -19,6 +19,7 @@ const BookContent = () => {
   const [isPageTurning, setIsPageTurning] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [isPageComplete, setIsPageComplete] = useState(false);
+  const [quizScore, setQuizScore] = useState(0);
   
   useEffect(() => {
     setIsPageTurning(true);
@@ -26,7 +27,6 @@ const BookContent = () => {
     return () => clearTimeout(timeout);
   }, [currentPage]);
 
-  // Track page completion - check if current word has reached the end of the page
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const totalWords = pageContent.text.split(' ').length;
@@ -35,23 +35,13 @@ const BookContent = () => {
     }
   }, [currentWord, pageContent]);
 
-  // Reset page completion when page changes
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
   }, [currentPage]);
 
-  // Show quiz only when reading stops AND the page is complete
   useEffect(() => {
-    console.log('Quiz conditions:', {
-      hasStartedReading,
-      isReading,
-      isPageComplete,
-      showQuiz
-    });
-    
     if (hasStartedReading && !isReading && isPageComplete) {
-      console.log('Setting showQuiz to true');
       setShowQuiz(true);
     }
   }, [isReading, hasStartedReading, isPageComplete]);
@@ -91,7 +81,6 @@ const BookContent = () => {
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
-              {/* Optional: Show completion indicator */}
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2">
                   ✓ Page completed
@@ -100,15 +89,15 @@ const BookContent = () => {
             </div>
           </div>
           
-          <div className="w-full md:w-1/2 p-6 flex items-center justify-center">
-            <div className="relative">
+          <div className="w-full md:w-1/2 relative">
+            <div className="absolute top-4 right-4">
               <img 
                 src={pageContent.image} 
                 alt={`Illustration for page ${currentPage + 1}`} 
-                className="rounded-lg shadow-xl max-h-[300px] md:max-h-[400px] object-contain"
+                className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-white shadow-xl"
               />
-              <InteractiveElements page={currentPage} />
             </div>
+            <InteractiveElements page={currentPage} />
           </div>
         </div>
       </div>
@@ -116,7 +105,7 @@ const BookContent = () => {
       <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
           <PageCounter current={currentPage + 1} total={totalPages} />
-          <PageTurner />
+          <PageTurner isLocked={quizScore < 2} />
           <Controls />
         </div>
       </div>
@@ -125,6 +114,7 @@ const BookContent = () => {
         <QuizModal
           onClose={() => setShowQuiz(false)}
           pageContent={pageContent}
+          onScoreUpdate={setQuizScore}
         />
       )}
     </div>

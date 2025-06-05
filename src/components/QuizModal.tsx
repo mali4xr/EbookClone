@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Volume2, Keyboard, ToggleLeft, ToggleRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Camera, Volume2, Keyboard } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
@@ -7,6 +7,7 @@ import { createWorker } from 'tesseract.js';
 
 interface QuizModalProps {
   onClose: () => void;
+  onScoreUpdate: (score: number) => void;
   pageContent: {
     text: string;
     quiz?: {
@@ -22,7 +23,7 @@ interface QuizModalProps {
   };
 }
 
-export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
+export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
   const { voiceIndex, rate, pitch, volume, availableVoices } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
@@ -32,7 +33,7 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
   const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState<string | null>(null);
-  const webcamRef = useRef<Webcam>(null);
+  const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
     multipleChoice: {
@@ -47,6 +48,10 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
       hint: "Try spelling this word from the story"
     }
   };
+
+  useEffect(() => {
+    onScoreUpdate(score);
+  }, [score, onScoreUpdate]);
 
   const readQuestion = (text: string) => {
     if (window.speechSynthesis.speaking) {
@@ -70,7 +75,7 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     if (!showScore && !isReading) {
       const textToRead = currentQuestion === 0 
         ? quiz.multipleChoice.question 
-        : `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}. You can type your answer or show your written answer to the camera.`;
+        : `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
       readQuestion(textToRead);
     }
   }, [currentQuestion, showScore]);
@@ -168,16 +173,6 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     readQuestion(textToRead);
   };
 
-  const handleToggleInputMode = () => {
-    setInputMode(inputMode === 'text' ? 'camera' : 'text');
-    setCapturedText(null);
-    setSpellingAnswer('');
-  };
-
-  const handleCameraCapture = () => {
-    captureImage();
-  };
-
   return (
     <>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -237,44 +232,27 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
                   </div>
                   <p className="text-gray-600 italic">{quiz.spelling.hint}</p>
                   
-                  {/* Toggle Button */}
-                  <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-2">
-                        <Keyboard 
-                          size={20} 
-                          className={inputMode === 'text' ? 'text-purple-600' : 'text-gray-400'}
-                        />
-                        <span className={inputMode === 'text' ? 'text-purple-600 font-medium' : 'text-gray-500'}>
-                          Type
-                        </span>
-                      </div>
-                      
-                      <button
-                        onClick={handleToggleInputMode}
-                        className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        aria-label="Toggle input mode"
-                      >
-                        {inputMode === 'text' ? (
-                          <ToggleLeft size={24} className="text-gray-400" />
-                        ) : (
-                          <ToggleRight size={24} className="text-purple-600" />
-                        )}
-                      </button>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Camera 
-                          size={20} 
-                          className={inputMode === 'camera' ? 'text-purple-600' : 'text-gray-400'}
-                        />
-                        <span className={inputMode === 'camera' ? 'text-purple-600 font-medium' : 'text-gray-500'}>
-                          Camera
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-center space-x-4">
+                    <button
+                      onClick={() => setInputMode('text')}
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        inputMode === 'text' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
+                      }`}
+                    >
+                      <Keyboard size={20} />
+                      <span>Type</span>
+                    </button>
+                    <button
+                      onClick={() => setInputMode('camera')}
+                      className={`flex items-center gap-2 p-2 rounded ${
+                        inputMode === 'camera' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
+                      }`}
+                    >
+                      <Camera size={20} />
+                      <span>Camera</span>
+                    </button>
                   </div>
 
-                  {/* Input based on mode */}
                   {inputMode === 'text' ? (
                     <>
                       <input
@@ -316,7 +294,7 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
                       )}
                       
                       <button
-                        onClick={handleCameraCapture}
+                        onClick={captureImage}
                         disabled={isProcessing}
                         className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 font-medium"
                       >
