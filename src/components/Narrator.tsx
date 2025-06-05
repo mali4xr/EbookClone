@@ -4,7 +4,7 @@ import { useGLTF, OrbitControls, Stage } from '@react-three/drei';
 import { useBook } from '../context/BookContext';
 
 function Model({ isReading }: { isReading: boolean }) {
-  const { scene } = useGLTF('https://models.readyplayer.me/64f7c1c5c3e0e57fb9c4d3c7.glb');
+  const { scene } = useGLTF('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb');
   
   return <primitive object={scene} scale={2} position={[0, -1, 0]} />;
 }
