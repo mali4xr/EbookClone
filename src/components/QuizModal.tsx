@@ -74,9 +74,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
   useEffect(() => {
     if (!showScore && !isReading) {
-      const textToRead = currentQuestion === 0 
+      const textToRead = !showSpelling 
         ? quiz.multipleChoice.question 
-        : `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
+        : `Please spell the word: ${quiz.spelling.word}`;
       readQuestion(textToRead);
     }
   }, [currentQuestion, showScore, showSpelling]);
@@ -92,7 +92,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     audio.volume = volume;
     audio.play().catch(e => console.log('Audio play failed:', e));
 
-    const congratsText = currentQuestion === 0 
+    const congratsText = !showSpelling 
       ? "Correct answer!" 
       : "Perfect spelling! Great job!";
     readQuestion(congratsText);
@@ -108,7 +108,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       setScore(score + 1);
       setTimeout(() => {
         setShowSpelling(true);
-        readQuestion(`Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`);
+        readQuestion(`Please spell the word: ${quiz.spelling.word}`);
       }, 2000);
     } else {
       readQuestion("That's not correct. Try again next time!");
@@ -172,9 +172,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const handleListenAgain = () => {
-    const textToRead = currentQuestion === 0 
+    const textToRead = !showSpelling 
       ? quiz.multipleChoice.question 
-      : `Spell : ${quiz.spelling.word}. ${quiz.spelling.hint}`;
+      : `Please spell the word: ${quiz.spelling.word}`;
     readQuestion(textToRead);
   };
 
@@ -235,7 +235,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       <Volume2 size={20} />
                     </button>
                   </div>
-                  <p className="text-gray-600 italic">{quiz.spelling.hint}</p>
                   
                   <div className="flex items-center justify-center space-x-4">
                     <button
