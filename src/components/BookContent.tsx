@@ -175,5 +175,3 @@ const BookContent = () => {
 };
 
 export default BookContent;
-
-export default BookContent;
