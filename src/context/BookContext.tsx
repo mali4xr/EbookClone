@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { storyContent as initialStoryContent } from '../data/storyData';
-import { TavusClient } from '@tavus/js';
+import { TavusClient } from 'tavus-js';
 
 const tavus = new TavusClient('22dd0f54ba6c443ba15f03990f302a1b');
 
