@@ -95,10 +95,10 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
+      setCurrentQuestion(currentQuestion + 1);
     } else {
-      readQuestion("That's not correct. Try again next time!");
+      readQuestion("That's not correct. Try again!");
     }
-    setCurrentQuestion(currentQuestion + 1);
   };
 
   const captureImage = async () => {
@@ -150,10 +150,10 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
+      setShowScore(true);
     } else {
-      readQuestion(`Not quite right. The correct spelling was ${quiz.spelling.word}`);
+      readQuestion(`Not quite right. Try again!`);
     }
-    setShowScore(true);
   };
 
   const handleListenAgain = () => {
@@ -163,20 +163,24 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     readQuestion(textToRead);
   };
 
+  const canContinue = score === 2;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800">Quick Quiz!</h2>
-          <button
-            onClick={() => {
-              if (isReading) window.speechSynthesis.cancel();
-              onClose();
-            }}
-            className="p-1 rounded-full hover:bg-gray-100"
-          >
-            <X size={24} />
-          </button>
+          {canContinue && (
+            <button
+              onClick={() => {
+                if (isReading) window.speechSynthesis.cancel();
+                onClose();
+              }}
+              className="p-1 rounded-full hover:bg-gray-100"
+            >
+              <X size={24} />
+            </button>
+          )}
         </div>
 
         <div className="p-6">
@@ -295,15 +299,29 @@ export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
                  score === 1 ? "Good try! Keep practicing! 👍" :
                  "Don't worry, keep learning! 💪"}
               </p>
-              <button
-                onClick={() => {
-                  if (isReading) window.speechSynthesis.cancel();
-                  onClose();
-                }}
-                className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-              >
-                Continue Reading
-              </button>
+              {score === 2 && (
+                <button
+                  onClick={() => {
+                    if (isReading) window.speechSynthesis.cancel();
+                    onClose();
+                  }}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Continue Reading
+                </button>
+              )}
+              {score < 2 && (
+                <button
+                  onClick={() => {
+                    setShowScore(false);
+                    setCurrentQuestion(0);
+                    setScore(0);
+                  }}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Try Again
+                </button>
+              )}
             </div>
           )}
         </div>
