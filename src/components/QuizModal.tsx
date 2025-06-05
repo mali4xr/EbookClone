@@ -1,11 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Volume2 } from 'lucide-react';
-import { useBook } from '../context/BookContext';
-import confetti from 'canvas-confetti';
-import Webcam from 'react-webcam';
-import { createWorker } from 'tesseract.js';
-
-import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Volume2, Keyboard, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
@@ -364,5 +357,4 @@ const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     </>
   );
 };
-
 export default QuizModal;
