@@ -24,10 +24,10 @@ const BookContent = () => {
   const [conversationUrl, setConversationUrl] = useState('');
   const [isLoadingAvatar, setIsLoadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState('');
+  const [isAvatarJoined, setIsAvatarJoined] = useState(false);
   const callRef = useRef(null);
   const avatarContainerRef = useRef(null);
   
-  // Your existing useEffects...
   useEffect(() => {
     setIsPageTurning(true);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
@@ -53,7 +53,6 @@ const BookContent = () => {
     }
   }, [isReading, hasStartedReading, isPageComplete]);
 
-  // Create Tavus conversation
   const createConversation = async () => {
     setIsLoadingAvatar(true);
     setAvatarError('');
@@ -63,11 +62,11 @@ const BookContent = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': '22dd0f54ba6c443ba15f03990f302a1b' // Replace with your actual API key
+          'x-api-key': '22dd0f54ba6c443ba15f03990f302a1b'
         },
         body: JSON.stringify({
-          replica_id: 'r9fa0878977a', // Replace with your replica ID
-          persona_id: 'pb158ac8e30e', // Replace with your persona ID
+          replica_id: 'r9fa0878977a',
+          persona_id: 'pb158ac8e30e',
           conversation_name: 'Book Reading Session',
           conversational_context: 'You are helping a user read through a book. Provide encouragement and help explain content when needed. Be friendly and supportive.',
           properties: {
@@ -99,10 +98,8 @@ const BookContent = () => {
     }
   };
 
-  // Initialize Daily iframe for avatar
   const initializeAvatar = async (url) => {
     if (!window.Daily) {
-      // Load Daily SDK
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/@daily-co/daily-js';
       script.onload = () => setupDailyCall(url);
@@ -134,17 +131,20 @@ const BookContent = () => {
         
         callRef.current.on('joined-meeting', () => {
           console.log('Successfully joined avatar conversation');
+          setIsAvatarJoined(true);
           setIsLoadingAvatar(false);
         });
         
         callRef.current.on('left-meeting', () => {
           console.log('Left avatar conversation');
+          setIsAvatarJoined(false);
         });
         
         callRef.current.on('error', (error) => {
           console.error('Daily call error:', error);
           setAvatarError('Avatar connection failed');
           setIsLoadingAvatar(false);
+          setIsAvatarJoined(false);
         });
 
         callRef.current.on('app-message', (event) => {
@@ -156,13 +156,13 @@ const BookContent = () => {
         console.error('Error setting up Daily call:', error);
         setAvatarError('Failed to setup avatar call');
         setIsLoadingAvatar(false);
+        setIsAvatarJoined(false);
       }
     }
   };
 
-  // Send message to avatar
   const sendMessageToAvatar = (text) => {
-    if (callRef.current && text) {
+    if (callRef.current && text && isAvatarJoined) {
       try {
         const interaction = {
           message_type: 'conversation',
@@ -178,7 +178,6 @@ const BookContent = () => {
     }
   };
 
-  // Handle avatar toggle
   const handleAvatarToggle = async () => {
     if (!showAvatar) {
       if (!conversationUrl) {
@@ -186,17 +185,17 @@ const BookContent = () => {
         if (url) {
           await initializeAvatar(url);
         } else {
-          return; // Don't show avatar if conversation creation failed
+          return;
         }
       }
       setShowAvatar(true);
     } else {
-      // Clean up Daily call
       if (callRef.current) {
         try {
           callRef.current.leave();
           callRef.current.destroy();
           callRef.current = null;
+          setIsAvatarJoined(false);
         } catch (error) {
           console.error('Error cleaning up Daily call:', error);
         }
@@ -205,30 +204,28 @@ const BookContent = () => {
     }
   };
 
-  // Send page content to avatar
   const handleReadPage = () => {
-    if (pageContent && pageContent.text && callRef.current) {
+    if (pageContent && pageContent.text && isAvatarJoined) {
       sendMessageToAvatar(`Please read this page: ${pageContent.text}`);
-    } else if (!callRef.current) {
-      setAvatarError('Avatar not connected. Please show avatar first.');
+    } else if (!isAvatarJoined) {
+      setAvatarError('Avatar not connected. Please wait for avatar to join.');
     }
   };
 
-  // Trigger avatar when page is complete
   useEffect(() => {
-    if (isPageComplete && showAvatar && pageContent && callRef.current) {
+    if (isPageComplete && showAvatar && pageContent && isAvatarJoined) {
       const congratsMessage = `Great job! You've completed page ${currentPage + 1}. ${pageContent.summary || 'Ready for the next page?'}`;
       sendMessageToAvatar(congratsMessage);
     }
-  }, [isPageComplete, showAvatar, currentPage, pageContent]);
+  }, [isPageComplete, showAvatar, currentPage, pageContent, isAvatarJoined]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (callRef.current) {
         try {
           callRef.current.leave();
           callRef.current.destroy();
+          setIsAvatarJoined(false);
         } catch (error) {
           console.error('Error cleaning up on unmount:', error);
         }
@@ -291,7 +288,6 @@ const BookContent = () => {
           </div>
         </div>
 
-        {/* Tavus Avatar Container */}
         {showAvatar && (
           <div className="absolute bottom-4 left-4 z-50">
             <div className="bg-white rounded-lg p-3 shadow-xl border-2 border-blue-300 max-w-sm">
@@ -346,7 +342,6 @@ const BookContent = () => {
           <PageTurner isLocked={quizScore < 2} />
           <Controls />
           
-          {/* Avatar Controls */}
           <div className="flex gap-2">
             <button
               onClick={handleAvatarToggle}
@@ -362,7 +357,7 @@ const BookContent = () => {
             <button
               onClick={handleReadPage}
               className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!pageContent || !callRef.current}
+              disabled={!pageContent || !isAvatarJoined}
             >
               Read Page
             </button>
