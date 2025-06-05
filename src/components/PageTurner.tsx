@@ -40,9 +40,13 @@ const PageTurner = ({ isLocked }: PageTurnerProps) => {
         aria-label="Next page"
       >
         <ChevronRight size={24} />
-        {isLocked && (
-          <Lock size={14} className="absolute -top-1 -right-1 text-red-500" />
-        )}
+       {isLocked && (
+  <Lock
+    size={18}
+    className="absolute -top-1.5 -right-1.5 text-white bg-red-600 border border-white rounded-full p-0.5 shadow-md animate-pulse"
+  />
+)}
+
       </button>
     </div>
   );
