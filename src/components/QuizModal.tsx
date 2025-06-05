@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Volume2 } from 'lucide-react';
+import { X, Camera, Volume2, Keyboard, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
@@ -22,6 +22,8 @@ interface QuizModalProps {
   };
 }
 
+
+
 const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
   const { voiceIndex, rate, pitch, volume, availableVoices } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -29,7 +31,7 @@ const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
   const [showScore, setShowScore] = useState(false);
   const [spellingAnswer, setSpellingAnswer] = useState('');
   const [isReading, setIsReading] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
+  const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState<string | null>(null);
   const webcamRef = useRef<Webcam>(null);
@@ -168,148 +170,190 @@ const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
     readQuestion(textToRead);
   };
 
+  const handleToggleInputMode = () => {
+    setInputMode(inputMode === 'text' ? 'camera' : 'text');
+    setCapturedText(null);
+    setSpellingAnswer('');
+  };
+
+  const handleCameraCapture = () => {
+    captureImage();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Quick Quiz!</h2>
-          <button 
-            onClick={() => {
-              if (isReading) {
-                window.speechSynthesis.cancel();
-              }
-              onClose();
-            }}
-            className="p-1 rounded-full hover:bg-gray-100"
-          >
-            <X size={24} />
-          </button>
-        </div>
-        
-        <div className="p-6">
-          {!showScore ? (
-            currentQuestion === 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
-                  <button
-                    onClick={handleListenAgain}
-                    className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
-                    aria-label="Listen again"
-                  >
-                    <Volume2 size={20} />
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {quiz.multipleChoice.options.map((option, index) => (
+    <>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-xl font-bold text-gray-800">Quick Quiz!</h2>
+            <button 
+              onClick={() => {
+                if (isReading) {
+                  window.speechSynthesis.cancel();
+                }
+                onClose();
+              }}
+              className="p-1 rounded-full hover:bg-gray-100"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div className="p-6">
+            {!showScore ? (
+              currentQuestion === 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
                     <button
-                      key={index}
-                      onClick={() => handleAnswer(option.isCorrect)}
-                      className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-colors"
+                      onClick={handleListenAgain}
+                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
+                      aria-label="Listen again"
                     >
-                      {option.text}
+                      <Volume2 size={20} />
                     </button>
-                  ))}
+                  </div>
+                  <div className="space-y-2">
+                    {quiz.multipleChoice.options.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswer(option.isCorrect)}
+                        className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-colors"
+                      >
+                        {option.text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-lg font-medium">Spell the word you hear:</p>
-                  <button
-                    onClick={handleListenAgain}
-                    className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
-                    aria-label="Listen again"
-                  >
-                    <Volume2 size={20} />
-                  </button>
-                </div>
-                <p className="text-gray-600 italic">{quiz.spelling.hint}</p>
-                
-                {showCamera ? (
-                  <div className="space-y-4">
-                    <Webcam
-                      ref={webcamRef}
-                      screenshotFormat="image/jpeg"
-                      className="w-full rounded-lg"
-                    />
-                    {capturedText && (
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm font-medium text-gray-700">Captured Text:</p>
-                        <p className="text-gray-600">{capturedText}</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-medium">Spell the word you hear:</p>
+                    <button
+                      onClick={handleListenAgain}
+                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
+                      aria-label="Listen again"
+                    >
+                      <Volume2 size={20} />
+                    </button>
+                  </div>
+                  <p className="text-gray-600 italic">{quiz.spelling.hint}</p>
+                  
+                  {/* Toggle Button */}
+                  <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2">
+                        <Keyboard 
+                          size={20} 
+                          className={inputMode === 'text' ? 'text-purple-600' : 'text-gray-400'}
+                        />
+                        <span className={inputMode === 'text' ? 'text-purple-600 font-medium' : 'text-gray-500'}>
+                          Type
+                        </span>
                       </div>
-                    )}
-                    <div className="flex gap-2">
+                      
                       <button
-                        onClick={captureImage}
-                        disabled={isProcessing}
-                        className="flex-1 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        onClick={handleToggleInputMode}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        aria-label="Toggle input mode"
                       >
-                        {isProcessing ? "Reading text..." : "Capture & Check"}
+                        {inputMode === 'text' ? (
+                          <ToggleLeft size={24} className="text-gray-400" />
+                        ) : (
+                          <ToggleRight size={24} className="text-purple-600" />
+                        )}
                       </button>
-                      <button
-                        onClick={() => setShowCamera(false)}
-                        className="px-4 py-2 border rounded-md hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Camera 
+                          size={20} 
+                          className={inputMode === 'camera' ? 'text-purple-600' : 'text-gray-400'}
+                        />
+                        <span className={inputMode === 'camera' ? 'text-purple-600 font-medium' : 'text-gray-500'}>
+                          Camera
+                        </span>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      value={spellingAnswer}
-                      onChange={(e) => setSpellingAnswer(e.target.value)}
-                      className="w-full p-2 border rounded-md"
-                      placeholder="Type your answer..."
-                    />
-                    <div className="flex gap-2">
+
+                  {/* Input based on mode */}
+                  {inputMode === 'text' ? (
+                    <>
+                      <input
+                        type="text"
+                        value={spellingAnswer}
+                        onChange={(e) => setSpellingAnswer(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Type your answer..."
+                      />
                       <button
                         onClick={handleSpellingSubmit}
-                        className="flex-1 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
                       >
                         Submit Answer
                       </button>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
+                      </div>
+                      
+                      <Webcam
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        className="w-full rounded-lg border"
+                        videoConstraints={{
+                          width: 320,
+                          height: 240,
+                          facingMode: "user"
+                        }}
+                      />
+                      
+                      {capturedText && (
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm font-medium text-gray-700">Captured Text:</p>
+                          <p className="text-gray-600">{capturedText}</p>
+                        </div>
+                      )}
+                      
                       <button
-                        onClick={() => setShowCamera(true)}
-                        className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50"
+                        onClick={handleCameraCapture}
+                        disabled={isProcessing}
+                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 font-medium"
                       >
-                        <Camera size={20} />
-                        Use Camera
+                        {isProcessing ? "Reading text..." : "📸 Capture & Check"}
                       </button>
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
+              )
+            ) : (
+              <div className="text-center space-y-4">
+                <h3 className="text-2xl font-bold">
+                  You scored {score} out of 2!
+                </h3>
+                <p className="text-gray-600">
+                  {score === 2 ? "Perfect score! Great job! 🎉" :
+                   score === 1 ? "Good try! Keep practicing! 👍" :
+                   "Don't worry, keep learning! 💪"}
+                </p>
+                <button
+                  onClick={() => {
+                    if (isReading) {
+                      window.speechSynthesis.cancel();
+                    }
+                    onClose();
+                  }}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Continue Reading
+                </button>
               </div>
-            )
-          ) : (
-            <div className="text-center space-y-4">
-              <h3 className="text-2xl font-bold">
-                You scored {score} out of 2!
-              </h3>
-              <p className="text-gray-600">
-                {score === 2 ? "Perfect score! Great job! 🎉" :
-                 score === 1 ? "Good try! Keep practicing! 👍" :
-                 "Don't worry, keep learning! 💪"}
-              </p>
-              <button
-                onClick={() => {
-                  if (isReading) {
-                    window.speechSynthesis.cancel();
-                  }
-                  onClose();
-                }}
-                className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-              >
-                Continue Reading
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
-
-export default QuizModal;
