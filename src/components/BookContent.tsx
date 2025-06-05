@@ -4,7 +4,7 @@ import PageTurner from './PageTurner';
 import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
-import { QuizModal } from './QuizModal';
+import QuizModal from './QuizModal';
 
 const BookContent = () => {
   const { 
@@ -13,11 +13,7 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading,
-    isAudioPlaying,
-    quizScore,
-    setVoiceType, // Add voice control function
-    voiceType // Add current voice type
+    hasStartedReading
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -45,58 +41,20 @@ const BookContent = () => {
     setShowQuiz(false);
   }, [currentPage]);
 
-  // Show quiz only when reading stops AND the page is complete AND audio is not playing
+  // Show quiz only when reading stops AND the page is complete
   useEffect(() => {
     console.log('Quiz conditions:', {
       hasStartedReading,
       isReading,
       isPageComplete,
-      isAudioPlaying,
       showQuiz
     });
     
-    // Updated condition with audio check
-    if (hasStartedReading && !isReading && isPageComplete && !isAudioPlaying) {
+    if (hasStartedReading && !isReading && isPageComplete) {
       console.log('Setting showQuiz to true');
       setShowQuiz(true);
     }
-  }, [isReading, hasStartedReading, isPageComplete, isAudioPlaying]);
-
-  // Alternative implementation if you're using Web Speech API directly
-  /*
-  useEffect(() => {
-    const checkSpeechStatus = () => {
-      const isSpeaking = window.speechSynthesis.speaking;
-      
-      if (hasStartedReading && !isReading && isPageComplete && !isSpeaking) {
-        setShowQuiz(true);
-      }
-    };
-
-    // Check immediately
-    checkSpeechStatus();
-
-    // Set up interval to check speech status
-    const interval = setInterval(checkSpeechStatus, 100);
-    
-    return () => clearInterval(interval);
   }, [isReading, hasStartedReading, isPageComplete]);
-  */
-
-  // Alternative implementation if you're using HTML5 audio
-  /*
-  useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete) {
-      // Check if audio element exists and is not playing
-      const audioElement = document.querySelector('audio'); // or use a ref
-      const isAudioNotPlaying = !audioElement || audioElement.paused || audioElement.ended;
-      
-      if (isAudioNotPlaying) {
-        setShowQuiz(true);
-      }
-    }
-  }, [isReading, hasStartedReading, isPageComplete]);
-  */
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -147,7 +105,7 @@ const BookContent = () => {
               <img 
                 src={pageContent.image} 
                 alt={`Illustration for page ${currentPage + 1}`} 
-                className="rounded-full shadow-xl w-[300px] h-[300px] md:w-[400px] md:h-[400px] object-cover border-4 border-white"
+                className="rounded-lg shadow-xl max-h-[300px] md:max-h-[400px] object-contain"
               />
               <InteractiveElements page={currentPage} />
             </div>
@@ -158,35 +116,8 @@ const BookContent = () => {
       <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
           <PageCounter current={currentPage + 1} total={totalPages} />
-          <PageTurner isQuizPassed={quizScore === 2} />
+          <PageTurner />
           <Controls />
-          
-          {/* Voice Selection Buttons */}
-          <div className="flex items-center gap-2 ml-4">
-            <span className="text-sm text-gray-600">Voice:</span>
-            <button
-              onClick={() => setVoiceType('male')}
-              className={`w-10 h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-sm font-bold ${
-                voiceType === 'male' 
-                  ? 'bg-blue-500 border-blue-600 text-white shadow-lg' 
-                  : 'bg-white border-gray-300 text-gray-600 hover:border-blue-400'
-              }`}
-              title="Dad's Voice (Male)"
-            >
-              👨
-            </button>
-            <button
-              onClick={() => setVoiceType('female')}
-              className={`w-10 h-10 rounded-full border-2 transition-all duration-200 flex items-center justify-center text-sm font-bold ${
-                voiceType === 'female' 
-                  ? 'bg-pink-500 border-pink-600 text-white shadow-lg' 
-                  : 'bg-white border-gray-300 text-gray-600 hover:border-pink-400'
-              }`}
-              title="Mum's Voice (Female)"
-            >
-              👩
-            </button>
-          </div>
         </div>
       </div>
 

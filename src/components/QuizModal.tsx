@@ -1,191 +1,357 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Camera, Volume2, Keyboard, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useBook } from '../context/BookContext';
+import confetti from 'canvas-confetti';
+import Webcam from 'react-webcam';
+import { createWorker } from 'tesseract.js';
 
-export const QuizModal = ({ onClose, pageContent }) => {
-  const { setQuizScore } = useBook();
-  const [selectedAnswers, setSelectedAnswers] = useState({});
-  const [showResults, setShowResults] = useState(false);
+interface QuizModalProps {
+  onClose: () => void;
+  pageContent: {
+    text: string;
+    quiz?: {
+      multipleChoice: {
+        question: string;
+        options: { text: string; isCorrect: boolean; }[];
+      };
+      spelling: {
+        word: string;
+        hint: string;
+      };
+    };
+  };
+}
+
+export const QuizModal = ({ onClose, pageContent }: QuizModalProps) => {
+  const { voiceIndex, rate, pitch, volume, availableVoices } = useBook();
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
+  const [showScore, setShowScore] = useState(false);
+  const [spellingAnswer, setSpellingAnswer] = useState('');
+  const [isReading, setIsReading] = useState(false);
+  const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [capturedText, setCapturedText] = useState<string | null>(null);
+  const webcamRef = useRef<Webcam>(null);
 
-  // Sample quiz questions - you can customize these based on your page content
-  const quizQuestions = [
-    {
-      id: 1,
-      question: `What was the main topic of this page?`,
+  const quiz = pageContent.quiz || {
+    multipleChoice: {
+      question: "What happened in this part of the story?",
       options: [
-        'The weather',
-        pageContent.topic || 'The story content', // Use actual page content
-        'Mathematics',
-        'Sports'
-      ],
-      correctAnswer: 1 // Index of correct answer
+        { text: pageContent.text.substring(0, 50) + "...", isCorrect: true },
+        { text: "Something completely different happened...", isCorrect: false }
+      ]
     },
-    {
-      id: 2,
-      question: 'How many characters were mentioned in this page?',
-      options: [
-        '1',
-        '2',
-        '3',
-        '4'
-      ],
-      correctAnswer: pageContent.characterCount || 1 // You can determine this from content
+    spelling: {
+      word: pageContent.text.split(' ').find(word => word.length > 4) || "story",
+      hint: "Try spelling this word from the story"
     }
-  ];
-
-  const handleAnswerSelect = (questionId, answerIndex) => {
-    setSelectedAnswers(prev => ({
-      ...prev,
-      [questionId]: answerIndex
-    }));
   };
 
-  const handleSubmit = () => {
-    let correctCount = 0;
-    
-    quizQuestions.forEach(question => {
-      if (selectedAnswers[question.id] === question.correctAnswer) {
-        correctCount++;
-      }
+  const readQuestion = (text: string) => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    if (availableVoices.length > 0) {
+      utterance.voice = availableVoices[voiceIndex];
+    }
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = volume;
+
+    setIsReading(true);
+    utterance.onend = () => setIsReading(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
+    if (!showScore && !isReading) {
+      const textToRead = currentQuestion === 0 
+        ? quiz.multipleChoice.question 
+        : `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}. You can type your answer or show your written answer to the camera.`;
+      readQuestion(textToRead);
+    }
+  }, [currentQuestion, showScore]);
+
+  const celebrateCorrectAnswer = () => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
     });
-    
-    setScore(correctCount);
-    setQuizScore(correctCount); // Update context with score
-    setShowResults(true);
+
+    const audio = new Audio('/sounds/correct.mp3');
+    audio.volume = volume;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+
+    const congratsText = currentQuestion === 0 
+      ? "Correct answer!" 
+      : "Perfect spelling! Great job!";
+    readQuestion(congratsText);
   };
 
-  const handleClose = () => {
-    if (showResults && score < 2) {
-      // Reset if they didn't get perfect score
-      setSelectedAnswers({});
-      setShowResults(false);
-      setScore(0);
-      setQuizScore(0);
+  const handleAnswer = (isCorrect: boolean) => {
+    if (isReading) {
+      window.speechSynthesis.cancel();
+    }
+    
+    if (isCorrect) {
+      celebrateCorrectAnswer();
+      setScore(score + 1);
     } else {
-      onClose();
+      readQuestion("That's not correct. Try again next time!");
+    }
+    setCurrentQuestion(currentQuestion + 1);
+  };
+
+  const captureImage = async () => {
+    if (!webcamRef.current) return;
+    
+    setIsProcessing(true);
+    setCapturedText(null);
+    const imageSrc = webcamRef.current.getScreenshot();
+    
+    if (!imageSrc) {
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      const worker = await createWorker();
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      
+      const { data: { text } } = await worker.recognize(imageSrc);
+      await worker.terminate();
+
+      const cleanedText = text.trim().toLowerCase().replace(/[^a-z]/g, '');
+      setCapturedText(text.trim());
+      const isCorrect = cleanedText.includes(quiz.spelling.word.toLowerCase());
+
+      if (isCorrect) {
+        celebrateCorrectAnswer();
+        setScore(score + 1);
+        setShowScore(true);
+      } else {
+        readQuestion(`I see the text: "${text.trim()}". This doesn't match the word. Try again or type your answer.`);
+      }
+      
+      setIsProcessing(false);
+    } catch (error) {
+      console.error('OCR Error:', error);
+      readQuestion("Sorry, I couldn't read the text clearly. Please try again or type your answer.");
+      setIsProcessing(false);
     }
   };
 
-  const canSubmit = Object.keys(selectedAnswers).length === quizQuestions.length;
-  const isPerfectScore = score === 2;
+  const handleSpellingSubmit = () => {
+    if (isReading) {
+      window.speechSynthesis.cancel();
+    }
+
+    const isCorrect = spellingAnswer.toLowerCase() === quiz.spelling.word.toLowerCase();
+    if (isCorrect) {
+      celebrateCorrectAnswer();
+      setScore(score + 1);
+    } else {
+      readQuestion(`Not quite right. The correct spelling was ${quiz.spelling.word}`);
+    }
+    setShowScore(true);
+  };
+
+  const handleListenAgain = () => {
+    const textToRead = currentQuestion === 0 
+      ? quiz.multipleChoice.question 
+      : `Spell : ${quiz.spelling.word}. ${quiz.spelling.hint}`;
+    readQuestion(textToRead);
+  };
+
+  const handleToggleInputMode = () => {
+    setInputMode(inputMode === 'text' ? 'camera' : 'text');
+    setCapturedText(null);
+    setSpellingAnswer('');
+  };
+
+  const handleCameraCapture = () => {
+    captureImage();
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">
-              {showResults ? 'Quiz Results' : 'Page Quiz'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+    <>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-xl font-bold text-gray-800">Quick Quiz!</h2>
+            <button 
+              onClick={() => {
+                if (isReading) {
+                  window.speechSynthesis.cancel();
+                }
+                onClose();
+              }}
+              className="p-1 rounded-full hover:bg-gray-100"
             >
-              ×
+              <X size={24} />
             </button>
           </div>
-
-          {!showResults ? (
-            <>
-              <p className="text-gray-600 mb-6">
-                Answer these questions about what you just read to continue to the next page!
-              </p>
-
-              <div className="space-y-6">
-                {quizQuestions.map((question, qIndex) => (
-                  <div key={question.id} className="border-b border-gray-200 pb-4">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-800">
-                      {qIndex + 1}. {question.question}
-                    </h3>
-                    <div className="space-y-2">
-                      {question.options.map((option, oIndex) => (
-                        <button
-                          key={oIndex}
-                          onClick={() => handleAnswerSelect(question.id, oIndex)}
-                          className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 ${
-                            selectedAnswers[question.id] === oIndex
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                          }`}
-                        >
-                          <span className="font-medium mr-2">
-                            {['A', 'B', 'C', 'D'][oIndex]}.
-                          </span>
-                          {option}
-                        </button>
-                      ))}
-                    </div>
+          
+          <div className="p-6">
+            {!showScore ? (
+              currentQuestion === 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
+                    <button
+                      onClick={handleListenAgain}
+                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
+                      aria-label="Listen again"
+                    >
+                      <Volume2 size={20} />
+                    </button>
                   </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                  className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
-                    canSubmit
-                      ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-xl'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  Submit Quiz
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="text-center">
-              <div className={`text-6xl mb-4 ${isPerfectScore ? 'text-green-500' : 'text-orange-500'}`}>
-                {isPerfectScore ? '🎉' : '📚'}
-              </div>
-              
-              <h3 className={`text-2xl font-bold mb-4 ${
-                isPerfectScore ? 'text-green-600' : 'text-orange-600'
-              }`}>
-                {isPerfectScore ? 'Perfect Score!' : 'Keep Learning!'}
-              </h3>
-              
-              <p className="text-xl mb-4">
-                You scored <span className="font-bold text-blue-600">{score} out of 2</span>
-              </p>
-              
-              {isPerfectScore ? (
-                <div>
-                  <p className="text-green-600 mb-6">
-                    Excellent! You can now move to the next page.
-                  </p>
-                  <button
-                    onClick={onClose}
-                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    Continue Reading
-                  </button>
+                  <div className="space-y-2">
+                    {quiz.multipleChoice.options.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswer(option.isCorrect)}
+                        className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-colors"
+                      >
+                        {option.text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div>
-                  <p className="text-orange-600 mb-6">
-                    You need to get all answers correct to proceed. Try reading the page again!
-                  </p>
-                  <div className="space-x-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-medium">Spell the word you hear:</p>
                     <button
-                      onClick={handleClose}
-                      className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                      onClick={handleListenAgain}
+                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
+                      aria-label="Listen again"
                     >
-                      Try Again
-                    </button>
-                    <button
-                      onClick={onClose}
-                      className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                    >
-                      Close
+                      <Volume2 size={20} />
                     </button>
                   </div>
+                  <p className="text-gray-600 italic">{quiz.spelling.hint}</p>
+                  
+                  {/* Toggle Button */}
+                  <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2">
+                        <Keyboard 
+                          size={20} 
+                          className={inputMode === 'text' ? 'text-purple-600' : 'text-gray-400'}
+                        />
+                        <span className={inputMode === 'text' ? 'text-purple-600 font-medium' : 'text-gray-500'}>
+                          Type
+                        </span>
+                      </div>
+                      
+                      <button
+                        onClick={handleToggleInputMode}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        aria-label="Toggle input mode"
+                      >
+                        {inputMode === 'text' ? (
+                          <ToggleLeft size={24} className="text-gray-400" />
+                        ) : (
+                          <ToggleRight size={24} className="text-purple-600" />
+                        )}
+                      </button>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Camera 
+                          size={20} 
+                          className={inputMode === 'camera' ? 'text-purple-600' : 'text-gray-400'}
+                        />
+                        <span className={inputMode === 'camera' ? 'text-purple-600 font-medium' : 'text-gray-500'}>
+                          Camera
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Input based on mode */}
+                  {inputMode === 'text' ? (
+                    <>
+                      <input
+                        type="text"
+                        value={spellingAnswer}
+                        onChange={(e) => setSpellingAnswer(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Type your answer..."
+                      />
+                      <button
+                        onClick={handleSpellingSubmit}
+                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                      >
+                        Submit Answer
+                      </button>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
+                      </div>
+                      
+                      <Webcam
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        className="w-full rounded-lg border"
+                        videoConstraints={{
+                          width: 320,
+                          height: 240,
+                          facingMode: "user"
+                        }}
+                      />
+                      
+                      {capturedText && (
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm font-medium text-gray-700">Captured Text:</p>
+                          <p className="text-gray-600">{capturedText}</p>
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={handleCameraCapture}
+                        disabled={isProcessing}
+                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {isProcessing ? "Reading text..." : "📸 Capture & Check"}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              )
+            ) : (
+              <div className="text-center space-y-4">
+                <h3 className="text-2xl font-bold">
+                  You scored {score} out of 2!
+                </h3>
+                <p className="text-gray-600">
+                  {score === 2 ? "Perfect score! Great job! 🎉" :
+                   score === 1 ? "Good try! Keep practicing! 👍" :
+                   "Don't worry, keep learning! 💪"}
+                </p>
+                <button
+                  onClick={() => {
+                    if (isReading) {
+                      window.speechSynthesis.cancel();
+                    }
+                    onClose();
+                  }}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Continue Reading
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
