@@ -43,7 +43,7 @@ const BookContent = () => {
 
   // Show quiz only when reading stops AND the page is complete
   useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete) {
+    if (hasStartedReading && isPageComplete) {
       setShowQuiz(true);
     }
   }, [isReading, hasStartedReading, isPageComplete]);
@@ -113,7 +113,7 @@ const BookContent = () => {
         </div>
       </div>
 
-      {showQuiz && isPageComplete && (
+      {showQuiz && !isReading && isPageComplete && (
         <QuizModal
           onClose={() => setShowQuiz(false)}
           pageContent={pageContent}
