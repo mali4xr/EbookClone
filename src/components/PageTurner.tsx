@@ -43,7 +43,7 @@ const PageTurner = ({ isLocked }: PageTurnerProps) => {
        {isLocked && (
   <Lock
     size={18}
-    className="absolute -top-1.5 -right-1.5 text-white bg-red-600 border border-white rounded-full p-0.5 "
+    className="absolute -top-1.5 -right-1.5 text-white bg-red-600 border border-white rounded-full p-0.9 "
   />
 )}
 
