@@ -33,6 +33,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState<string | null>(null);
+  const [showSpelling, setShowSpelling] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
@@ -78,7 +79,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         : `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
       readQuestion(textToRead);
     }
-  }, [currentQuestion, showScore]);
+  }, [currentQuestion, showScore, showSpelling]);
 
   const celebrateCorrectAnswer = () => {
     confetti({
@@ -97,7 +98,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     readQuestion(congratsText);
   };
 
-  const handleAnswer = (isCorrect: boolean) => {
+  const handleMultipleChoiceAnswer = (isCorrect: boolean) => {
     if (isReading) {
       window.speechSynthesis.cancel();
     }
@@ -105,10 +106,14 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
+      setTimeout(() => {
+        setShowSpelling(true);
+        readQuestion(`Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`);
+      }, 2000);
     } else {
       readQuestion("That's not correct. Try again next time!");
+      setShowSpelling(true);
     }
-    setCurrentQuestion(currentQuestion + 1);
   };
 
   const captureImage = async () => {
@@ -194,7 +199,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
           
           <div className="p-6">
             {!showScore ? (
-              currentQuestion === 0 ? (
+              !showSpelling ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
@@ -210,7 +215,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     {quiz.multipleChoice.options.map((option, index) => (
                       <button
                         key={index}
-                        onClick={() => handleAnswer(option.isCorrect)}
+                        onClick={() => handleMultipleChoiceAnswer(option.isCorrect)}
                         className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-colors"
                       >
                         {option.text}
