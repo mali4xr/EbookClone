@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera, Volume2, Keyboard, FlipCamera } from 'lucide-react';
+import { X, Camera, Volume2, Keyboard, Camera as FlipCamera } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
