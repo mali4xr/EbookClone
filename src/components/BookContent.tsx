@@ -67,7 +67,7 @@ const BookContent = () => {
         },
         body: JSON.stringify({
           replica_id: 'r9fa0878977a', // Replace with your replica ID
-          persona_id: 'your-persona-id', // Replace with your persona ID
+          persona_id: 'r6ca16dbe104', // Replace with your persona ID
           conversation_name: 'Book Reading Session',
           conversational_context: 'You are helping a user read through a book. Provide encouragement and help explain content when needed. Be friendly and supportive.',
           properties: {
