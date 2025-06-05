@@ -42,8 +42,8 @@ const PageTurner = ({ isLocked }: PageTurnerProps) => {
         <ChevronRight size={24} />
        {isLocked && (
   <Lock
-    size={18}
-    className="absolute -top-1.5 -right-1.5 text-white bg-red-600 border border-white rounded p-0.9 "
+    size={22}
+    className="absolute -top-2 -right-2 text-white bg-red-600 border border-white rounded-full p-1 shadow-lg animate-pulse"
   />
 )}
 
