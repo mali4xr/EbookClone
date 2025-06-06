@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useConversation } from '@elevenlabs/react';
-import { useConversation } from '@elevenlabs/react';
+import { Conversation } from '@elevenlabs/client';
 import { storyContent as initialStoryContent } from '../data/storyData';
 
 interface BookContextType {
@@ -25,8 +24,6 @@ interface BookContextType {
   setVolume: (volume: number) => void;
   goToPage: (page: number) => void;
   pageContent: {
-    aiResponse?: string;
-    aiResponse?: string;
     text: string;
     image: string;
     background: string;
@@ -41,9 +38,9 @@ interface BookContextType {
       };
     };
   };
-  updatePageContent: (content: { 
-    text: string; 
-    image: string; 
+  updatePageContent: (content: {
+    text: string;
+    image: string;
     background: string;
     quiz?: {
       multipleChoice: {
@@ -75,73 +72,7 @@ interface BookProviderProps {
 export const BookProvider = ({ children }: BookProviderProps) => {
   const [storyContent, setStoryContent] = useState(initialStoryContent);
   const [currentPage, setCurrentPage] = useState(0);
-  const conversation = useConversation({
-    onMessage: (message) => {
-      if (message.type === 'text' && message.text) {
-        const newContent = [...storyContent];
-        newContent[currentPage] = {
-          ...newContent[currentPage],
-          aiResponse: message.text
-        };
-        setStoryContent(newContent);
-      }
-    },
-    onError: (error) => console.error('Conversation error:', error)
-  });
-
-  useEffect(() => {
-    const initConversation = async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
-        console.log('Initializing conversation with agent:', agentId);
-        const conversationId = await conversation.startSession({
-          agentId
-        });
-        console.log('Conversation started with ID:', conversationId);
-      } catch (error) {
-        console.error('Failed to initialize conversation:', error);
-      }
-    };
-
-    initConversation();
-
-    return () => {
-      conversation.endSession();
-    };
-  }, []);
-  const conversation = useConversation({
-    onMessage: (message) => {
-      if (message.type === 'text') {
-        const newContent = [...storyContent];
-        newContent[currentPage] = {
-          ...newContent[currentPage],
-          aiResponse: message.text
-        };
-        setStoryContent(newContent);
-      }
-    },
-    onError: (error) => console.error('Conversation error:', error)
-  });
-
-  useEffect(() => {
-    const initConversation = async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        await conversation.startSession({
-          agentId: "eleven_multilingual_v2" // Using the default multilingual model
-        });
-      } catch (error) {
-        console.error('Failed to initialize conversation:', error);
-      }
-    };
-
-    initConversation();
-
-    return () => {
-      conversation.endSession();
-    };
-  }, []);
+  const [conversation, setConversation] = useState<any>(null);
   const [isReading, setIsReading] = useState(false);
   const [hasStartedReading, setHasStartedReading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -155,6 +86,43 @@ export const BookProvider = ({ children }: BookProviderProps) => {
 
   const totalPages = storyContent.length;
   const pageContent = storyContent[currentPage];
+
+  useEffect(() => {
+    const initConversation = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        const conv = await Conversation.startSession({
+          agentId: "agent_01jx1x4dqsep083w1twwexndee",
+          onMessage: (message) => {
+            if (message.type === 'text') {
+              const newContent = [...storyContent];
+              newContent[currentPage] = {
+                ...newContent[currentPage],
+                aiResponse: message.text
+              };
+              setStoryContent(newContent);
+            }
+          },
+          onError: (error) => console.error('Conversation error:', error),
+          onStatusChange: (status) => console.log('Connection status:', status),
+          onModeChange: (mode) => console.log('Mode changed:', mode)
+        });
+        
+        setConversation(conv);
+      } catch (error) {
+        console.error('Failed to initialize conversation:', error);
+      }
+    };
+
+    initConversation();
+
+    return () => {
+      if (conversation) {
+        conversation.endSession();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const synth = window.speechSynthesis;
@@ -192,6 +160,12 @@ export const BookProvider = ({ children }: BookProviderProps) => {
       }
     };
   }, [isReading, isMuted, currentPage, voiceIndex, rate, pitch, volume]);
+
+  useEffect(() => {
+    if (conversation) {
+      conversation.setVolume({ volume });
+    }
+  }, [volume, conversation]);
 
   const readCurrentPage = () => {
     if (window.speechSynthesis.speaking) {
