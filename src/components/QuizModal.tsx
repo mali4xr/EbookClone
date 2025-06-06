@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Camera, Volume2, Keyboard } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
+import { useConversation } from '@elevenlabs/react';
 import Webcam from 'react-webcam';
 import { createWorker } from 'tesseract.js';
 
@@ -35,6 +36,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [capturedText, setCapturedText] = useState<string | null>(null);
   const [showSpelling, setShowSpelling] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
+
+  const conversation = useConversation();
 
   const quiz = pageContent.quiz || {
     multipleChoice: {
@@ -104,14 +107,22 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     }
     
     if (isCorrect) {
+      const encouragement = "Great job! You got it right! Let's try a spelling question next.";
       celebrateCorrectAnswer();
+      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
+        conversation.setVolume({ volume: 1.0 });
+      });
       setScore(score + 1);
       setTimeout(() => {
         setShowSpelling(true);
         readQuestion(`Please spell the word: ${quiz.spelling.word}`);
       }, 2000);
     } else {
+      const encouragement = "That's not quite right. Keep trying! Remember what happened in the story.";
       readQuestion("That's not correct. Try again next time!");
+      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
+        conversation.setVolume({ volume: 1.0 });
+      });
       setShowSpelling(true);
     }
   };
