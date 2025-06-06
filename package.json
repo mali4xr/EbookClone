@@ -6,8 +6,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@elevenlabs/web-sdk": "^0.0.10",
-    "@elevenlabs/react": "^0.0.10",
+    "@elevenlabs/web-sdk": "^1.1.0",
+    "@elevenlabs/react": "^1.1.0",
     "canvas-confetti": "^1.9.2",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
