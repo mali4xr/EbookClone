@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useConversation } from '@elevenlabs/react';
+import { useConversation } from '@elevenlabs/react';
 import { storyContent as initialStoryContent } from '../data/storyData';
 
 interface BookContextType {
@@ -24,6 +25,7 @@ interface BookContextType {
   setVolume: (volume: number) => void;
   goToPage: (page: number) => void;
   pageContent: {
+    aiResponse?: string;
     aiResponse?: string;
     text: string;
     image: string;
@@ -73,6 +75,38 @@ interface BookProviderProps {
 export const BookProvider = ({ children }: BookProviderProps) => {
   const [storyContent, setStoryContent] = useState(initialStoryContent);
   const [currentPage, setCurrentPage] = useState(0);
+  const conversation = useConversation({
+    onMessage: (message) => {
+      if (message.type === 'text') {
+        const newContent = [...storyContent];
+        newContent[currentPage] = {
+          ...newContent[currentPage],
+          aiResponse: message.text
+        };
+        setStoryContent(newContent);
+      }
+    },
+    onError: (error) => console.error('Conversation error:', error)
+  });
+
+  useEffect(() => {
+    const initConversation = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        await conversation.startSession({
+          url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.XI_API_KEY}/stream`
+        });
+      } catch (error) {
+        console.error('Failed to initialize conversation:', error);
+      }
+    };
+
+    initConversation();
+
+    return () => {
+      conversation.endSession();
+    };
+  }, []);
   const conversation = useConversation({
     onMessage: (message) => {
       if (message.type === 'text') {
