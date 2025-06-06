@@ -109,7 +109,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     if (isCorrect) {
       const encouragement = "Great job! You got it right! Let's try a spelling question next.";
       celebrateCorrectAnswer();
-      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
+      conversation.startSession({ 
+        url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.XI_API_KEY}/stream`
+      }).then(() => {
         conversation.setVolume({ volume: 1.0 });
       });
       setScore(score + 1);
@@ -120,7 +122,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     } else {
       const encouragement = "That's not quite right. Keep trying! Remember what happened in the story.";
       readQuestion("That's not correct. Try again next time!");
-      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
+      conversation.startSession({ 
+        url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.XI_API_KEY}/stream`
+      }).then(() => {
         conversation.setVolume({ volume: 1.0 });
       });
       setShowSpelling(true);
