@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Conversation } from '@elevenlabs/client';
+import { Conversation } from '@elevenlabs/web-sdk';
 import { storyContent as initialStoryContent } from '../data/storyData';
 
 interface BookContextType {

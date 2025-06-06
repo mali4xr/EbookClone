@@ -6,13 +6,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@elevenlabs/client": "^1.0.0",
+    "@elevenlabs/web-sdk": "^0.0.10",
+    "@elevenlabs/react": "^0.0.10",
     "canvas-confetti": "^1.9.2",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
     "vite": "^5.0.0"
   }
 }
