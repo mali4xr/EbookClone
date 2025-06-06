@@ -77,7 +77,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const [currentPage, setCurrentPage] = useState(0);
   const conversation = useConversation({
     onMessage: (message) => {
-      if (message.type === 'text') {
+      if (message.type === 'text' && message.text) {
         const newContent = [...storyContent];
         newContent[currentPage] = {
           ...newContent[currentPage],
@@ -93,9 +93,12 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     const initConversation = async () => {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
-        await conversation.startSession({
-          url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.XI_API_KEY}/stream`
+        const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+        console.log('Initializing conversation with agent:', agentId);
+        const conversationId = await conversation.startSession({
+          agentId
         });
+        console.log('Conversation started with ID:', conversationId);
       } catch (error) {
         console.error('Failed to initialize conversation:', error);
       }
