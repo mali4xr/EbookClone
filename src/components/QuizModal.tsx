@@ -37,14 +37,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [showSpelling, setShowSpelling] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
 
-  const conversation = useConversation({
-    onMessage: (message) => {
-      if (message.type === 'text' && message.text) {
-        readQuestion(message.text);
-      }
-    },
-    onError: (error) => console.error('Conversation error:', error)
-  });
+  const conversation = useConversation();
 
   const quiz = pageContent.quiz || {
     multipleChoice: {
@@ -116,8 +109,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     if (isCorrect) {
       const encouragement = "Great job! You got it right! Let's try a spelling question next.";
       celebrateCorrectAnswer();
-      const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
-      conversation.startSession({ agentId });
+      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
+        conversation.setVolume({ volume: 1.0 });
+      });
       setScore(score + 1);
       setTimeout(() => {
         setShowSpelling(true);
@@ -126,8 +120,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     } else {
       const encouragement = "That's not quite right. Keep trying! Remember what happened in the story.";
       readQuestion("That's not correct. Try again next time!");
-      const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
-      conversation.startSession({ agentId });
+      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
+        conversation.setVolume({ volume: 1.0 });
+      });
       setShowSpelling(true);
     }
   };
