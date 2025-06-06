@@ -46,7 +46,7 @@ const BookContent = () => {
     }
   }, [isReading, hasStartedReading, isPageComplete]);
 
-  const renderHighlightedText = (text) => {
+  const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
     return words.map((word, index) => (
       <span

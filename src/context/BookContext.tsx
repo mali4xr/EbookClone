@@ -37,9 +37,9 @@ interface BookContextType {
       };
     };
   };
-  updatePageContent: (content: {
-    text: string;
-    image: string;
+  updatePageContent: (content: { 
+    text: string; 
+    image: string; 
     background: string;
     quiz?: {
       multipleChoice: {
