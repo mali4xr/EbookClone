@@ -4,6 +4,7 @@ import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
 import { createWorker } from 'tesseract.js';
+import ConversationalAIButton from './ConversationalAIButton';
 
 interface QuizModalProps {
   onClose: () => void;
@@ -35,6 +36,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [capturedText, setCapturedText] = useState<string | null>(null);
   const [showSpelling, setShowSpelling] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [aiMessages, setAiMessages] = useState<any[]>([]);
   const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
@@ -185,23 +187,69 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     readQuestion(textToRead);
   };
 
+  const handleAIMessage = (message: any) => {
+    setAiMessages(prev => [...prev, message]);
+    
+    // If AI provides feedback or hints, we can integrate it with the quiz
+    if (message.message && typeof message.message === 'string') {
+      const text = message.message.toLowerCase();
+      
+      // Check if AI is providing spelling help
+      if (text.includes('spell') && showSpelling) {
+        // AI might be helping with spelling
+        console.log('AI spelling assistance:', message.message);
+      }
+      
+      // Check if AI is providing quiz help
+      if (text.includes('answer') && !showSpelling) {
+        // AI might be helping with multiple choice
+        console.log('AI quiz assistance:', message.message);
+      }
+    }
+  };
+
+  const getAIContext = () => {
+    const context = `You are helping a child with a reading quiz. 
+    Current story text: "${pageContent.text}"
+    
+    ${!showSpelling ? 
+      `Current question: "${quiz.multipleChoice.question}"
+       Available options: ${quiz.multipleChoice.options.map(opt => opt.text).join(', ')}
+       Please help the child understand the question and guide them to the correct answer.` :
+      `Spelling challenge: The child needs to spell the word "${quiz.spelling.word}"
+       Hint: ${quiz.spelling.hint}
+       Please help them with pronunciation, letter sounds, or spelling strategies.`
+    }
+    
+    Be encouraging, patient, and educational. Use simple language appropriate for children.`;
+    
+    return context;
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
         <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate__animated animate__bounceIn">
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Quick Quiz!</h2>
-            <button 
-              onClick={() => {
-                if (isReading) {
-                  window.speechSynthesis.cancel();
-                }
-                onClose();
-              }}
-              className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
-            >
-              <X size={24} />
-            </button>
+            <div className="flex items-center gap-2">
+              <ConversationalAIButton
+                context={getAIContext()}
+                onMessage={handleAIMessage}
+                className="animate__animated animate__fadeInDown"
+              />
+              <button 
+                onClick={() => {
+                  if (isReading) {
+                    window.speechSynthesis.cancel();
+                  }
+                  onClose();
+                }}
+                className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
           
           <div className="p-6">
@@ -331,6 +379,16 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                    score === 1 ? "Good try! Keep practicing! 👍" :
                    "Don't worry, keep learning! 💪"}
                 </p>
+                
+                {aiMessages.length > 0 && (
+                  <div className="p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInUp animate__delay-2s">
+                    <p className="text-sm text-blue-700 font-medium">AI Feedback:</p>
+                    <p className="text-blue-600 text-sm mt-1">
+                      {aiMessages[aiMessages.length - 1]?.message || "Great conversation!"}
+                    </p>
+                  </div>
+                )}
+                
                 <button
                   onClick={() => {
                     if (isReading) {

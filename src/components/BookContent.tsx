@@ -4,6 +4,7 @@ import PageTurner from './PageTurner';
 import Controls from './Controls';
 import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
+import ConversationalAIButton from './ConversationalAIButton';
 import { QuizModal } from './QuizModal';
 
 const BookContent = () => {
@@ -20,6 +21,7 @@ const BookContent = () => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
+  const [aiMessages, setAiMessages] = useState<any[]>([]);
   
   useEffect(() => {
     setIsPageTurning(true);
@@ -61,6 +63,28 @@ const BookContent = () => {
     ));
   };
 
+  const handleAIMessage = (message: any) => {
+    setAiMessages(prev => [...prev, message]);
+    console.log('Reading AI Message:', message);
+  };
+
+  const getReadingAIContext = () => {
+    return `You are helping a child read a story. 
+    Current page: ${currentPage + 1} of ${totalPages}
+    Story text: "${pageContent.text}"
+    
+    You can help with:
+    - Explaining difficult words
+    - Discussing what's happening in the story
+    - Answering questions about characters and events
+    - Encouraging reading comprehension
+    - Making the story more engaging
+    
+    Be encouraging, patient, and use simple language appropriate for children.
+    Current reading progress: ${isReading ? 'Currently reading aloud' : 'Not reading'}
+    Page completion: ${isPageComplete ? 'Page completed' : 'Still reading'}`;
+  };
+
   return (
     <div className="flex flex-col h-[600px] md:h-[700px]">
       <div 
@@ -97,6 +121,16 @@ const BookContent = () => {
                 className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-white shadow-xl animate__animated animate__slideInRight"
               />
             </div>
+            
+            {/* AI Assistant for Reading */}
+            <div className="absolute top-4 left-4">
+              <ConversationalAIButton
+                context={getReadingAIContext()}
+                onMessage={handleAIMessage}
+                className="animate__animated animate__fadeInLeft animate__delay-1s"
+              />
+            </div>
+            
             <InteractiveElements page={currentPage} />
           </div>
         </div>
@@ -108,6 +142,18 @@ const BookContent = () => {
           <PageTurner isLocked={quizScore < 2} />
           <Controls />
         </div>
+        
+        {/* AI Messages Display */}
+        {aiMessages.length > 0 && (
+          <div className="hidden lg:block max-w-xs">
+            <div className="p-2 bg-blue-50 rounded-lg text-xs">
+              <p className="font-medium text-blue-700">AI Helper:</p>
+              <p className="text-blue-600 truncate">
+                {aiMessages[aiMessages.length - 1]?.message || "Ready to help!"}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {showQuiz && (

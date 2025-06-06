@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Edit } from 'lucide-react';
+import { X, Edit, MessageCircle } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import EditPageModal from './EditPageModal';
+import ConversationalAIButton from './ConversationalAIButton';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -24,17 +25,45 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
 
   const [showEdit, setShowEdit] = useState(false);
 
+  const handleAIMessage = (message: any) => {
+    console.log('Settings AI Message:', message);
+  };
+
+  const getSettingsAIContext = () => {
+    return `You are helping configure settings for a children's reading app. 
+    Current voice settings:
+    - Voice: ${availableVoices[voiceIndex]?.name || 'Default'}
+    - Speed: ${rate}x
+    - Pitch: ${pitch}
+    - Volume: ${Math.round(volume * 100)}%
+    
+    You can help with:
+    - Explaining what each setting does
+    - Recommending optimal settings for children
+    - Troubleshooting voice or audio issues
+    - Suggesting accessibility improvements
+    
+    Be helpful and explain technical concepts in simple terms.`;
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__slideInDown">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Voice Settings</h2>
-          <button 
-            onClick={onClose}
-            className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <ConversationalAIButton
+              context={getSettingsAIContext()}
+              onMessage={handleAIMessage}
+              className="animate__animated animate__fadeInDown"
+            />
+            <button 
+              onClick={onClose}
+              className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
         
         <div className="p-6 space-y-6">
