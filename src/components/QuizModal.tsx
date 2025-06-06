@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X, Camera, Volume2, Keyboard } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
-import { useConversation } from '@elevenlabs/react';
-import Webcam from 'react-webcam';
-import { createWorker } from 'tesseract.js';
 
 interface QuizModalProps {
   onClose: () => void;
@@ -32,12 +29,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [spellingAnswer, setSpellingAnswer] = useState('');
   const [isReading, setIsReading] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [capturedText, setCapturedText] = useState<string | null>(null);
   const [showSpelling, setShowSpelling] = useState(false);
-  const webcamRef = React.useRef<Webcam>(null);
-
-  const conversation = useConversation();
 
   const quiz = pageContent.quiz || {
     multipleChoice: {
@@ -107,63 +99,15 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     }
     
     if (isCorrect) {
-      const encouragement = "Great job! You got it right! Let's try a spelling question next.";
       celebrateCorrectAnswer();
-      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
-        conversation.setVolume({ volume: 1.0 });
-      });
       setScore(score + 1);
       setTimeout(() => {
         setShowSpelling(true);
         readQuestion(`Please spell the word: ${quiz.spelling.word}`);
       }, 2000);
     } else {
-      const encouragement = "That's not quite right. Keep trying! Remember what happened in the story.";
       readQuestion("That's not correct. Try again next time!");
-      conversation.startSession({ agentId: "eleven_multilingual_v2" }).then(() => {
-        conversation.setVolume({ volume: 1.0 });
-      });
       setShowSpelling(true);
-    }
-  };
-
-  const captureImage = async () => {
-    if (!webcamRef.current) return;
-    
-    setIsProcessing(true);
-    setCapturedText(null);
-    const imageSrc = webcamRef.current.getScreenshot();
-    
-    if (!imageSrc) {
-      setIsProcessing(false);
-      return;
-    }
-
-    try {
-      const worker = await createWorker();
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
-      
-      const { data: { text } } = await worker.recognize(imageSrc);
-      await worker.terminate();
-
-      const cleanedText = text.trim().toLowerCase().replace(/[^a-z]/g, '');
-      setCapturedText(text.trim());
-      const isCorrect = cleanedText.includes(quiz.spelling.word.toLowerCase());
-
-      if (isCorrect) {
-        celebrateCorrectAnswer();
-        setScore(score + 1);
-        setShowScore(true);
-      } else {
-        readQuestion(`I see the text: "${text.trim()}". This doesn't match the word. Try again or type your answer.`);
-      }
-      
-      setIsProcessing(false);
-    } catch (error) {
-      console.error('OCR Error:', error);
-      readQuestion("Sorry, I couldn't read the text clearly. Please try again or type your answer.");
-      setIsProcessing(false);
     }
   };
 
@@ -257,66 +201,21 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       <Keyboard size={20} />
                       <span>Type</span>
                     </button>
-                    <button
-                      onClick={() => setInputMode('camera')}
-                      className={`flex items-center gap-2 p-2 rounded ${
-                        inputMode === 'camera' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
-                      }`}
-                    >
-                      <Camera size={20} />
-                      <span>Camera</span>
-                    </button>
                   </div>
 
-                  {inputMode === 'text' ? (
-                    <>
-                      <input
-                        type="text"
-                        value={spellingAnswer}
-                        onChange={(e) => setSpellingAnswer(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Type your answer..."
-                      />
-                      <button
-                        onClick={handleSpellingSubmit}
-                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                      >
-                        Submit Answer
-                      </button>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
-                      </div>
-                      
-                      <Webcam
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        className="w-full rounded-lg border"
-                        videoConstraints={{
-                          width: 320,
-                          height: 240,
-                          facingMode: "user"
-                        }}
-                      />
-                      
-                      {capturedText && (
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-sm font-medium text-gray-700">Captured Text:</p>
-                          <p className="text-gray-600">{capturedText}</p>
-                        </div>
-                      )}
-                      
-                      <button
-                        onClick={captureImage}
-                        disabled={isProcessing}
-                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 font-medium"
-                      >
-                        {isProcessing ? "Reading text..." : "📸 Capture & Check"}
-                      </button>
-                    </div>
-                  )}
+                  <input
+                    type="text"
+                    value={spellingAnswer}
+                    onChange={(e) => setSpellingAnswer(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Type your answer..."
+                  />
+                  <button
+                    onClick={handleSpellingSubmit}
+                    className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                  >
+                    Submit Answer
+                  </button>
                 </div>
               )
             ) : (
