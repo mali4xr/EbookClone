@@ -11,8 +11,7 @@ const PageTurner = ({ isLocked }: PageTurnerProps) => {
     currentPage, 
     totalPages, 
     nextPage, 
-    prevPage,
-    isPageLocked
+    prevPage 
   } = useBook();
 
   return (
@@ -32,16 +31,16 @@ const PageTurner = ({ isLocked }: PageTurnerProps) => {
       
       <button
         onClick={nextPage}
-        disabled={currentPage === totalPages - 1 || isLocked || isPageLocked}
+        disabled={currentPage === totalPages - 1 || isLocked}
         className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-          currentPage === totalPages - 1 || isLocked || isPageLocked
+          currentPage === totalPages - 1 || isLocked
             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
             : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
         }`}
         aria-label="Next page"
       >
         <ChevronRight size={24} />
-       {(isLocked || isPageLocked) && (
+       {isLocked && (
   <Lock
     size={22}
     className="absolute -top-2 -right-2 text-white bg-red-600 border border-white rounded-full p-1"

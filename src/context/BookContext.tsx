@@ -81,7 +81,6 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const [currentWord, setCurrentWord] = useState(-1);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [utterance, setUtterance] = useState<SpeechSynthesisUtterance | null>(null);
-  const [isPageLocked, setIsPageLocked] = useState(true);
 
   const totalPages = storyContent.length;
   const pageContent = storyContent[currentPage];
@@ -160,14 +159,12 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const nextPage = () => {
     if (currentPage < totalPages - 1) {
       setCurrentPage(prev => prev + 1);
-      setIsPageLocked(true);
     }
   };
 
   const prevPage = () => {
     if (currentPage > 0) {
       setCurrentPage(prev => prev - 1);
-      setIsPageLocked(true);
     }
   };
 
@@ -209,10 +206,6 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     setStoryContent(newContent);
   };
 
-  useEffect(() => {
-    setIsPageLocked(true);
-  }, [currentPage]);
-
   const value = {
     currentPage,
     totalPages,
@@ -235,9 +228,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     setVolume,
     goToPage,
     pageContent,
-    updatePageContent,
-    isPageLocked,
-    setIsPageLocked
+    updatePageContent
   };
 
   return <BookContext.Provider value={value}>{children}</BookContext.Provider>;

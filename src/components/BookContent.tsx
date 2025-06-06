@@ -13,8 +13,7 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading,
-    setIsPageLocked
+    hasStartedReading
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -221,7 +220,6 @@ const BookContent = () => {
     if (isPageComplete && showAvatar && pageContent && isAvatarJoined) {
       const congratsMessage = `Great job! You've completed page ${currentPage + 1}. ${pageContent.summary || 'Ready for the next page?'}`;
       sendMessageToAvatar(congratsMessage);
-      setIsPageLocked(false);
     }
   }, [isPageComplete, showAvatar, currentPage, pageContent, isAvatarJoined]);
 
