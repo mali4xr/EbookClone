@@ -52,7 +52,7 @@ const BookContent = () => {
       <span
         key={index}
         className={`inline-block transition-all duration-150 mx-[2px] px-1 rounded ${
-          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105' : 
+          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105 animate__animated animate__pulse' : 
           index < currentWord ? 'bg-green-100' : ''
         }`}
       >
@@ -73,16 +73,16 @@ const BookContent = () => {
       >
         <div 
           className={`absolute inset-0 flex flex-col md:flex-row transition-opacity duration-500 ${
-            isPageTurning ? 'opacity-0' : 'opacity-100'
+            isPageTurning ? 'opacity-0' : 'opacity-100 animate__animated animate__fadeIn'
           }`}
         >
           <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
-            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg">
+            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft">
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
               {isPageComplete && (
-                <div className="text-sm text-green-600 font-semibold mt-2">
+                <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
                   ✓ Page completed
                 </div>
               )}
@@ -94,7 +94,7 @@ const BookContent = () => {
               <img 
                 src={pageContent.image} 
                 alt={`Illustration for page ${currentPage + 1}`} 
-                className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-white shadow-xl"
+                className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-white shadow-xl animate__animated animate__slideInRight"
               />
             </div>
             <InteractiveElements page={currentPage} />
@@ -102,7 +102,7 @@ const BookContent = () => {
         </div>
       </div>
       
-      <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200">
+      <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 animate__animated animate__slideInUp">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
           <PageCounter current={currentPage + 1} total={totalPages} />
           <PageTurner isLocked={quizScore < 2} />

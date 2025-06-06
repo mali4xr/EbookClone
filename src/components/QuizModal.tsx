@@ -34,6 +34,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState<string | null>(null);
   const [showSpelling, setShowSpelling] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
@@ -73,13 +74,13 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   useEffect(() => {
-    if (!showScore && !isReading) {
+    if (!showScore && !isReading && !isTransitioning) {
       const textToRead = currentQuestion === 0 
         ? quiz.multipleChoice.question 
         : `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
       readQuestion(textToRead);
     }
-  }, [currentQuestion, showScore, showSpelling]);
+  }, [currentQuestion, showScore, showSpelling, isTransitioning]);
 
   const celebrateCorrectAnswer = () => {
     confetti({
@@ -106,13 +107,19 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
+      setIsTransitioning(true);
       setTimeout(() => {
         setShowSpelling(true);
+        setIsTransitioning(false);
         readQuestion(`Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`);
       }, 2000);
     } else {
       readQuestion("That's not correct. Try again next time!");
-      setShowSpelling(true);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setShowSpelling(true);
+        setIsTransitioning(false);
+      }, 2000);
     }
   };
 
@@ -180,10 +187,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate__animated animate__bounceIn">
           <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-xl font-bold text-gray-800">Quick Quiz!</h2>
+            <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Quick Quiz!</h2>
             <button 
               onClick={() => {
                 if (isReading) {
@@ -191,7 +198,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 }
                 onClose();
               }}
-              className="p-1 rounded-full hover:bg-gray-100"
+              className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
             >
               <X size={24} />
             </button>
@@ -200,12 +207,12 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
           <div className="p-6">
             {!showScore ? (
               !showSpelling ? (
-                <div className="space-y-4">
+                <div className="space-y-4 animate__animated animate__fadeInUp">
                   <div className="flex items-center justify-between">
                     <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
                     <button
                       onClick={handleListenAgain}
-                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
+                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600 animate__animated animate__pulse animate__infinite"
                       aria-label="Listen again"
                     >
                       <Volume2 size={20} />
@@ -216,7 +223,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       <button
                         key={index}
                         onClick={() => handleMultipleChoiceAnswer(option.isCorrect)}
-                        className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-colors"
+                        className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-all duration-300 transform hover:scale-105 animate__animated animate__fadeInUp"
+                        style={{ animationDelay: `${index * 0.1}s` }}
                       >
                         {option.text}
                       </button>
@@ -224,23 +232,23 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 animate__animated animate__slideInRight">
                   <div className="flex items-center justify-between">
                     <p className="text-lg font-medium">Spell the word you hear:</p>
                     <button
                       onClick={handleListenAgain}
-                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600"
+                      className="p-2 rounded-full hover:bg-purple-100 text-purple-600 animate__animated animate__pulse animate__infinite"
                       aria-label="Listen again"
                     >
                       <Volume2 size={20} />
                     </button>
                   </div>
-                  <p className="text-gray-600 italic">{quiz.spelling.hint}</p>
+                  <p className="text-gray-600 italic animate__animated animate__fadeIn animate__delay-1s">{quiz.spelling.hint}</p>
                   
-                  <div className="flex items-center justify-center space-x-4">
+                  <div className="flex items-center justify-center space-x-4 animate__animated animate__fadeInUp animate__delay-1s">
                     <button
                       onClick={() => setInputMode('text')}
-                      className={`flex items-center gap-2 p-2 rounded ${
+                      className={`flex items-center gap-2 p-2 rounded transition-all duration-300 transform hover:scale-110 ${
                         inputMode === 'text' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
                       }`}
                     >
@@ -249,7 +257,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     </button>
                     <button
                       onClick={() => setInputMode('camera')}
-                      className={`flex items-center gap-2 p-2 rounded ${
+                      className={`flex items-center gap-2 p-2 rounded transition-all duration-300 transform hover:scale-110 ${
                         inputMode === 'camera' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
                       }`}
                     >
@@ -259,31 +267,31 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                   </div>
 
                   {inputMode === 'text' ? (
-                    <>
+                    <div className="animate__animated animate__fadeIn">
                       <input
                         type="text"
                         value={spellingAnswer}
                         onChange={(e) => setSpellingAnswer(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
                         placeholder="Type your answer..."
                       />
                       <button
                         onClick={handleSpellingSubmit}
-                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                        className="w-full mt-3 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 font-medium transform hover:scale-105 animate__animated animate__pulse animate__infinite"
                       >
                         Submit Answer
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="space-y-3 animate__animated animate__fadeIn">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
                         <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
                       </div>
                       
                       <Webcam
                         ref={webcamRef}
                         screenshotFormat="image/jpeg"
-                        className="w-full rounded-lg border"
+                        className="w-full rounded-lg border animate__animated animate__zoomIn"
                         videoConstraints={{
                           width: 320,
                           height: 240,
@@ -292,7 +300,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       />
                       
                       {capturedText && (
-                        <div className="p-3 bg-gray-50 rounded-lg">
+                        <div className="p-3 bg-gray-50 rounded-lg animate__animated animate__fadeInUp">
                           <p className="text-sm font-medium text-gray-700">Captured Text:</p>
                           <p className="text-gray-600">{capturedText}</p>
                         </div>
@@ -301,20 +309,24 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       <button
                         onClick={captureImage}
                         disabled={isProcessing}
-                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 font-medium"
+                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 disabled:opacity-50 font-medium transform hover:scale-105"
                       >
-                        {isProcessing ? "Reading text..." : "📸 Capture & Check"}
+                        {isProcessing ? (
+                          <span className="animate__animated animate__flash animate__infinite">Reading text...</span>
+                        ) : (
+                          "📸 Capture & Check"
+                        )}
                       </button>
                     </div>
                   )}
                 </div>
               )
             ) : (
-              <div className="text-center space-y-4">
-                <h3 className="text-2xl font-bold">
+              <div className="text-center space-y-4 animate__animated animate__bounceIn">
+                <h3 className="text-2xl font-bold animate__animated animate__rubberBand">
                   You scored {score} out of 2!
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 animate__animated animate__fadeInUp animate__delay-1s">
                   {score === 2 ? "Perfect score! Great job! 🎉" :
                    score === 1 ? "Good try! Keep practicing! 👍" :
                    "Don't worry, keep learning! 💪"}
@@ -326,7 +338,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     }
                     onClose();
                   }}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-110 animate__animated animate__pulse animate__infinite"
                 >
                   Continue Reading
                 </button>

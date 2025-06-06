@@ -78,32 +78,32 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Edit Page Content</h2>
+          <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Edit Page Content</h2>
           <button 
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-gray-100"
+            className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
           >
             <X size={24} />
           </button>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp">
             <label className="block text-sm font-medium text-gray-700">
               Story Text
             </label>
             <textarea
               value={content.text}
               onChange={(e) => setContent({ ...content, text: e.target.value })}
-              className="w-full h-32 p-2 border rounded-md"
+              className="w-full h-32 p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
               required
             />
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-1s">
             <label className="block text-sm font-medium text-gray-700">
               Image URL
             </label>
@@ -111,14 +111,14 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
               type="url"
               value={content.image}
               onChange={(e) => setContent({ ...content, image: e.target.value })}
-              className="w-full p-2 border rounded-md"
+              className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
               required
             />
             <div className="mt-2">
               <img
                 src={content.image}
                 alt="Preview"
-                className="max-h-40 rounded-md"
+                className="max-h-40 rounded-md animate__animated animate__fadeIn"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image+URL';
@@ -127,7 +127,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
             </div>
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-2s">
             <label className="block text-sm font-medium text-gray-700">
               Background Image URL
             </label>
@@ -135,14 +135,14 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
               type="url"
               value={content.background}
               onChange={(e) => setContent({ ...content, background: e.target.value })}
-              className="w-full p-2 border rounded-md"
+              className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
               required
             />
             <div className="mt-2">
               <img
                 src={content.background}
                 alt="Background Preview"
-                className="max-h-40 rounded-md"
+                className="max-h-40 rounded-md animate__animated animate__fadeIn"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = 'https://via.placeholder.com/400x300?text=Invalid+Background+URL';
@@ -151,17 +151,17 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 animate__animated animate__fadeInUp animate__delay-3s">
             <button
               type="button"
               onClick={() => setShowQuizEdit(!showQuizEdit)}
-              className="text-purple-600 hover:text-purple-700 font-medium"
+              className="text-purple-600 hover:text-purple-700 font-medium transition-all duration-300 transform hover:scale-105"
             >
               {showQuizEdit ? 'Hide Quiz Editor' : 'Edit Quiz Questions'}
             </button>
 
             {showQuizEdit && (
-              <div className="space-y-6 p-4 bg-gray-50 rounded-lg">
+              <div className="space-y-6 p-4 bg-gray-50 rounded-lg animate__animated animate__slideInDown">
                 <div className="space-y-4">
                   <h3 className="font-medium text-gray-900">Multiple Choice Question</h3>
                   <div className="space-y-2">
@@ -181,7 +181,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                           }
                         }
                       }))}
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
 
@@ -190,7 +190,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                       Answer Options
                     </label>
                     {content.quiz?.multipleChoice.options.map((option, index) => (
-                      <div key={index} className="flex items-center gap-3">
+                      <div key={index} className="flex items-center gap-3 animate__animated animate__fadeInLeft" style={{ animationDelay: `${index * 0.1}s` }}>
                         <input
                           type="radio"
                           checked={option.isCorrect}
@@ -201,7 +201,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                           type="text"
                           value={option.text}
                           onChange={(e) => updateMultipleChoiceOption(index, e.target.value, option.isCorrect)}
-                          className="flex-1 p-2 border rounded-md"
+                          className="flex-1 p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
                     ))}
@@ -227,7 +227,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                           }
                         }
                       }))}
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
 
@@ -248,7 +248,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                           }
                         }
                       }))}
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
                 </div>
@@ -256,17 +256,17 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
             )}
           </div>
           
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 animate__animated animate__fadeInUp animate__delay-4s">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border rounded-md hover:bg-gray-50 transition-all duration-300 transform hover:scale-105"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-105"
             >
               Save Changes
             </button>

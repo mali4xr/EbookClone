@@ -25,13 +25,13 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
   const [showEdit, setShowEdit] = useState(false);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__slideInDown">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Voice Settings</h2>
+          <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Voice Settings</h2>
           <button 
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-gray-100"
+            className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
           >
             <X size={24} />
           </button>
@@ -39,7 +39,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
         
         <div className="p-6 space-y-6">
           {/* Voice Selection */}
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp">
             <label htmlFor="voice-select" className="block text-sm font-medium text-gray-700">
               Character Voice
             </label>
@@ -47,7 +47,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
               id="voice-select"
               value={voiceIndex}
               onChange={(e) => setVoiceIndex(Number(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
             >
               {availableVoices.map((voice, index) => (
                 <option key={index} value={index}>
@@ -58,7 +58,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           </div>
           
           {/* Speed Control */}
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-1s">
             <label className="block text-sm font-medium text-gray-700">
               Reading Speed: {rate.toFixed(1)}x
             </label>
@@ -79,7 +79,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           </div>
           
           {/* Pitch Control */}
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-2s">
             <label className="block text-sm font-medium text-gray-700">
               Voice Pitch: {pitch.toFixed(1)}
             </label>
@@ -100,7 +100,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           </div>
           
           {/* Volume Control */}
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-3s">
             <label className="block text-sm font-medium text-gray-700">
               Volume: {Math.round(volume * 100)}%
             </label>
@@ -121,10 +121,10 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           </div>
 
           {/* Edit Page Content */}
-          <div className="space-y-2">
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-4s">
             <button
               onClick={() => setShowEdit(true)}
-              className="w-full flex items-center justify-center gap-2 p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+              className="w-full flex items-center justify-center gap-2 p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-300 transform hover:scale-105"
             >
               <Edit size={20} />
               <span>Edit Current Page</span>
@@ -132,10 +132,10 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           </div>
         </div>
         
-        <div className="p-4 border-t flex justify-end">
+        <div className="p-4 border-t flex justify-end animate__animated animate__fadeInUp animate__delay-5s">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors shadow-sm"
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 shadow-sm transform hover:scale-105"
           >
             Done
           </button>
