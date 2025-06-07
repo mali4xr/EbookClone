@@ -10,7 +10,7 @@ interface ConversationalAIButtonProps {
 }
 
 const ConversationalAIButton = ({ 
-  agentId = 'your-agent-id', // Replace with your actual agent ID
+  agentId = 'your-agent-id',
   context = '',
   onMessage,
   className = ''
@@ -19,6 +19,7 @@ const ConversationalAIButton = ({
   const [customAgentId, setCustomAgentId] = useState(agentId);
   const [useSignedUrl, setUseSignedUrl] = useState(false);
   const [signedUrlEndpoint, setSignedUrlEndpoint] = useState('/signed-url');
+  const [apiKey, setApiKey] = useState('');
 
   const {
     isConnected,
@@ -36,8 +37,11 @@ const ConversationalAIButton = ({
       let options: any = {};
 
       if (useSignedUrl) {
-        // Fetch signed URL from your server
-        const response = await fetch(signedUrlEndpoint);
+        const response = await fetch(signedUrlEndpoint, {
+          headers: {
+            ...(apiKey ? { 'xi-api-key': apiKey } : {}),
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to get signed URL');
         }
@@ -47,7 +51,6 @@ const ConversationalAIButton = ({
         options.agentId = customAgentId;
       }
 
-      // Add context if provided
       if (context) {
         options.context = context;
       }
@@ -147,18 +150,36 @@ const ConversationalAIButton = ({
             </div>
 
             {useSignedUrl ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Signed URL Endpoint
-                </label>
-                <input
-                  type="text"
-                  value={signedUrlEndpoint}
-                  onChange={(e) => setSignedUrlEndpoint(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="/signed-url"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Signed URL Endpoint
+                  </label>
+                  <input
+                    type="text"
+                    value={signedUrlEndpoint}
+                    onChange={(e) => setSignedUrlEndpoint(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="/signed-url"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 mt-2">
+                    ElevenLabs API Key (optional)
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="sk-..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Only required if your signed URL endpoint expects it.
+                    <br /><strong>Do not expose real keys in production.</strong>
+                  </p>
+                </div>
+              </>
             ) : (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -184,15 +205,26 @@ const ConversationalAIButton = ({
       )}
 
       {isConnected && messages.length > 0 && (
-        <div className="absolute top-full left-0 mt-2 p-3 bg-white border border-gray-300 rounded-lg shadow-lg max-w-sm max-h-40 overflow-y-auto animate__animated animate__fadeInUp">
-          <h4 className="font-medium text-gray-900 mb-2">Conversation</h4>
-          <div className="space-y-1">
-            {messages.slice(-3).map((message, index) => (
-              <div key={index} className="text-sm text-gray-600">
-                <span className="font-medium">
-                  {message.source === 'user' ? 'You: ' : 'AI: '}
-                </span>
-                {message.message || message.text || 'Audio message'}
+        <div className="absolute top-full left-0 mt-2 p-3 bg-white border border-gray-300 rounded-lg shadow-lg w-96 max-h-96 overflow-y-auto space-y-2 animate__animated animate__fadeInUp">
+          <h4 className="font-medium text-gray-900 mb-2">Live Chat</h4>
+          <div className="space-y-2">
+            {messages.slice(-10).map((msg, index) => (
+              <div
+                key={index}
+                className={`flex ${msg.source === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`rounded-lg px-3 py-2 text-sm max-w-[75%] shadow ${
+                    msg.source === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  <p>{msg.message || msg.text || '[Audio]'}</p>
+                  <div className="text-[10px] mt-1 text-right opacity-60">
+                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
