@@ -266,34 +266,67 @@ const ConversationalAIButton = ({
 
           {/* Connection Controls */}
           <div className="p-3 border-b bg-gray-50">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={isConnected ? handleEndConversation : handleStartConversation}
-                disabled={isConnecting}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-white font-medium transition-all duration-300 disabled:opacity-50 ${getButtonColor()}`}
-              >
-                {getModeIcon()}
-                <span className="text-sm">
-                  {isConnected ? 'End Chat' : 'Start Chat'}
-                </span>
-              </button>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleStartConversation}
+                  disabled={isConnecting || isConnected}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-md text-white font-medium text-sm transition-all duration-300 disabled:opacity-50 bg-green-500 hover:bg-green-600 disabled:cursor-not-allowed"
+                >
+                  <Wifi size={14} />
+                  Connect
+                </button>
+                
+                <button
+                  onClick={handleEndConversation}
+                  disabled={isConnecting || !isConnected}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-md text-white font-medium text-sm transition-all duration-300 disabled:opacity-50 bg-red-500 hover:bg-red-600 disabled:cursor-not-allowed"
+                >
+                  <WifiOff size={14} />
+                  Disconnect
+                </button>
+              </div>
 
-              {/* Mic Volume Indicator */}
-              {isConnected && (
+              {/* Connection Status Badge */}
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                isConnecting 
+                  ? 'bg-yellow-100 text-yellow-800' 
+                  : isConnected 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+              }`}>
+                {getStatusIcon()}
+                <span>{getStatusText()}</span>
+              </div>
+            </div>
+
+            {/* Mode and Volume Indicator */}
+            {isConnected && (
+              <div className="flex items-center justify-between">
+                <div className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium ${
+                  currentMode === 'speaking' 
+                    ? 'bg-red-100 text-red-800' 
+                    : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {getModeIcon()}
+                  <span>{getModeText()}</span>
+                </div>
+
+                {/* Mic Volume Indicator */}
                 <div className="flex items-center gap-2">
-                  <Mic size={16} className="text-gray-600" />
-                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <Mic size={14} className="text-gray-600" />
+                  <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-150"
                       style={{ width: `${Math.min(inputVolumeLevel * 100, 100)}%` }}
                     />
                   </div>
-                  <span className="text-xs text-gray-600 w-8">
+                  <span className="text-xs text-gray-600 w-6 text-right">
                     {Math.round(inputVolumeLevel * 100)}%
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Messages Area */}
