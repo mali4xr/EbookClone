@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { useBook } from '../context/BookContext';
 import PageTurner from './PageTurner';
@@ -124,14 +125,13 @@ const BookContent = () => {
             </div>
             
             {/* AI Assistant for Reading */}
-            <div className="fixed bottom-4 right-4 z-50 w-[350px] max-h-[500px]">
-  <ConversationalAIButton
-    context={getReadingAIContext()}
-    onMessage={handleAIMessage}
-    className="w-full h-full shadow-xl rounded-xl overflow-hidden"
-  />
-</div>
-
+            <div className="absolute top-4 left-4">
+              <ConversationalAIButton
+                context={getReadingAIContext()}
+                onMessage={handleAIMessage}
+                className="animate__animated animate__fadeInLeft animate__delay-1s"
+              />
+            </div>
             
             <InteractiveElements page={currentPage} />
           </div>
