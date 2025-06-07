@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Mic, MicOff, MessageCircle, X, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mic, MicOff, MessageCircle, X, Settings, Send, Wifi, WifiOff } from 'lucide-react';
 import { useConversationalAI } from '../hooks/useConversationalAI';
 
 interface ConversationalAIButtonProps {
@@ -20,6 +20,8 @@ const ConversationalAIButton = ({
   const [useSignedUrl, setUseSignedUrl] = useState(false);
   const [signedUrlEndpoint, setSignedUrlEndpoint] = useState('/signed-url');
   const [apiKey, setApiKey] = useState('');
+  const [inputMessage, setInputMessage] = useState('');
+  const [inputVolumeLevel, setInputVolumeLevel] = useState(0);
 
   const {
     isConnected,
@@ -29,19 +31,27 @@ const ConversationalAIButton = ({
     error,
     startConversation,
     endConversation,
-    setVolume
+    setVolume,
+    getInputVolume
   } = useConversationalAI();
+
+  useEffect(() => {
+    let volumeInterval: any;
+    if (isConnected) {
+      volumeInterval = setInterval(async () => {
+        const vol = await getInputVolume();
+        setInputVolumeLevel(vol);
+      }, 500);
+    }
+    return () => clearInterval(volumeInterval);
+  }, [isConnected, getInputVolume]);
 
   const handleStartConversation = async () => {
     try {
       let options: any = {};
 
       if (useSignedUrl) {
-        const response = await fetch(signedUrlEndpoint, {
-          headers: {
-            ...(apiKey ? { 'xi-api-key': apiKey } : {}),
-          }
-        });
+        const response = await fetch(signedUrlEndpoint);
         if (!response.ok) {
           throw new Error('Failed to get signed URL');
         }
@@ -49,6 +59,9 @@ const ConversationalAIButton = ({
         options.signedUrl = signedUrl;
       } else {
         options.agentId = customAgentId;
+        if (apiKey) {
+          options.apiKey = apiKey;
+        }
       }
 
       if (context) {
@@ -68,6 +81,13 @@ const ConversationalAIButton = ({
 
   const handleEndConversation = async () => {
     await endConversation();
+  };
+
+  const handleSendMessage = async () => {
+    if (inputMessage.trim()) {
+      await startConversation({ userMessage: inputMessage });
+      setInputMessage('');
+    }
   };
 
   const getButtonIcon = () => {
@@ -116,6 +136,11 @@ const ConversationalAIButton = ({
         >
           <Settings size={16} />
         </button>
+
+        <div className="flex items-center gap-1 text-xs text-gray-600">
+          {isConnected ? <Wifi size={16} className="text-green-600" /> : <WifiOff size={16} className="text-red-600" />}
+          <span>{isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}</span>
+        </div>
       </div>
 
       {error && (
@@ -150,83 +175,97 @@ const ConversationalAIButton = ({
             </div>
 
             {useSignedUrl ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Signed URL Endpoint
+                </label>
+                <input
+                  type="text"
+                  value={signedUrlEndpoint}
+                  onChange={(e) => setSignedUrlEndpoint(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="/signed-url"
+                />
+              </div>
+            ) : (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Signed URL Endpoint
+                    Agent ID
                   </label>
                   <input
                     type="text"
-                    value={signedUrlEndpoint}
-                    onChange={(e) => setSignedUrlEndpoint(e.target.value)}
+                    value={customAgentId}
+                    onChange={(e) => setCustomAgentId(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="/signed-url"
+                    placeholder="your-agent-id"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 mt-2">
-                    ElevenLabs API Key (optional)
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    API Key (optional)
                   </label>
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="sk-..."
+                    placeholder="Your ElevenLabs API Key"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Only required if your signed URL endpoint expects it.
-                    <br /><strong>Do not expose real keys in production.</strong>
-                  </p>
                 </div>
               </>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Agent ID
-                </label>
-                <input
-                  type="text"
-                  value={customAgentId}
-                  onChange={(e) => setCustomAgentId(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="your-agent-id"
-                />
-              </div>
             )}
 
             <div className="text-xs text-gray-500">
               <p>• For public agents, use Agent ID directly</p>
               <p>• For private agents, set up a signed URL endpoint</p>
-              <p>• Get your Agent ID from ElevenLabs dashboard</p>
+              <p>• Get your Agent ID and API Key from ElevenLabs dashboard</p>
             </div>
           </div>
         </div>
       )}
 
-      {isConnected && messages.length > 0 && (
-        <div className="absolute top-full left-0 mt-2 p-3 bg-white border border-gray-300 rounded-lg shadow-lg w-96 max-h-96 overflow-y-auto space-y-2 animate__animated animate__fadeInUp">
-          <h4 className="font-medium text-gray-900 mb-2">Live Chat</h4>
-          <div className="space-y-2">
-            {messages.slice(-10).map((msg, index) => (
+      {isConnected && (
+        <div className="absolute top-full left-0 mt-2 w-full max-w-md p-4 bg-white border border-gray-300 rounded-lg shadow-lg animate__animated animate__fadeInUp">
+          <h4 className="font-medium text-gray-900 mb-2">Conversation</h4>
+
+          <div className="mb-2">
+            <div className="h-2 w-full bg-gray-200 rounded">
               <div
-                key={index}
-                className={`flex ${msg.source === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`rounded-lg px-3 py-2 text-sm max-w-[75%] shadow ${
-                    msg.source === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-900'
-                  }`}
-                >
-                  <p>{msg.message || msg.text || '[Audio]'}</p>
-                  <div className="text-[10px] mt-1 text-right opacity-60">
-                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
-                  </div>
-                </div>
+                className="h-2 bg-blue-500 rounded"
+                style={{ width: `${inputVolumeLevel * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-500">Mic Volume</span>
+          </div>
+
+          <div className="max-h-60 overflow-y-auto space-y-1 mb-2">
+            {messages.map((message, index) => (
+              <div key={index} className="text-sm text-gray-700">
+                <span className="font-medium">
+                  {message.source === 'user' ? 'You: ' : 'AI: '}
+                </span>
+                {message.message || message.text || 'Audio message'}
               </div>
             ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-grow p-2 border border-gray-300 rounded-md text-sm"
+              disabled={!isConnected}
+            />
+            <button
+              onClick={handleSendMessage}
+              className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              disabled={!inputMessage.trim()}
+            >
+              <Send size={16} />
+            </button>
           </div>
         </div>
       )}
