@@ -81,7 +81,12 @@ const ConversationalAIButton = ({
   };
 
   const handleEndConversation = async () => {
-    await endConversation();
+    try {
+      await endConversation();
+      setInputVolumeLevel(0); // Reset volume level when disconnected
+    } catch (err: any) {
+      console.error('Failed to end conversation:', err);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -93,12 +98,12 @@ const ConversationalAIButton = ({
 
   const getStatusIcon = () => {
     if (isConnecting) {
-      return <Loader size={16} className="animate-spin text-yellow-600" />;
+      return <Loader size={14} className="animate-spin text-yellow-600" />;
     }
     if (isConnected) {
-      return <Wifi size={16} className="text-green-600" />;
+      return <Wifi size={14} className="text-green-600" />;
     }
-    return <WifiOff size={16} className="text-red-600" />;
+    return <WifiOff size={14} className="text-red-600" />;
   };
 
   const getStatusText = () => {
@@ -245,13 +250,21 @@ const ConversationalAIButton = ({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-xl">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                {getStatusIcon()}
-                <span className="font-medium">{getStatusText()}</span>
+              <div className={`flex items-center gap-2 px-2 py-1 rounded-full ${
+                isConnecting 
+                  ? 'bg-yellow-500/20' 
+                  : isConnected 
+                    ? 'bg-green-500/20' 
+                    : 'bg-red-500/20'
+              }`}>
+                {isConnecting && <Loader size={16} className="animate-spin text-yellow-200" />}
+                {!isConnecting && isConnected && <Wifi size={16} className="text-green-200" />}
+                {!isConnecting && !isConnected && <WifiOff size={16} className="text-red-200" />}
+                <span className="font-medium text-sm">{getStatusText()}</span>
               </div>
               {isConnected && (
-                <div className="flex items-center gap-1 text-sm">
-                  {getModeIcon()}
+                <div className="flex items-center gap-1 text-sm opacity-90">
+                  {currentMode === 'speaking' ? <Volume2 size={16} /> : <Mic size={16} />}
                   <span>{getModeText()}</span>
                 </div>
               )}
