@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, MessageCircle, X, Settings, Send, Wifi, WifiOff } from 'lucide-react';
+import { Mic, MicOff, MessageCircle, X, Settings, Send, Wifi, WifiOff, Volume2, User, Bot, Loader } from 'lucide-react';
 import { useConversationalAI } from '../hooks/useConversationalAI';
 
 interface ConversationalAIButtonProps {
@@ -15,6 +15,7 @@ const ConversationalAIButton = ({
   onMessage,
   className = ''
 }: ConversationalAIButtonProps) => {
+  const [showChat, setShowChat] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [customAgentId, setCustomAgentId] = useState(agentId);
   const [useSignedUrl, setUseSignedUrl] = useState(false);
@@ -41,7 +42,7 @@ const ConversationalAIButton = ({
       volumeInterval = setInterval(async () => {
         const vol = await getInputVolume();
         setInputVolumeLevel(vol);
-      }, 500);
+      }, 100);
     }
     return () => clearInterval(volumeInterval);
   }, [isConnected, getInputVolume]);
@@ -90,12 +91,28 @@ const ConversationalAIButton = ({
     }
   };
 
-  const getButtonIcon = () => {
+  const getStatusIcon = () => {
     if (isConnecting) {
-      return <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />;
+      return <Loader size={16} className="animate-spin text-yellow-600" />;
     }
     if (isConnected) {
-      return currentMode === 'speaking' ? <MicOff size={20} /> : <Mic size={20} />;
+      return <Wifi size={16} className="text-green-600" />;
+    }
+    return <WifiOff size={16} className="text-red-600" />;
+  };
+
+  const getStatusText = () => {
+    if (isConnecting) return 'Connecting...';
+    if (isConnected) return 'Connected';
+    return 'Disconnected';
+  };
+
+  const getModeIcon = () => {
+    if (isConnecting) {
+      return <Loader size={20} className="animate-spin" />;
+    }
+    if (isConnected) {
+      return currentMode === 'speaking' ? <Volume2 size={20} /> : <Mic size={20} />;
     }
     return <MessageCircle size={20} />;
   };
@@ -109,24 +126,24 @@ const ConversationalAIButton = ({
     return 'bg-blue-500 hover:bg-blue-600';
   };
 
-  const getButtonText = () => {
+  const getModeText = () => {
     if (isConnecting) return 'Connecting...';
     if (isConnected) {
       return currentMode === 'speaking' ? 'AI Speaking' : 'Listening';
     }
-    return 'Talk to AI';
+    return 'Start Chat';
   };
 
   return (
     <div className={`relative ${className}`}>
+      {/* Main AI Button */}
       <div className="flex items-center gap-2">
         <button
-          onClick={isConnected ? handleEndConversation : handleStartConversation}
-          disabled={isConnecting}
+          onClick={() => setShowChat(!showChat)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform hover:scale-105 disabled:opacity-50 ${getButtonColor()}`}
         >
-          {getButtonIcon()}
-          <span className="hidden sm:inline">{getButtonText()}</span>
+          {getModeIcon()}
+          <span className="hidden sm:inline">AI Helper</span>
         </button>
 
         <button
@@ -136,19 +153,16 @@ const ConversationalAIButton = ({
         >
           <Settings size={16} />
         </button>
-
-        <div className="flex items-center gap-1 text-xs text-gray-600">
-          {isConnected ? <Wifi size={16} className="text-green-600" /> : <WifiOff size={16} className="text-red-600" />}
-          <span>{isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}</span>
-        </div>
       </div>
 
+      {/* Error Display */}
       {error && (
-        <div className="absolute top-full left-0 mt-2 p-2 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm max-w-xs animate__animated animate__fadeIn">
+        <div className="absolute top-full left-0 mt-2 p-2 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm max-w-xs animate__animated animate__fadeIn z-50">
           {error}
         </div>
       )}
 
+      {/* Configuration Panel */}
       {showConfig && (
         <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-80 animate__animated animate__fadeInDown">
           <div className="flex items-center justify-between mb-4">
@@ -225,47 +239,132 @@ const ConversationalAIButton = ({
         </div>
       )}
 
-      {isConnected && (
-        <div className="absolute top-full left-0 mt-2 w-full max-w-md p-4 bg-white border border-gray-300 rounded-lg shadow-lg animate__animated animate__fadeInUp">
-          <h4 className="font-medium text-gray-900 mb-2">Conversation</h4>
-
-          <div className="mb-2">
-            <div className="h-2 w-full bg-gray-200 rounded">
-              <div
-                className="h-2 bg-blue-500 rounded"
-                style={{ width: `${inputVolumeLevel * 100}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-500">Mic Volume</span>
-          </div>
-
-          <div className="max-h-60 overflow-y-auto space-y-1 mb-2">
-            {messages.map((message, index) => (
-              <div key={index} className="text-sm text-gray-700">
-                <span className="font-medium">
-                  {message.source === 'user' ? 'You: ' : 'AI: '}
-                </span>
-                {message.message || message.text || 'Audio message'}
+      {/* Enhanced Chat Panel */}
+      {showChat && (
+        <div className="fixed inset-4 md:absolute md:top-full md:left-0 md:mt-2 md:inset-auto md:w-96 md:h-[500px] bg-white border border-gray-300 rounded-xl shadow-2xl z-50 flex flex-col animate__animated animate__fadeInUp">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {getStatusIcon()}
+                <span className="font-medium">{getStatusText()}</span>
               </div>
-            ))}
+              {isConnected && (
+                <div className="flex items-center gap-1 text-sm">
+                  {getModeIcon()}
+                  <span>{getModeText()}</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowChat(false)}
+              className="p-1 rounded-full hover:bg-white/20 transition-colors"
+            >
+              <X size={20} />
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-grow p-2 border border-gray-300 rounded-md text-sm"
-              disabled={!isConnected}
-            />
-            <button
-              onClick={handleSendMessage}
-              className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              disabled={!inputMessage.trim()}
-            >
-              <Send size={16} />
-            </button>
+          {/* Connection Controls */}
+          <div className="p-3 border-b bg-gray-50">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={isConnected ? handleEndConversation : handleStartConversation}
+                disabled={isConnecting}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-white font-medium transition-all duration-300 disabled:opacity-50 ${getButtonColor()}`}
+              >
+                {getModeIcon()}
+                <span className="text-sm">
+                  {isConnected ? 'End Chat' : 'Start Chat'}
+                </span>
+              </button>
+
+              {/* Mic Volume Indicator */}
+              {isConnected && (
+                <div className="flex items-center gap-2">
+                  <Mic size={16} className="text-gray-600" />
+                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-150"
+                      style={{ width: `${Math.min(inputVolumeLevel * 100, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-600 w-8">
+                    {Math.round(inputVolumeLevel * 100)}%
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <Bot size={48} className="mx-auto mb-3 text-gray-400" />
+                <p className="text-sm">Start a conversation with the AI helper!</p>
+                <p className="text-xs mt-1">I can help explain the story, answer questions, and assist with quizzes.</p>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex gap-3 animate__animated animate__fadeInUp`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                    message.source === 'user' ? 'bg-blue-500' : 'bg-purple-500'
+                  }`}>
+                    {message.source === 'user' ? (
+                      <User size={16} className="text-white" />
+                    ) : (
+                      <Bot size={16} className="text-white" />
+                    )}
+                  </div>
+                  <div className={`flex-1 p-3 rounded-lg ${
+                    message.source === 'user' 
+                      ? 'bg-blue-100 text-blue-900' 
+                      : 'bg-white border shadow-sm'
+                  }`}>
+                    <div className="text-sm">
+                      {message.message || message.text || (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Volume2 size={14} />
+                          <span>Audio message</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date().toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div className="p-4 border-t bg-white rounded-b-xl">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Type your message..."
+                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                disabled={!isConnected}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || !isConnected}
+                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-2 text-center">
+              {isConnected ? 'Connected - You can type or speak' : 'Connect to start chatting'}
+            </div>
           </div>
         </div>
       )}
