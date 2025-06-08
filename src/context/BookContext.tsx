@@ -39,6 +39,7 @@ interface BookContextType {
       dragDrop?: {
         dragItems: { id: string; image: string; label: string }[];
         dropZones: { id: string; image: string; label: string; acceptsId: string }[];
+        instructions?: string;
       };
     };
   };
@@ -59,6 +60,7 @@ interface BookContextType {
       dragDrop?: {
         dragItems: { id: string; image: string; label: string }[];
         dropZones: { id: string; image: string; label: string; acceptsId: string }[];
+        instructions?: string;
       };
     };
   }) => void;
@@ -213,6 +215,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
       dragDrop?: {
         dragItems: { id: string; image: string; label: string }[];
         dropZones: { id: string; image: string; label: string; acceptsId: string }[];
+        instructions?: string;
       };
     };
   }) => {

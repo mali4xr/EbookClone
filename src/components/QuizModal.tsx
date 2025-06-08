@@ -24,6 +24,7 @@ interface QuizModalProps {
       dragDrop?: {
         dragItems: { id: string; image: string; label: string }[];
         dropZones: { id: string; image: string; label: string; acceptsId: string }[];
+        instructions?: string;
       };
     };
   };
@@ -66,7 +67,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       dropZones: [
         { id: 'zone1', image: 'https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Forest Home', acceptsId: 'item1' },
         { id: 'zone2', image: 'https://images.pexels.com/photos/531321/pexels-photo-531321.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Tree Nest', acceptsId: 'item2' }
-      ]
+      ],
+      instructions: "Use arrow keys to move items around, then press Enter to drop them in the right place!"
     }
   };
 
@@ -92,10 +94,26 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     window.speechSynthesis.speak(utterance);
   };
 
-  const playWinSound = () => {
-    const audio = new Audio('/sounds/correct.mp3');
-    audio.volume = volume;
-    audio.play().catch(e => console.log('Audio play failed:', e));
+  const playCorrectSound = () => {
+    // Create a cheerful success sound using Web Audio API
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Play a happy melody: C-E-G-C
+    oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+    oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+    oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
+    oscillator.frequency.setValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+    
+    gainNode.gain.setValueAtTime(volume * 0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.6);
   };
 
   const celebrateCorrectAnswer = () => {
@@ -105,7 +123,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       origin: { y: 0.6 }
     });
 
-    playWinSound();
+    playCorrectSound();
 
     let congratsText = "Correct answer!";
     if (showSpelling) congratsText = "Perfect spelling! Great job!";
@@ -205,7 +223,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const handleListenAgain = () => {
     let textToRead = '';
     if (showDragDrop) {
-      textToRead = "Complete the drag and drop activity by matching the items to their correct places.";
+      textToRead = quiz.dragDrop?.instructions || "Complete the drag and drop activity by matching the items to their correct places.";
     } else if (showMultipleChoice) {
       textToRead = quiz.multipleChoice.question;
     } else if (showSpelling) {
@@ -262,7 +280,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__bounceIn">
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">
-              Quiz Time! ({score}/3)
+              Quiz Time! ({score}/3) 🎯
             </h2>
             <div className="flex items-center gap-2">
               <ConversationalAIButton
@@ -291,6 +309,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                   <DragDropQuiz
                     dragItems={quiz.dragDrop?.dragItems || []}
                     dropZones={quiz.dragDrop?.dropZones || []}
+                    instructions={quiz.dragDrop?.instructions}
                     onComplete={handleDragDropComplete}
                   />
                 </div>
@@ -412,10 +431,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
             ) : (
               <div className="text-center space-y-4 animate__animated animate__bounceIn">
                 <h3 className="text-2xl font-bold animate__animated animate__rubberBand">
-                  You scored {score} out of 3!
+                  You scored {score} out of 3! 🎉
                 </h3>
                 <p className="text-gray-600 animate__animated animate__fadeInUp animate__delay-1s">
-                  {score === 3 ? "Perfect score! Amazing work! 🎉" :
+                  {score === 3 ? "Perfect score! Amazing work! 🌟" :
                    score === 2 ? "Great job! Almost perfect! 👍" :
                    score === 1 ? "Good try! Keep practicing! 💪" :
                    "Don't worry, keep learning! 📚"}
