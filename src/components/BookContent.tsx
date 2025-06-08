@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from 'react';
 import { useBook } from '../context/BookContext';
 import PageTurner from './PageTurner';
@@ -8,6 +6,7 @@ import PageCounter from './PageCounter';
 import InteractiveElements from './InteractiveElements';
 import ConversationalAIButton from './ConversationalAIButton';
 import { QuizModal } from './QuizModal';
+import ProgressIndicator from './ProgressIndicator';
 
 const BookContent = () => {
   const { 
@@ -89,6 +88,14 @@ const BookContent = () => {
 
   return (
     <div className="flex flex-col h-[600px] md:h-[700px]">
+      {/* Progress Indicator */}
+      <ProgressIndicator 
+        currentPage={currentPage} 
+        totalPages={totalPages}
+        isPageComplete={isPageComplete}
+        quizScore={quizScore}
+      />
+      
       <div 
         className="flex-grow relative overflow-hidden"
         style={{
@@ -116,12 +123,26 @@ const BookContent = () => {
           </div>
           
           <div className="w-full md:w-1/2 relative">
+            {/* Video Circle */}
             <div className="absolute top-4 right-4">
-              <img 
-                src={pageContent.image} 
-                alt={`Illustration for page ${currentPage + 1}`} 
-                className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover border-4 border-white shadow-xl animate__animated animate__slideInRight"
-              />
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
+                <video 
+                  src={pageContent.video} 
+                  autoPlay
+                  loop
+                  muted
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to image if video fails
+                    const target = e.target as HTMLVideoElement;
+                    const img = document.createElement('img');
+                    img.src = pageContent.image;
+                    img.className = 'w-full h-full object-cover';
+                    img.alt = `Illustration for page ${currentPage + 1}`;
+                    target.parentNode?.replaceChild(img, target);
+                  }}
+                />
+              </div>
             </div>
             
             {/* AI Assistant for Reading */}
@@ -136,13 +157,17 @@ const BookContent = () => {
             <InteractiveElements page={currentPage} />
           </div>
         </div>
+
+        {/* Play/Read Button - Bottom Right */}
+        <div className="absolute bottom-4 right-4">
+          <Controls />
+        </div>
       </div>
       
       <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 animate__animated animate__slideInUp">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
           <PageCounter current={currentPage + 1} total={totalPages} />
-          <PageTurner isLocked={quizScore < 2} />
-          <Controls />
+          <PageTurner isLocked={quizScore < 3} />
         </div>
         
         {/* AI Messages Display */}

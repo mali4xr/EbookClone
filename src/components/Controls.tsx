@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Play, Pause, Settings } from 'lucide-react';
+import { Volume2, VolumeX, Play, Pause } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 
 const Controls = () => {
@@ -11,28 +11,28 @@ const Controls = () => {
   } = useBook();
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-3">
       <button 
         onClick={toggleReading}
-        className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-md"
+        className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg border-4 border-white transform hover:scale-110 animate__animated animate__pulse animate__infinite"
         aria-label={isReading ? "Pause reading" : "Start reading"}
       >
         {isReading ? (
-          <Pause size={24} />
+          <Pause size={28} />
         ) : (
-          <Play size={24} />
+          <Play size={28} />
         )}
       </button>
       
       <button 
         onClick={toggleMute}
-        className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+        className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 text-white hover:from-blue-500 hover:to-cyan-500 transition-all duration-300 shadow-lg border-3 border-white transform hover:scale-110"
         aria-label={isMuted ? "Unmute" : "Mute"}
       >
         {isMuted ? (
-          <VolumeX size={20} />
+          <VolumeX size={22} />
         ) : (
-          <Volume2 size={20} />
+          <Volume2 size={22} />
         )}
       </button>
     </div>

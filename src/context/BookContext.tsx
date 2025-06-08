@@ -25,6 +25,7 @@ interface BookContextType {
   pageContent: {
     text: string;
     image: string;
+    video: string;
     background: string;
     quiz?: {
       multipleChoice: {
@@ -34,12 +35,17 @@ interface BookContextType {
       spelling: {
         word: string;
         hint: string;
+      };
+      dragDrop?: {
+        dragItems: { id: string; image: string; label: string }[];
+        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
       };
     };
   };
   updatePageContent: (content: { 
     text: string; 
     image: string; 
+    video: string;
     background: string;
     quiz?: {
       multipleChoice: {
@@ -49,6 +55,10 @@ interface BookContextType {
       spelling: {
         word: string;
         hint: string;
+      };
+      dragDrop?: {
+        dragItems: { id: string; image: string; label: string }[];
+        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
       };
     };
   }) => void;
@@ -189,6 +199,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const updatePageContent = (content: {
     text: string;
     image: string;
+    video: string;
     background: string;
     quiz?: {
       multipleChoice: {
@@ -198,6 +209,10 @@ export const BookProvider = ({ children }: BookProviderProps) => {
       spelling: {
         word: string;
         hint: string;
+      };
+      dragDrop?: {
+        dragItems: { id: string; image: string; label: string }[];
+        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
       };
     };
   }) => {
