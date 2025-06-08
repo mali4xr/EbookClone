@@ -125,7 +125,7 @@ const BookContent = () => {
           
           <div className="w-full md:w-1/2 relative">
             {/* Video Circle - Fixed positioning and styling */}
-            <div className="absolute top-4 right-4 z-10">
+            <div className="absolute top-4 right-2 z-10">
               <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
                 <video 
                   src={pageContent.video} 
