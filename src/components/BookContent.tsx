@@ -41,6 +41,7 @@ const BookContent = () => {
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
+    setQuizScore(0);
   }, [currentPage]);
 
   useEffect(() => {
@@ -123,22 +124,25 @@ const BookContent = () => {
           </div>
           
           <div className="w-full md:w-1/2 relative">
-            {/* Video Circle */}
-            <div className="absolute top-4 right-4">
+            {/* Video Circle - Fixed positioning and styling */}
+            <div className="absolute top-4 right-4 z-10">
               <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
                 <video 
                   src={pageContent.video} 
                   autoPlay
                   loop
                   muted
+                  playsInline
                   className="w-full h-full object-cover"
+                  style={{ objectFit: 'cover' }}
                   onError={(e) => {
-                    // Fallback to image if video fails
+                    console.log('Video failed to load, falling back to image');
                     const target = e.target as HTMLVideoElement;
                     const img = document.createElement('img');
                     img.src = pageContent.image;
                     img.className = 'w-full h-full object-cover';
                     img.alt = `Illustration for page ${currentPage + 1}`;
+                    img.style.objectFit = 'cover';
                     target.parentNode?.replaceChild(img, target);
                   }}
                 />

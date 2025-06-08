@@ -39,8 +39,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState<string | null>(null);
+  const [showDragDrop, setShowDragDrop] = useState(true); // Start with drag and drop
+  const [showMultipleChoice, setShowMultipleChoice] = useState(false);
   const [showSpelling, setShowSpelling] = useState(false);
-  const [showDragDrop, setShowDragDrop] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
   const webcamRef = React.useRef<Webcam>(null);
@@ -91,21 +92,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     window.speechSynthesis.speak(utterance);
   };
 
-  useEffect(() => {
-    if (!showScore && !isReading && !isTransitioning) {
-      let textToRead = '';
-      if (currentQuestion === 0) {
-        textToRead = quiz.multipleChoice.question;
-      } else if (showSpelling) {
-        textToRead = `Please spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
-      } else if (showDragDrop) {
-        textToRead = "Complete the drag and drop activity by matching the items to their correct places.";
-      }
-      if (textToRead) {
-        readQuestion(textToRead);
-      }
-    }
-  }, [currentQuestion, showScore, showSpelling, showDragDrop, isTransitioning]);
+  const playWinSound = () => {
+    const audio = new Audio('/sounds/correct.mp3');
+    audio.volume = volume;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+  };
 
   const celebrateCorrectAnswer = () => {
     confetti({
@@ -114,15 +105,25 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       origin: { y: 0.6 }
     });
 
-    const audio = new Audio('/sounds/correct.mp3');
-    audio.volume = volume;
-    audio.play().catch(e => console.log('Audio play failed:', e));
+    playWinSound();
 
     let congratsText = "Correct answer!";
     if (showSpelling) congratsText = "Perfect spelling! Great job!";
     if (showDragDrop) congratsText = "Excellent matching! Well done!";
     
     readQuestion(congratsText);
+  };
+
+  const handleDragDropComplete = () => {
+    celebrateCorrectAnswer();
+    setScore(score + 1);
+    
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setShowDragDrop(false);
+      setShowMultipleChoice(true);
+      setIsTransitioning(false);
+    }, 2000);
   };
 
   const handleMultipleChoiceAnswer = (isCorrect: boolean) => {
@@ -139,6 +140,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     
     setIsTransitioning(true);
     setTimeout(() => {
+      setShowMultipleChoice(false);
       setShowSpelling(true);
       setIsTransitioning(false);
     }, 2000);
@@ -157,16 +159,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       readQuestion(`Not quite right. The correct spelling was ${quiz.spelling.word}`);
     }
     
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setShowDragDrop(true);
-      setIsTransitioning(false);
-    }, 2000);
-  };
-
-  const handleDragDropComplete = () => {
-    celebrateCorrectAnswer();
-    setScore(score + 1);
     setShowScore(true);
   };
 
@@ -197,11 +189,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       if (isCorrect) {
         celebrateCorrectAnswer();
         setScore(score + 1);
-        setIsTransitioning(true);
-        setTimeout(() => {
-          setShowDragDrop(true);
-          setIsTransitioning(false);
-        }, 2000);
+        setShowScore(true);
       } else {
         readQuestion(`I see the text: "${text.trim()}". This doesn't match the word. Try again or type your answer.`);
       }
@@ -216,12 +204,12 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
   const handleListenAgain = () => {
     let textToRead = '';
-    if (!showSpelling && !showDragDrop) {
+    if (showDragDrop) {
+      textToRead = "Complete the drag and drop activity by matching the items to their correct places.";
+    } else if (showMultipleChoice) {
       textToRead = quiz.multipleChoice.question;
     } else if (showSpelling) {
       textToRead = `Spell: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
-    } else if (showDragDrop) {
-      textToRead = "Complete the drag and drop activity.";
     }
     readQuestion(textToRead);
   };
@@ -236,7 +224,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         console.log('AI spelling assistance:', message.message);
       }
       
-      if (text.includes('answer') && !showSpelling && !showDragDrop) {
+      if (text.includes('answer') && showMultipleChoice) {
         console.log('AI quiz assistance:', message.message);
       }
     }
@@ -246,7 +234,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     let context = `You are helping a child with a reading quiz. 
     Current story text: "${pageContent.text}"`;
     
-    if (!showSpelling && !showDragDrop) {
+    if (showDragDrop) {
+      context += `
+       Drag and drop activity: The child needs to match items to their correct places.
+       Please encourage them and provide hints about the story connections.`;
+    } else if (showMultipleChoice) {
       context += `
        Current question: "${quiz.multipleChoice.question}"
        Available options: ${quiz.multipleChoice.options.map(opt => opt.text).join(', ')}
@@ -256,10 +248,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
        Spelling challenge: The child needs to spell the word "${quiz.spelling.word}"
        Hint: ${quiz.spelling.hint}
        Please help them with pronunciation, letter sounds, or spelling strategies.`;
-    } else if (showDragDrop) {
-      context += `
-       Drag and drop activity: The child needs to match items to their correct places.
-       Please encourage them and provide hints about the story connections.`;
     }
     
     context += `
@@ -298,7 +286,15 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
           
           <div className="p-6">
             {!showScore ? (
-              !showSpelling && !showDragDrop ? (
+              showDragDrop ? (
+                <div className="animate__animated animate__slideInUp">
+                  <DragDropQuiz
+                    dragItems={quiz.dragDrop?.dragItems || []}
+                    dropZones={quiz.dragDrop?.dropZones || []}
+                    onComplete={handleDragDropComplete}
+                  />
+                </div>
+              ) : showMultipleChoice ? (
                 <div className="space-y-4 animate__animated animate__fadeInUp">
                   <div className="flex items-center justify-between">
                     <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
@@ -323,7 +319,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     ))}
                   </div>
                 </div>
-              ) : showSpelling && !showDragDrop ? (
+              ) : showSpelling ? (
                 <div className="space-y-4 animate__animated animate__slideInRight">
                   <div className="flex items-center justify-between">
                     <p className="text-lg font-medium">Spell the word you hear:</p>
@@ -412,15 +408,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="animate__animated animate__slideInUp">
-                  <DragDropQuiz
-                    dragItems={quiz.dragDrop?.dragItems || []}
-                    dropZones={quiz.dragDrop?.dropZones || []}
-                    onComplete={handleDragDropComplete}
-                  />
-                </div>
-              )
+              ) : null
             ) : (
               <div className="text-center space-y-4 animate__animated animate__bounceIn">
                 <h3 className="text-2xl font-bold animate__animated animate__rubberBand">
