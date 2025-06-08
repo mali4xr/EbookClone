@@ -2,7 +2,7 @@ export const storyContent = [
   {
     text: "Once upon a time in the magical forest of Whisperwood, there lived a little rabbit named Hoppy. Hoppy loved to explore and make new friends.",
     image: "https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
@@ -118,7 +118,7 @@ export const storyContent = [
   {
     text: "'Climb on my back,' said Hoppy. 'I may not fly, but I can hop very high!' And so, with Flutter on his back, Hoppy began to hop toward the tallest tree.",
     image: "https://images.pexels.com/photos/325812/pexels-photo-325812.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
@@ -202,7 +202,7 @@ export const storyContent = [
   {
     text: "From that day on, Hoppy and Flutter became the best of friends, showing everyone in Whisperwood Forest that helping others is the greatest adventure of all.",
     image: "https://images.pexels.com/photos/1643457/pexels-photo-1643457.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/707344/pexels-photo-707344.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
