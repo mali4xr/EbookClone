@@ -30,7 +30,7 @@ export const storyContent = [
   {
     text: "One sunny morning, Hoppy decided to venture deeper into the forest than ever before. The trees were taller here, and the flowers more colorful.",
     image: "https://images.pexels.com/photos/4588055/pexels-photo-4588055.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/1287142/pexels-photo-1287142.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
@@ -60,7 +60,7 @@ export const storyContent = [
   {
     text: "Suddenly, Hoppy heard a soft sound. It was a little bird with a blue wing who couldn't fly. 'Hello,' said Hoppy. 'My name is Hoppy. What's yours?'",
     image: "https://images.pexels.com/photos/416179/pexels-photo-416179.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/33109/fall-autumn-red-season.jpg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
@@ -90,7 +90,7 @@ export const storyContent = [
   {
     text: "'I'm Flutter,' said the bird. 'I hurt my wing and can't get back to my nest.' Hoppy thought for a moment, then had a brilliant idea!",
     image: "https://images.pexels.com/photos/2662434/pexels-photo-2662434.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/145863/pexels-photo-145863.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
@@ -146,7 +146,7 @@ export const storyContent = [
   {
     text: "Hop by hop, they made their way up the hill. It wasn't easy, but Hoppy was determined to help his new friend. Flutter directed them through the forest.",
     image: "https://images.pexels.com/photos/4588474/pexels-photo-4588474.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/957024/forest-trees-perspective-bright-957024.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
@@ -174,7 +174,7 @@ export const storyContent = [
   {
     text: "Finally, they reached Flutter's nest high in the branches. Flutter's family was overjoyed! They thanked Hoppy with songs and stories until the sun set.",
     image: "https://images.pexels.com/photos/6577903/pexels-photo-6577903.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-    video: "https://videos.pexels.com/video-files/3571264/3571264-uhd_2560_1440_30fps.mp4",
+    video: "https://content.pexels.com/videos/free-videos.mp4",
     background: "https://images.pexels.com/photos/531321/pexels-photo-531321.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     quiz: {
       multipleChoice: {
