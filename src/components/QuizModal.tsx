@@ -277,15 +277,16 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         celebrateCorrectAnswer();
         setScore(score + 1);
         setShowScore(true);
-        readQuestion(`Great job! I recognized "${finalResult.text}" using ${finalResult.method === 'tesseract' ? 'Tesseract' : 'Gemini AI'}.`);
+        // readQuestion(`Great job! I recognized "${finalResult.text}" using ${finalResult.method === 'tesseract' ? 'Tesseract' : 'Gemini AI'}.`);
+        readQuestion(`Great job! , now lets continue the story`);
       } else {
-        readQuestion(`I tried both Tesseract and Gemini, but couldn't find the correct word. The answer was "${quiz.spelling.word}". You get 0 points for this question.`);
+        readQuestion(`You tried but your spelling is not correct"${quiz.spelling.word}". Please, read the story and try again.`);
         setShowScore(true);
       }
       
     } catch (error) {
       console.error('OCR Error:', error);
-      readQuestion("Sorry, I couldn't read the text clearly. Please try again or type your answer.");
+      readQuestion("Sorry, I couldn't read your spelling clearly. Please try again or type your answer.");
       setOcrResults([{
         text: 'Processing Error',
         confidence: 0,
