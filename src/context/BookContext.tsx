@@ -13,6 +13,8 @@ interface BookContextType {
   currentWord: number;
   hasStartedReading: boolean;
   availableVoices: SpeechSynthesisVoice[];
+  geminiApiKey: string;
+  geminiModel: string;
   nextPage: () => void;
   prevPage: () => void;
   toggleReading: () => void;
@@ -21,6 +23,8 @@ interface BookContextType {
   setRate: (rate: number) => void;
   setPitch: (pitch: number) => void;
   setVolume: (volume: number) => void;
+  setGeminiApiKey: (key: string) => void;
+  setGeminiModel: (model: string) => void;
   goToPage: (page: number) => void;
   pageContent: {
     text: string;
@@ -93,6 +97,8 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const [currentWord, setCurrentWord] = useState(-1);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [utterance, setUtterance] = useState<SpeechSynthesisUtterance | null>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiModel, setGeminiModel] = useState('gemini-1.5-flash');
 
   const totalPages = storyContent.length;
   const pageContent = storyContent[currentPage];
@@ -236,6 +242,8 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     currentWord,
     hasStartedReading,
     availableVoices,
+    geminiApiKey,
+    geminiModel,
     nextPage,
     prevPage,
     toggleReading,
@@ -244,6 +252,8 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     setRate,
     setPitch,
     setVolume,
+    setGeminiApiKey,
+    setGeminiModel,
     goToPage,
     pageContent,
     updatePageContent

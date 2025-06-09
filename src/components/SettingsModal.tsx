@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Edit, MessageCircle } from 'lucide-react';
+import { X, Edit, MessageCircle, Key, Brain } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import EditPageModal from './EditPageModal';
 import ConversationalAIButton from './ConversationalAIButton';
+import { GeminiService } from '../services/GeminiService';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -20,10 +21,15 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
     volume,
     setVolume,
     pageContent,
-    updatePageContent
+    updatePageContent,
+    geminiApiKey,
+    setGeminiApiKey,
+    geminiModel,
+    setGeminiModel
   } = useBook();
 
   const [showEdit, setShowEdit] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleAIMessage = (message: any) => {
     console.log('Settings AI Message:', message);
@@ -37,20 +43,27 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
     - Pitch: ${pitch}
     - Volume: ${Math.round(volume * 100)}%
     
+    OCR Settings:
+    - Gemini API: ${geminiApiKey ? 'Configured' : 'Not configured'}
+    - Gemini Model: ${geminiModel}
+    
     You can help with:
     - Explaining what each setting does
     - Recommending optimal settings for children
     - Troubleshooting voice or audio issues
     - Suggesting accessibility improvements
+    - Explaining OCR and Gemini integration
     
     Be helpful and explain technical concepts in simple terms.`;
   };
 
+  const geminiModels = GeminiService.getAvailableModels();
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__slideInDown">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate__animated animate__slideInDown">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Voice Settings</h2>
+          <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Settings</h2>
           <div className="flex items-center gap-2">
             <ConversationalAIButton
               context={getSettingsAIContext()}
@@ -149,8 +162,75 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
             </div>
           </div>
 
-          {/* Edit Page Content */}
+          {/* Advanced Settings Toggle */}
           <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-4s">
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full flex items-center justify-center gap-2 p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105"
+            >
+              <Brain size={20} />
+              <span>{showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'}</span>
+            </button>
+          </div>
+
+          {/* Advanced Settings */}
+          {showAdvanced && (
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg animate__animated animate__slideInDown">
+              <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                <Key size={16} />
+                OCR & AI Settings
+              </h3>
+              
+              {/* Gemini API Key */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Google Gemini API Key
+                </label>
+                <input
+                  type="password"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  placeholder="Enter your Gemini API key..."
+                />
+                <p className="text-xs text-gray-500">
+                  Used as fallback for handwriting recognition when Tesseract fails
+                </p>
+              </div>
+
+              {/* Gemini Model Selection */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Gemini Model
+                </label>
+                <select
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                >
+                  {geminiModels.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500">
+                  Flash models are faster, Pro models have better accuracy
+                </p>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>How it works:</strong> When a child writes an answer and takes a photo, 
+                  we first try Tesseract.js (free). If it doesn't match the correct answer, 
+                  we automatically try Gemini AI for better handwriting recognition.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Page Content */}
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-5s">
             <button
               onClick={() => setShowEdit(true)}
               className="w-full flex items-center justify-center gap-2 p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-300 transform hover:scale-105"
@@ -161,7 +241,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           </div>
         </div>
         
-        <div className="p-4 border-t flex justify-end animate__animated animate__fadeInUp animate__delay-5s">
+        <div className="p-4 border-t flex justify-end animate__animated animate__fadeInUp animate__delay-6s">
           <button
             onClick={onClose}
             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 shadow-sm transform hover:scale-105"

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera, Volume2, Keyboard } from 'lucide-react';
+import { X, Camera, Volume2, Keyboard, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
 import { createWorker } from 'tesseract.js';
+import { GeminiService } from '../services/GeminiService';
 import ConversationalAIButton from './ConversationalAIButton';
 import DragDropQuiz from './DragDropQuiz';
 
@@ -30,8 +31,14 @@ interface QuizModalProps {
   };
 }
 
+interface OCRResult {
+  text: string;
+  confidence: number;
+  method: 'tesseract' | 'gemini';
+}
+
 export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
-  const { voiceIndex, rate, pitch, volume, availableVoices } = useBook();
+  const { voiceIndex, rate, pitch, volume, availableVoices, geminiApiKey, geminiModel } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
@@ -39,8 +46,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [isReading, setIsReading] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [capturedText, setCapturedText] = useState<string | null>(null);
-  const [showDragDrop, setShowDragDrop] = useState(true); // Start with drag and drop
+  const [ocrResults, setOcrResults] = useState<OCRResult[]>([]);
+  const [showDragDrop, setShowDragDrop] = useState(true);
   const [showMultipleChoice, setShowMultipleChoice] = useState(false);
   const [showSpelling, setShowSpelling] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -95,7 +102,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const playCorrectSound = () => {
-    // Create a cheerful success sound using Web Audio API
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -103,11 +109,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
-    // Play a happy melody: C-E-G-C
-    oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-    oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
-    oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
-    oscillator.frequency.setValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+    oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2);
+    oscillator.frequency.setValueAtTime(1046.50, audioContext.currentTime + 0.3);
     
     gainNode.gain.setValueAtTime(volume * 0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
@@ -180,11 +185,39 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     setShowScore(true);
   };
 
+  const processWithTesseract = async (imageSrc: string): Promise<OCRResult> => {
+    const worker = await createWorker();
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+    
+    const { data: { text, confidence } } = await worker.recognize(imageSrc);
+    await worker.terminate();
+
+    return {
+      text: text.trim(),
+      confidence: confidence / 100,
+      method: 'tesseract'
+    };
+  };
+
+  const processWithGemini = async (imageSrc: string): Promise<OCRResult> => {
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    const result = await GeminiService.recognizeText(imageSrc, geminiApiKey, geminiModel);
+    return {
+      text: result.text,
+      confidence: result.confidence,
+      method: 'gemini'
+    };
+  };
+
   const captureImage = async () => {
     if (!webcamRef.current) return;
     
     setIsProcessing(true);
-    setCapturedText(null);
+    setOcrResults([]);
     const imageSrc = webcamRef.current.getScreenshot();
     
     if (!imageSrc) {
@@ -192,30 +225,73 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       return;
     }
 
+    const results: OCRResult[] = [];
+    let finalResult: OCRResult | null = null;
+
     try {
-      const worker = await createWorker();
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
+      // First try Tesseract.js
+      console.log('Trying Tesseract.js...');
+      const tesseractResult = await processWithTesseract(imageSrc);
+      results.push(tesseractResult);
       
-      const { data: { text } } = await worker.recognize(imageSrc);
-      await worker.terminate();
+      const cleanedTesseractText = tesseractResult.text.toLowerCase().replace(/[^a-z]/g, '');
+      const targetWord = quiz.spelling.word.toLowerCase();
+      
+      if (cleanedTesseractText.includes(targetWord)) {
+        finalResult = tesseractResult;
+        console.log('Tesseract succeeded!');
+      } else {
+        console.log('Tesseract failed, trying Gemini...');
+        
+        // Try Gemini as fallback
+        if (geminiApiKey) {
+          try {
+            const geminiResult = await processWithGemini(imageSrc);
+            results.push(geminiResult);
+            
+            const cleanedGeminiText = geminiResult.text.toLowerCase().replace(/[^a-z]/g, '');
+            if (cleanedGeminiText.includes(targetWord)) {
+              finalResult = geminiResult;
+              console.log('Gemini succeeded!');
+            }
+          } catch (geminiError) {
+            console.error('Gemini failed:', geminiError);
+            results.push({
+              text: 'Gemini API Error',
+              confidence: 0,
+              method: 'gemini'
+            });
+          }
+        } else {
+          results.push({
+            text: 'Gemini API key not configured',
+            confidence: 0,
+            method: 'gemini'
+          });
+        }
+      }
 
-      const cleanedText = text.trim().toLowerCase().replace(/[^a-z]/g, '');
-      setCapturedText(text.trim());
-      const isCorrect = cleanedText.includes(quiz.spelling.word.toLowerCase());
+      setOcrResults(results);
 
-      if (isCorrect) {
+      if (finalResult) {
         celebrateCorrectAnswer();
         setScore(score + 1);
         setShowScore(true);
+        readQuestion(`Great job! I recognized "${finalResult.text}" using ${finalResult.method === 'tesseract' ? 'Tesseract' : 'Gemini AI'}.`);
       } else {
-        readQuestion(`I see the text: "${text.trim()}". This doesn't match the word. Try again or type your answer.`);
+        readQuestion(`I tried both Tesseract and Gemini, but couldn't find the correct word. The answer was "${quiz.spelling.word}". You get 0 points for this question.`);
+        setShowScore(true);
       }
       
-      setIsProcessing(false);
     } catch (error) {
       console.error('OCR Error:', error);
       readQuestion("Sorry, I couldn't read the text clearly. Please try again or type your answer.");
+      setOcrResults([{
+        text: 'Processing Error',
+        confidence: 0,
+        method: 'tesseract'
+      }]);
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -272,6 +348,20 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     Be encouraging, patient, and educational. Use simple language appropriate for children.`;
     
     return context;
+  };
+
+  const getOCRStatusIcon = (result: OCRResult) => {
+    const targetWord = quiz.spelling.word.toLowerCase();
+    const cleanedText = result.text.toLowerCase().replace(/[^a-z]/g, '');
+    const isCorrect = cleanedText.includes(targetWord);
+    
+    if (result.text === 'Processing Error' || result.text === 'Gemini API Error') {
+      return <XCircle size={16} className="text-red-500" />;
+    }
+    
+    return isCorrect ? 
+      <CheckCircle size={16} className="text-green-500" /> : 
+      <XCircle size={16} className="text-red-500" />;
   };
 
   return (
@@ -393,6 +483,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     <div className="space-y-3 animate__animated animate__fadeIn">
                       <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
                         <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          We'll try Tesseract first, then Gemini AI if needed
+                        </p>
                       </div>
                       
                       <Webcam
@@ -406,10 +499,24 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         }}
                       />
                       
-                      {capturedText && (
-                        <div className="p-3 bg-gray-50 rounded-lg animate__animated animate__fadeInUp">
-                          <p className="text-sm font-medium text-gray-700">Captured Text:</p>
-                          <p className="text-gray-600">{capturedText}</p>
+                      {/* OCR Results Display */}
+                      {ocrResults.length > 0 && (
+                        <div className="space-y-2 animate__animated animate__fadeInUp">
+                          <h4 className="font-medium text-gray-700">Recognition Results:</h4>
+                          {ocrResults.map((result, index) => (
+                            <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                              {getOCRStatusIcon(result)}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium capitalize">{result.method}:</span>
+                                  <span className="text-sm">{result.text || 'No text detected'}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Confidence: {Math.round(result.confidence * 100)}%
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                       
@@ -419,9 +526,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 disabled:opacity-50 font-medium transform hover:scale-105"
                       >
                         {isProcessing ? (
-                          <span className="animate__animated animate__flash animate__infinite">Reading text...</span>
+                          <span className="animate__animated animate__flash animate__infinite">
+                            Processing with AI...
+                          </span>
                         ) : (
-                          "📸 Capture & Check"
+                          "📸 Capture & Check with AI"
                         )}
                       </button>
                     </div>
@@ -440,8 +549,24 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                    "Don't worry, keep learning! 📚"}
                 </p>
                 
+                {/* OCR Summary */}
+                {ocrResults.length > 0 && (
+                  <div className="p-3 bg-gray-50 rounded-lg animate__animated animate__fadeInUp animate__delay-2s">
+                    <p className="text-sm text-gray-700 font-medium">OCR Recognition Summary:</p>
+                    <div className="text-xs text-gray-600 mt-1 space-y-1">
+                      {ocrResults.map((result, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          {getOCRStatusIcon(result)}
+                          <span className="capitalize">{result.method}:</span>
+                          <span>"{result.text}" ({Math.round(result.confidence * 100)}%)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {aiMessages.length > 0 && (
-                  <div className="p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInUp animate__delay-2s">
+                  <div className="p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInUp animate__delay-3s">
                     <p className="text-sm text-blue-700 font-medium">AI Feedback:</p>
                     <p className="text-blue-600 text-sm mt-1">
                       {aiMessages[aiMessages.length - 1]?.message || "Great conversation!"}
