@@ -56,7 +56,7 @@ const ProgressIndicator = ({ currentPage, totalPages, isPageComplete, quizScore 
   };
 
   return (
-    <div className="bg-white border-b border-gray-200 p-4">
+    <div className="bg-white border-b border-red-200 p-4">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-center gap-2 md:gap-4">
           {Array.from({ length: totalPages }, (_, index) => {
