@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Volume2, Keyboard, AlertCircle, CheckCircle, XCircle, RotateCcw, RefreshCw } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
@@ -47,7 +47,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [inputMode, setInputMode] = useState<'text' | 'camera'>('camera');
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResults, setOcrResults] = useState<OCRResult[]>([]);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [showLivePreview, setShowLivePreview] = useState(true);
   const [showDragDrop, setShowDragDrop] = useState(true);
@@ -55,6 +54,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [showSpelling, setShowSpelling] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+  const [hasReadQuestion, setHasReadQuestion] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
@@ -81,6 +83,52 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       instructions: "Use arrow keys to move items around, then press Enter to drop them in the right place!"
     }
   };
+
+  // Get available cameras on component mount
+  useEffect(() => {
+    const getCameras = async () => {
+      try {
+        // Request permission first
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        setAvailableCameras(videoDevices);
+        console.log('Available cameras:', videoDevices);
+      } catch (error) {
+        console.error('Error getting cameras:', error);
+      }
+    };
+
+    getCameras();
+  }, []);
+
+  // Auto-read questions when they appear
+  useEffect(() => {
+    if (!hasReadQuestion) {
+      let textToRead = '';
+      
+      if (showDragDrop) {
+        textToRead = quiz.dragDrop?.instructions || "Complete the drag and drop activity by matching the items to their correct places.";
+      } else if (showMultipleChoice) {
+        textToRead = quiz.multipleChoice.question;
+      } else if (showSpelling) {
+        textToRead = `Spell the word: ${quiz.spelling.word}`;
+      }
+      
+      if (textToRead) {
+        setTimeout(() => {
+          readQuestion(textToRead);
+          setHasReadQuestion(true);
+        }, 500); // Small delay to let the UI settle
+      }
+    }
+  }, [showDragDrop, showMultipleChoice, showSpelling, hasReadQuestion]);
+
+  // Reset hasReadQuestion when transitioning between quiz types
+  useEffect(() => {
+    setHasReadQuestion(false);
+  }, [showDragDrop, showMultipleChoice, showSpelling]);
 
   useEffect(() => {
     onScoreUpdate(score);
@@ -216,6 +264,41 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     };
   };
 
+  const switchCamera = async () => {
+    if (availableCameras.length <= 1) {
+      console.log('Only one camera available');
+      return;
+    }
+
+    const nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+    setCurrentCameraIndex(nextIndex);
+    
+    // Reset captured image when switching cameras
+    setCapturedImage(null);
+    setShowLivePreview(true);
+    setOcrResults([]);
+    setIsProcessing(false);
+    
+    console.log(`Switching to camera ${nextIndex + 1}/${availableCameras.length}:`, availableCameras[nextIndex]);
+  };
+
+  const getCurrentCameraConstraints = () => {
+    if (availableCameras.length > 0 && availableCameras[currentCameraIndex]) {
+      return {
+        width: 320,
+        height: 240,
+        deviceId: { exact: availableCameras[currentCameraIndex].deviceId }
+      };
+    }
+    
+    // Fallback to facingMode if no specific cameras available
+    return {
+      width: 320,
+      height: 240,
+      facingMode: 'user'
+    };
+  };
+
   const captureImage = async () => {
     if (!webcamRef.current) return;
     
@@ -284,10 +367,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         celebrateCorrectAnswer();
         setScore(score + 1);
         setShowScore(true);
-        // readQuestion(`Great job! I recognized "${finalResult.text}" using ${finalResult.method === 'tesseract' ? 'Tesseract' : 'Gemini AI'}.`);
-        readQuestion(`Great job! , now lets continue the story`);
+        readQuestion(`Great job! Now let's continue the story`);
       } else {
-        readQuestion(`You tried but your spelling is not correct"${quiz.spelling.word}". Please, read the story and try again.`);
+        readQuestion(`You tried but your spelling is not correct. The word was "${quiz.spelling.word}". Please, read the story and try again.`);
         setShowScore(true);
       }
       
@@ -311,7 +393,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     } else if (showMultipleChoice) {
       textToRead = quiz.multipleChoice.question;
     } else if (showSpelling) {
-      textToRead = `Spell: ${quiz.spelling.word}`;
+      textToRead = `Spell the word: ${quiz.spelling.word}`;
     }
     readQuestion(textToRead);
   };
@@ -358,13 +440,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     return context;
   };
 
-  const switchCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-    // Reset captured image when switching cameras
-    setCapturedImage(null);
-    setShowLivePreview(true);
-  };
-
   const retakePhoto = () => {
     setCapturedImage(null);
     setShowLivePreview(true);
@@ -384,6 +459,13 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     return isCorrect ? 
       <CheckCircle size={16} className="text-green-500" /> : 
       <XCircle size={16} className="text-red-500" />;
+  };
+
+  const getCameraButtonText = () => {
+    if (availableCameras.length > 1) {
+      return `Camera ${currentCameraIndex + 1}/${availableCameras.length}`;
+    }
+    return 'Switch Camera';
   };
 
   return (
@@ -501,10 +583,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         <button
                           onClick={switchCamera}
                           className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105"
-                          disabled={isProcessing}
+                          disabled={isProcessing || availableCameras.length <= 1}
                         >
+                          <Camera size={16} />
                           <RotateCcw size={16} />
-                          <span className="text-sm">Switch Camera</span>
+                          <span className="text-sm">{getCameraButtonText()}</span>
                         </button>
                         
                         {capturedImage && (
@@ -531,10 +614,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                               ref={webcamRef}
                               screenshotFormat="image/jpeg"
                               className="w-full h-32 md:h-40 rounded-lg border animate__animated animate__zoomIn object-cover"
-                              videoConstraints={{
-                                width: 320,
-                                height: 240,
-                                facingMode: facingMode
+                              videoConstraints={getCurrentCameraConstraints()}
+                              onUserMediaError={(error) => {
+                                console.error('Camera error:', error);
+                                setShowLivePreview(false);
                               }}
                             />
                           ) : (
