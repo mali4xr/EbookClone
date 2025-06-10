@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Camera, Volume2, Keyboard, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { X, Camera, Volume2, Keyboard, AlertCircle, CheckCircle, XCircle, RotateCcw, RefreshCw } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
@@ -44,9 +44,12 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [showScore, setShowScore] = useState(false);
   const [spellingAnswer, setSpellingAnswer] = useState('');
   const [isReading, setIsReading] = useState(false);
-  const [inputMode, setInputMode] = useState<'text' | 'camera'>('text');
+  const [inputMode, setInputMode] = useState<'text' | 'camera'>('camera');
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResults, setOcrResults] = useState<OCRResult[]>([]);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [showLivePreview, setShowLivePreview] = useState(true);
   const [showDragDrop, setShowDragDrop] = useState(true);
   const [showMultipleChoice, setShowMultipleChoice] = useState(false);
   const [showSpelling, setShowSpelling] = useState(false);
@@ -225,6 +228,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       return;
     }
 
+    // Stop live preview and show captured image
+    setShowLivePreview(false);
+    setCapturedImage(imageSrc);
+
     const results: OCRResult[] = [];
     let finalResult: OCRResult | null = null;
 
@@ -304,7 +311,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     } else if (showMultipleChoice) {
       textToRead = quiz.multipleChoice.question;
     } else if (showSpelling) {
-      textToRead = `Spell: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
+      textToRead = `Spell: ${quiz.spelling.word}`;
     }
     readQuestion(textToRead);
   };
@@ -349,6 +356,20 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     Be encouraging, patient, and educational. Use simple language appropriate for children.`;
     
     return context;
+  };
+
+  const switchCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    // Reset captured image when switching cameras
+    setCapturedImage(null);
+    setShowLivePreview(true);
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    setShowLivePreview(true);
+    setOcrResults([]);
+    setIsProcessing(false);
   };
 
   const getOCRStatusIcon = (result: OCRResult) => {
@@ -441,18 +462,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       <Volume2 size={20} />
                     </button>
                   </div>
-                  <p className="text-gray-600 italic animate__animated animate__fadeIn animate__delay-1s">{quiz.spelling.hint}</p>
+                  <p className="text-gray-600 italic animate__animated animate__fadeIn animate__delay-1s">
+                    Hint: {quiz.spelling.hint}
+                  </p>
                   
                   <div className="flex items-center justify-center space-x-4 animate__animated animate__fadeInUp animate__delay-1s">
-                    <button
-                      onClick={() => setInputMode('text')}
-                      className={`flex items-center gap-2 p-2 rounded transition-all duration-300 transform hover:scale-110 ${
-                        inputMode === 'text' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
-                      }`}
-                    >
-                      <Keyboard size={20} />
-                      <span>Type</span>
-                    </button>
                     <button
                       onClick={() => setInputMode('camera')}
                       className={`flex items-center gap-2 p-2 rounded transition-all duration-300 transform hover:scale-110 ${
@@ -462,26 +476,19 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       <Camera size={20} />
                       <span>Camera</span>
                     </button>
+                    <button
+                      onClick={() => setInputMode('text')}
+                      className={`flex items-center gap-2 p-2 rounded transition-all duration-300 transform hover:scale-110 ${
+                        inputMode === 'text' ? 'bg-purple-100 text-purple-600' : 'text-gray-500'
+                      }`}
+                    >
+                      <Keyboard size={20} />
+                      <span>Type</span>
+                    </button>
                   </div>
 
-                  {inputMode === 'text' ? (
-                    <div className="animate__animated animate__fadeIn">
-                      <input
-                        type="text"
-                        value={spellingAnswer}
-                        onChange={(e) => setSpellingAnswer(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                        placeholder="Type your answer..."
-                      />
-                      <button
-                        onClick={handleSpellingSubmit}
-                        className="w-full mt-3 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 font-medium transform hover:scale-105 animate__animated animate__pulse animate__infinite"
-                      >
-                        Submit Answer
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 animate__animated animate__fadeIn">
+                  {inputMode === 'camera' ? (
+                    <div className="space-y-4 animate__animated animate__fadeIn">
                       <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
                         <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
                         <p className="text-xs text-blue-600 mt-1">
@@ -489,16 +496,75 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         </p>
                       </div>
                       
-                      <Webcam
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        className="w-full rounded-lg border animate__animated animate__zoomIn"
-                        videoConstraints={{
-                          width: 320,
-                          height: 240,
-                          facingMode: "user"
-                        }}
-                      />
+                      {/* Camera Controls */}
+                      <div className="flex justify-center gap-2 mb-4">
+                        <button
+                          onClick={switchCamera}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105"
+                          disabled={isProcessing}
+                        >
+                          <RotateCcw size={16} />
+                          <span className="text-sm">Switch Camera</span>
+                        </button>
+                        
+                        {capturedImage && (
+                          <button
+                            onClick={retakePhoto}
+                            className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all duration-300 transform hover:scale-105"
+                            disabled={isProcessing}
+                          >
+                            <RefreshCw size={16} />
+                            <span className="text-sm">Retake</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Camera Preview and Captured Image Side by Side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Live Preview */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium text-gray-700 text-center">
+                            {showLivePreview ? 'Live Preview' : 'Camera Off'}
+                          </h4>
+                          {showLivePreview ? (
+                            <Webcam
+                              ref={webcamRef}
+                              screenshotFormat="image/jpeg"
+                              className="w-full h-32 md:h-40 rounded-lg border animate__animated animate__zoomIn object-cover"
+                              videoConstraints={{
+                                width: 320,
+                                height: 240,
+                                facingMode: facingMode
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-32 md:h-40 rounded-lg border bg-gray-100 flex items-center justify-center">
+                              <Camera size={32} className="text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Captured Image */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium text-gray-700 text-center">
+                            Captured Image
+                          </h4>
+                          {capturedImage ? (
+                            <img
+                              src={capturedImage}
+                              alt="Captured handwriting"
+                              className="w-full h-32 md:h-40 rounded-lg border object-cover animate__animated animate__zoomIn"
+                            />
+                          ) : (
+                            <div className="w-full h-32 md:h-40 rounded-lg border bg-gray-50 flex items-center justify-center">
+                              <div className="text-center text-gray-400">
+                                <Camera size={24} className="mx-auto mb-1" />
+                                <p className="text-xs">No image captured</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       
                       {/* OCR Results Display */}
                       {ocrResults.length > 0 && (
@@ -523,7 +589,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       
                       <button
                         onClick={captureImage}
-                        disabled={isProcessing}
+                        disabled={isProcessing || !showLivePreview}
                         className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 disabled:opacity-50 font-medium transform hover:scale-105"
                       >
                         {isProcessing ? (
@@ -533,6 +599,22 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         ) : (
                           "📸 Capture & Check with AI"
                         )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="animate__animated animate__fadeIn">
+                      <input
+                        type="text"
+                        value={spellingAnswer}
+                        onChange={(e) => setSpellingAnswer(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                        placeholder="Type your answer..."
+                      />
+                      <button
+                        onClick={handleSpellingSubmit}
+                        className="w-full mt-3 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 font-medium transform hover:scale-105 animate__animated animate__pulse animate__infinite"
+                      >
+                        Submit Answer
                       </button>
                     </div>
                   )}
