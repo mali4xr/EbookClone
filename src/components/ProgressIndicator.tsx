@@ -94,7 +94,7 @@ const ProgressIndicator = ({ currentPage, totalPages, isPageComplete, quizScore 
             <span>Reading</span>
           </div>
           <div className="flex items-center gap-1">
-            <Circle size={14} className="text-gray-300" />
+            <Circle size={14} className="text-red-300" />
             <span>Locked</span>
           </div>
         </div>
