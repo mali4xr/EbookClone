@@ -34,7 +34,7 @@ const ProgressIndicator = ({ currentPage, totalPages, isPageComplete, quizScore 
       case 'reading':
         return 'text-blue-500';
       case 'locked':
-        return 'text-red-300';
+        return 'text-red-500';
       default:
         return 'text-gray-300';
     }
