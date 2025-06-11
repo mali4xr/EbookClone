@@ -10,6 +10,7 @@ import ProgressIndicator from './ProgressIndicator';
 
 const BookContent = () => {
   const { 
+    toggleReading,
     currentPage,
     totalPages,
     pageContent,
