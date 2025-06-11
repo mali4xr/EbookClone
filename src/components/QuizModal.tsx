@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Volume2, Keyboard, AlertCircle, CheckCircle, XCircle, RotateCcw, RefreshCw } from 'lucide-react';
+import { X, Camera, Volume2, Keyboard, AlertCircle, CheckCircle, XCircle, RotateCcw, RefreshCw, MessageCircle } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import confetti from 'canvas-confetti';
 import Webcam from 'react-webcam';
@@ -427,18 +427,13 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   return (
     <>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
-        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__bounceIn">
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">
-              Quiz Time! ({score}/2) 🎯
-            </h2>
-            <div className="flex items-center gap-2">
-              <ConversationalAIButton
-                context={getAIContext()}
-                onMessage={handleAIMessage}
-                initialShowChat={true}
-                className="animate__animated animate__fadeInDown"
-              />
+        <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] flex animate__animated animate__bounceIn">
+          {/* Quiz Content Section */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">
+                Quiz Time! ({score}/2) 🎯
+              </h2>
               <button 
                 onClick={() => {
                   if (isReading) {
@@ -451,9 +446,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 <X size={24} />
               </button>
             </div>
-          </div>
-          
-          <div className="p-6">
+            
+            <div className="flex-1 overflow-y-auto p-6">
             {!showScore ? (
               showMultipleChoice ? (
                 <div className="space-y-4 animate__animated animate__fadeInUp">
@@ -695,6 +689,27 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 </button>
               </div>
             )}
+            </div>
+          </div>
+          
+          {/* AI Chat Section */}
+          <div className="w-96 border-l border-gray-200 flex flex-col animate__animated animate__slideInRight">
+            <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+              <h3 className="font-medium flex items-center gap-2">
+                <MessageCircle size={20} />
+                AI Helper
+              </h3>
+              <p className="text-sm opacity-90 mt-1">I'm here to help with your quiz!</p>
+            </div>
+            
+            <div className="flex-1 min-h-0">
+              <ConversationalAIButton
+                context={getAIContext()}
+                onMessage={handleAIMessage}
+                initialShowChat={true}
+                className="h-full"
+              />
+            </div>
           </div>
         </div>
       </div>

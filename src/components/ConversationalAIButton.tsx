@@ -248,9 +248,9 @@ const ConversationalAIButton = ({
 
       {/* Enhanced Chat Panel */}
       {showChat && (
-        <div className="fixed inset-4 md:absolute md:top-full md:left-0 md:mt-2 md:inset-auto md:w-96 md:h-[500px] bg-white border border-gray-300 rounded-xl shadow-2xl z-50 flex flex-col animate__animated animate__fadeInUp">
+        <div className={`${className?.includes('h-full') ? 'h-full' : 'fixed inset-4 md:absolute md:top-full md:left-0 md:mt-2 md:inset-auto md:w-96 md:h-[500px]'} bg-white ${className?.includes('h-full') ? '' : 'border border-gray-300 rounded-xl shadow-2xl z-50'} flex flex-col animate__animated animate__fadeInUp`}>
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-xl">
+          <div className={`flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white ${className?.includes('h-full') ? '' : 'rounded-t-xl'}`}>
             <div className="flex items-center gap-3">
               <div className={`flex items-center gap-2 px-2 py-1 rounded-full ${
                 isConnecting 
@@ -273,7 +273,7 @@ const ConversationalAIButton = ({
             </div>
             <button
               onClick={() => setShowChat(false)}
-              className="p-1 rounded-full hover:bg-white/20 transition-colors"
+              className={`p-1 rounded-full hover:bg-white/20 transition-colors ${className?.includes('h-full') ? 'hidden' : ''}`}
             >
               <X size={20} />
             </button>
@@ -391,7 +391,7 @@ const ConversationalAIButton = ({
           </div>
 
           {/* Input Area */}
-          <div className="p-4 border-t bg-white rounded-b-xl">
+          <div className={`p-4 border-t bg-white ${className?.includes('h-full') ? '' : 'rounded-b-xl'}`}>
             <div className="flex items-center gap-2">
               <input
                 type="text"
