@@ -430,7 +430,21 @@ const ConversationalAIButton = ({
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
             {messages.length === 0 ? (
-              
+              <div className="text-center text-gray-500 py-8">
+                <Bot size={48} className="mx-auto mb-3 text-gray-400" />
+                <p className="text-sm">
+                  {!isValidAgentId(customAgentId) && !useSignedUrl 
+                    ? "Configure your Agent ID to start chatting!" 
+                    : "Start a conversation with the AI helper!"
+                  }
+                </p>
+                <p className="text-xs mt-1">
+                  {!isValidAgentId(customAgentId) && !useSignedUrl 
+                    ? "Click the settings button to add your ElevenLabs Agent ID." 
+                    : "I can help explain the story, answer questions, and assist with quizzes."
+                  }
+                </p>
+              </div> 
             ) : (
               messages.map((message, index) => (
                 <div
