@@ -10,14 +10,12 @@ import ProgressIndicator from './ProgressIndicator';
 
 const BookContent = () => {
   const { 
-    toggleReading,
     currentPage,
     totalPages,
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading,
-    setIsQuizOpen
+    hasStartedReading
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -25,56 +23,40 @@ const BookContent = () => {
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
-  const [hasAutoStarted, setHasAutoStarted] = useState(false);
   
   useEffect(() => {
     setIsPageTurning(true);
-    setHasAutoStarted(false);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
     
-    return () => clearTimeout(timeout);
-  }, [currentPage]);
-
-  // Auto-start reading only once per page after page turn animation
-  useEffect(() => {
-    if (!isPageTurning && !hasAutoStarted && !isReading && !showQuiz) {
-      const timer = setTimeout(() => {
+    // Auto-start reading when navigating to a new page
+    setTimeout(() => {
+      if (!isReading) {
         toggleReading();
-        setHasAutoStarted(true);
-      }, 800);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isPageTurning, hasAutoStarted, isReading, showQuiz, toggleReading]);
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
+  }, [currentPage, toggleReading]);
 
-  // Check if page is complete based on reading progress
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const totalWords = pageContent.text.split(' ').length;
       const isComplete = currentWord >= totalWords - 1;
       setIsPageComplete(isComplete);
-      
-      // Show quiz when reading is complete
-      if (isComplete && hasStartedReading && !isReading && !showQuiz) {
-        console.log('Page complete, showing quiz...');
-        const timer = setTimeout(() => {
-          setShowQuiz(true);
-          setIsQuizOpen(true);
-        }, 1500); // Give a bit more time for reading to fully stop
-        
-        return () => clearTimeout(timer);
-      }
     }
-  }, [currentWord, pageContent, hasStartedReading, isReading, showQuiz, setIsQuizOpen]);
+  }, [currentWord, pageContent]);
 
-  // Reset states when page changes
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
     setQuizScore(0);
-    setHasAutoStarted(false);
-    setIsQuizOpen(false);
-  }, [currentPage, setIsQuizOpen]);
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (hasStartedReading && !isReading && isPageComplete) {
+      setShowQuiz(true);
+    }
+  }, [isReading, hasStartedReading, isPageComplete]);
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -113,17 +95,6 @@ const BookContent = () => {
     Page completion: ${isPageComplete ? 'Page completed' : 'Still reading'}`;
   };
 
-  const handleQuizClose = () => {
-    setShowQuiz(false);
-    setIsQuizOpen(false);
-  };
-
-  const handleQuizContinue = () => {
-    setQuizScore(3); // Mark as completed
-    setShowQuiz(false);
-    setIsQuizOpen(false);
-  };
-
   return (
     <div className="flex flex-col h-[600px] md:h-[700px]">
       {/* Progress Indicator */}
@@ -154,7 +125,7 @@ const BookContent = () => {
               </p>
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
-                  ✓ Page completed - Quiz coming up!
+                  ✓ Page completed
                 </div>
               )}
             </div>
@@ -224,19 +195,11 @@ const BookContent = () => {
         )}
       </div>
 
-      {/* Quiz Modal */}
-      {showQuiz && pageContent.quiz && (
+      {showQuiz && (
         <QuizModal
-          isOpen={showQuiz}
-          onClose={handleQuizClose}
-          onContinue={handleQuizContinue}
-          questions={[
-            {
-              question: pageContent.quiz.multipleChoice.question,
-              options: pageContent.quiz.multipleChoice.options.map(opt => opt.text),
-              correctAnswer: pageContent.quiz.multipleChoice.options.findIndex(opt => opt.isCorrect)
-            }
-          ]}
+          onClose={() => setShowQuiz(false)}
+          pageContent={pageContent}
+          onScoreUpdate={setQuizScore}
         />
       )}
     </div>

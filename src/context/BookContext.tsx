@@ -15,7 +15,6 @@ interface BookContextType {
   availableVoices: SpeechSynthesisVoice[];
   geminiApiKey: string;
   geminiModel: string;
-  setIsQuizOpen: (isOpen: boolean) => void;
   nextPage: () => void;
   prevPage: () => void;
   toggleReading: () => void;
@@ -98,7 +97,6 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   const [currentWord, setCurrentWord] = useState(-1);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [utterance, setUtterance] = useState<SpeechSynthesisUtterance | null>(null);
-  const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-1.5-flash');
 
@@ -135,7 +133,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
   }, []);
 
   useEffect(() => {
-    if (isReading && !isMuted && !isQuizOpen) {
+    if (isReading && !isMuted) {
       setHasStartedReading(true);
       readCurrentPage();
     } else if (!isReading && window.speechSynthesis.speaking) {
@@ -149,7 +147,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
         setCurrentWord(-1);
       }
     };
-  }, [isReading, isMuted, currentPage, voiceIndex, rate, pitch, volume, isQuizOpen]);
+  }, [isReading, isMuted, currentPage, voiceIndex, rate, pitch, volume]);
 
   const readCurrentPage = () => {
     if (window.speechSynthesis.speaking) {
@@ -267,8 +265,7 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     setGeminiModel,
     goToPage,
     pageContent,
-    updatePageContent,
-    setIsQuizOpen
+    updatePageContent
   };
 
   return <BookContext.Provider value={value}>{children}</BookContext.Provider>;
