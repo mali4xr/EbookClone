@@ -108,6 +108,15 @@ export const BookProvider = ({ children }: BookProviderProps) => {
     const updateVoices = () => {
       const voices = synth.getVoices();
       setAvailableVoices(voices);
+      
+      // Set Zira as default voice if available
+      const ziraVoice = voices.findIndex(voice => 
+        voice.name.toLowerCase().includes('zira') || 
+        voice.name.toLowerCase().includes('microsoft zira')
+      );
+      if (ziraVoice !== -1) {
+        setVoiceIndex(ziraVoice);
+      }
     };
 
     if (synth.onvoiceschanged !== undefined) {

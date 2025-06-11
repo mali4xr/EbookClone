@@ -468,6 +468,20 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     return 'Switch Camera';
   };
 
+  const handleContinue = () => {
+    if (isReading) {
+      window.speechSynthesis.cancel();
+    }
+    
+    // If all quiz answers are correct, navigate to next page
+    if (score === 3) {
+      const { nextPage } = useBook();
+      nextPage();
+    }
+    
+    onClose();
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
@@ -571,6 +585,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
                   {inputMode === 'camera' ? (
                     <div className="space-y-4 animate__animated animate__fadeIn">
+                      {/* Only show camera controls during spelling quiz */}
+                      {showSpelling && (
                       <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
                         <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
                         <p className="text-xs text-blue-600 mt-1">
@@ -683,6 +699,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                           "📸 Capture & Check with AI"
                         )}
                       </button>
+                      )}
                     </div>
                   ) : (
                     <div className="animate__animated animate__fadeIn">
@@ -742,15 +759,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 )}
                 
                 <button
-                  onClick={() => {
-                    if (isReading) {
-                      window.speechSynthesis.cancel();
-                    }
-                    onClose();
-                  }}
+                  onClick={handleContinue}
                   className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-110 animate__animated animate__pulse animate__infinite"
                 >
-                  Continue Reading
+                  {score === 3 ? 'Next Page' : 'Continue Reading'}
                 </button>
               </div>
             )}

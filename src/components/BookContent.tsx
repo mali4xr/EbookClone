@@ -27,8 +27,16 @@ const BookContent = () => {
   useEffect(() => {
     setIsPageTurning(true);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
+    
+    // Auto-start reading when navigating to a new page
+    setTimeout(() => {
+      if (!isReading) {
+        toggleReading();
+      }
+    }, 1000);
+    
     return () => clearTimeout(timeout);
-  }, [currentPage]);
+  }, [currentPage, toggleReading]);
 
   useEffect(() => {
     if (pageContent && pageContent.text) {
