@@ -16,7 +16,8 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading
+    hasStartedReading,
+    setIsQuizOpen
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -24,20 +25,27 @@ const BookContent = () => {
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
+  const [hasAutoStarted, setHasAutoStarted] = useState(false);
   
   useEffect(() => {
     setIsPageTurning(true);
+    setHasAutoStarted(false);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
     
-    // Auto-start reading when navigating to a new page
-    setTimeout(() => {
-      if (!isReading) {
-        toggleReading();
-      }
-    }, 1000);
-    
     return () => clearTimeout(timeout);
-  }, [currentPage, toggleReading]);
+  }, [currentPage]);
+
+  // Auto-start reading only once per page after page turn animation
+  useEffect(() => {
+    if (!isPageTurning && !hasAutoStarted && !isReading && !showQuiz) {
+      const timer = setTimeout(() => {
+        toggleReading();
+        setHasAutoStarted(true);
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isPageTurning, hasAutoStarted, isReading, showQuiz, toggleReading]);
 
   useEffect(() => {
     if (pageContent && pageContent.text) {
@@ -51,13 +59,15 @@ const BookContent = () => {
     setIsPageComplete(false);
     setShowQuiz(false);
     setQuizScore(0);
+    setHasAutoStarted(false);
   }, [currentPage]);
 
   useEffect(() => {
     if (hasStartedReading && !isReading && isPageComplete) {
       setShowQuiz(true);
+      setIsQuizOpen(true);
     }
-  }, [isReading, hasStartedReading, isPageComplete]);
+  }, [isReading, hasStartedReading, isPageComplete, setIsQuizOpen]);
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -198,7 +208,10 @@ const BookContent = () => {
 
       {showQuiz && (
         <QuizModal
-          onClose={() => setShowQuiz(false)}
+          onClose={() => {
+            setShowQuiz(false);
+            setIsQuizOpen(false);
+          }}
           pageContent={pageContent}
           onScoreUpdate={setQuizScore}
         />

@@ -15,6 +15,7 @@ interface BookContextType {
   availableVoices: SpeechSynthesisVoice[];
   geminiApiKey: string;
   geminiModel: string;
+  setIsQuizOpen: (isOpen: boolean) => void;
   nextPage: () => void;
   prevPage: () => void;
   toggleReading: () => void;

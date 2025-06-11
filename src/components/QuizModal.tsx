@@ -473,13 +473,15 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
       window.speechSynthesis.cancel();
     }
     
+    onClose();
+    
     // If all quiz answers are correct, navigate to next page
     if (score === 3) {
-      const { nextPage } = useBook();
-      nextPage();
+      setTimeout(() => {
+        const { nextPage } = useBook();
+        nextPage();
+      }, 100);
     }
-    
-    onClose();
   };
 
   return (
