@@ -38,7 +38,7 @@ interface OCRResult {
 }
 
 export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
-  const { voiceIndex, rate, pitch, volume, availableVoices, geminiApiKey, geminiModel } = useBook();
+  const { voiceIndex, rate, pitch, volume, availableVoices, geminiApiKey, geminiModel, nextPage } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
@@ -475,7 +475,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     
     // If all quiz answers are correct, navigate to next page
     if (score === 3) {
-      const { nextPage } = useBook();
       nextPage();
     }
     
