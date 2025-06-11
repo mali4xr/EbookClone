@@ -44,20 +44,39 @@ A beautiful, interactive children's reading application with text-to-speech, qui
 npm install
 ```
 
-### 2. Configure ElevenLabs AI (Optional)
-To enable conversational AI features:
+### 2. Configure Environment Variables
+Copy the `.env` file and update it with your API keys:
 
+```bash
+# Copy the example environment file
+cp .env .env.local
+```
+
+Edit `.env.local` with your actual API keys:
+
+```env
+# ElevenLabs Conversational AI Configuration
+VITE_ELEVENLABS_AGENT_ID=your-actual-agent-id-here
+VITE_ELEVENLABS_API_KEY=your-actual-api-key-here
+VITE_ELEVENLABS_USE_SIGNED_URL=false
+VITE_ELEVENLABS_SIGNED_URL_ENDPOINT=/api/signed-url
+
+# Google Gemini API Configuration (Optional)
+VITE_GEMINI_API_KEY=your-actual-gemini-api-key-here
+VITE_GEMINI_MODEL=gemini-1.5-flash
+```
+
+#### ElevenLabs Setup:
 1. Sign up at [ElevenLabs](https://elevenlabs.io)
-2. Create a Conversational AI agent in the dashboard
-3. Get your Agent ID from the agent settings
+2. Go to [Conversational AI](https://elevenlabs.io/app/conversational-ai)
+3. Create a new AI agent or select an existing one
+4. Copy the Agent ID from your dashboard
+5. Optionally, get your API key from the profile settings
 
-**For Public Agents:**
-- Use the Agent ID directly in the ConversationalAIButton component
-- No additional server setup required
-
-**For Private Agents:**
-- Set up a server endpoint to generate signed URLs
-- Configure the endpoint in the AI settings modal
+#### Google Gemini Setup (Optional):
+1. Go to [Google AI Studio](https://aistudio.google.com/)
+2. Create an API key
+3. This is used as a fallback for handwriting recognition when Tesseract.js fails
 
 ### 3. Run Development Server
 ```bash
@@ -94,7 +113,15 @@ npm run build
 
 ## AI Integration Details
 
-The app uses ElevenLabs Conversational AI SDK for natural voice interactions:
+The app uses environment variables for secure API key management:
+
+#### Security Features
+- All API keys are stored in environment variables
+- No sensitive data exposed in frontend code
+- Secure configuration through .env files
+- Development and production environment separation
+
+#### ElevenLabs Integration
 
 ### Reading Assistant
 - Explains difficult vocabulary
@@ -109,10 +136,16 @@ The app uses ElevenLabs Conversational AI SDK for natural voice interactions:
 - Celebrates achievements
 
 ### Configuration Options
-- **Agent ID**: For public agents, use directly
-- **Signed URL**: For private agents, requires server endpoint
+- **Agent ID**: Configured via VITE_ELEVENLABS_AGENT_ID
+- **API Key**: Optional, configured via VITE_ELEVENLABS_API_KEY
+- **Signed URL**: For private agents, configure VITE_ELEVENLABS_USE_SIGNED_URL=true
 - **Context Awareness**: AI receives current page and quiz information
 - **Voice Integration**: Seamless integration with text-to-speech
+
+#### Gemini Integration
+- **Fallback OCR**: Used when Tesseract.js fails to recognize handwriting
+- **Model Selection**: Configurable via VITE_GEMINI_MODEL
+- **Optional Service**: App works without Gemini, using only Tesseract.js
 
 ## Customization
 
@@ -141,11 +174,18 @@ Edit `src/data/storyData.ts` to add new pages:
 ```
 
 ### Customizing AI Behavior
-Modify the context strings in components to change how the AI assistant behaves:
+The AI assistant behavior is controlled through context strings in components:
 
 - `getReadingAIContext()` in BookContent.tsx
 - `getAIContext()` in QuizModal.tsx
 - `getSettingsAIContext()` in SettingsModal.tsx
+
+### Environment Configuration
+All sensitive settings are now managed through environment variables:
+
+- **Development**: Use `.env.local` for local development
+- **Production**: Set environment variables in your hosting platform
+- **Security**: Never commit actual API keys to version control
 
 ### Styling Customization
 - Edit `tailwind.config.js` for color schemes and design tokens
