@@ -587,7 +587,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     <div className="space-y-4 animate__animated animate__fadeIn">
                       {/* Only show camera controls during spelling quiz */}
                       {showSpelling && (
-                      <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
+                      <>
+                        <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
                         <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
                         <p className="text-xs text-blue-600 mt-1">
                           We'll try Tesseract first, then Gemini AI if needed
@@ -699,6 +700,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                           "📸 Capture & Check with AI"
                         )}
                       </button>
+                      </>
                       )}
                     </div>
                   ) : (
@@ -733,42 +735,4 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 </p>
                 
                 {/* OCR Summary */}
-                {ocrResults.length > 0 && (
-                  <div className="p-3 bg-gray-50 rounded-lg animate__animated animate__fadeInUp animate__delay-2s">
-                    <p className="text-sm text-gray-700 font-medium">Spelling Recognition Summary:</p>
-                    <div className="text-xs text-gray-600 mt-1 space-y-1">
-                      {ocrResults.map((result, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          {getOCRStatusIcon(result)}
-                          {/* <span className="capitalize">{result.method}:</span> */}
-                          <span className="capitalize"> Status</span>
-                          <span>"{result.text}" ({Math.round(result.confidence * 100)}%)</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 
-                {aiMessages.length > 0 && (
-                  <div className="p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInUp animate__delay-3s">
-                    <p className="text-sm text-blue-700 font-medium">AI Feedback:</p>
-                    <p className="text-blue-600 text-sm mt-1">
-                      {aiMessages[aiMessages.length - 1]?.message || "Great conversation!"}
-                    </p>
-                  </div>
-                )}
-                
-                <button
-                  onClick={handleContinue}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-110 animate__animated animate__pulse animate__infinite"
-                >
-                  {score === 3 ? 'Next Page' : 'Continue Reading'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
