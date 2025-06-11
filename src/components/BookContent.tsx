@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useBook } from '../context/BookContext';
 import PageTurner from './PageTurner';
 import Controls from './Controls';
@@ -18,26 +18,32 @@ const BookContent = () => {
     hasStartedReading,
     toggleReading
   } = useBook();
-  
+
   const [isPageTurning, setIsPageTurning] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
-  
+
+  const readingStartedForPage = useRef<number | null>(null);
+
   useEffect(() => {
     setIsPageTurning(true);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
-    
-    // Auto-start reading when navigating to a new page
-    setTimeout(() => {
-      if (!isReading) {
+
+    // Auto-start reading only if not already started for this page
+    const readingTimeout = setTimeout(() => {
+      if (!isReading && readingStartedForPage.current !== currentPage) {
         toggleReading();
+        readingStartedForPage.current = currentPage;
       }
     }, 1000);
-    
-    return () => clearTimeout(timeout);
-  }, [currentPage, toggleReading]);
+
+    return () => {
+      clearTimeout(timeout);
+      clearTimeout(readingTimeout);
+    };
+  }, [currentPage, isReading, toggleReading]);
 
   useEffect(() => {
     if (pageContent && pageContent.text) {
@@ -51,6 +57,7 @@ const BookContent = () => {
     setIsPageComplete(false);
     setShowQuiz(false);
     setQuizScore(0);
+    readingStartedForPage.current = null; // Reset ref on page change
   }, [currentPage]);
 
   useEffect(() => {
@@ -133,7 +140,7 @@ const BookContent = () => {
           </div>
           
           <div className="w-full md:w-1/2 relative">
-            {/* Video Circle - Fixed positioning and styling */}
+            {/* Video Circle */}
             <div className="absolute top-4 right-4 z-10">
               <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
                 <video 
@@ -158,7 +165,7 @@ const BookContent = () => {
               </div>
             </div>
             
-            {/* AI Assistant for Reading */}
+            {/* AI Assistant */}
             <div className="absolute top-4 left-4">
               <ConversationalAIButton
                 context={getReadingAIContext()}
@@ -171,7 +178,7 @@ const BookContent = () => {
           </div>
         </div>
 
-        {/* Play/Read Button - Bottom Right */}
+        {/* Read Button */}
         <div className="absolute bottom-4 right-4">
           <Controls />
         </div>
@@ -183,7 +190,7 @@ const BookContent = () => {
           <PageTurner isLocked={quizScore < 3} />
         </div>
         
-        {/* AI Messages Display */}
+        {/* AI Messages */}
         {aiMessages.length > 0 && (
           <div className="hidden lg:block max-w-xs">
             <div className="p-2 bg-blue-50 rounded-lg text-xs">
