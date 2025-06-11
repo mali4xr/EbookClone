@@ -6,7 +6,6 @@ import Webcam from 'react-webcam';
 import { createWorker } from 'tesseract.js';
 import { GeminiService } from '../services/GeminiService';
 import ConversationalAIButton from './ConversationalAIButton';
-import DragDropQuiz from './DragDropQuiz';
 
 interface QuizModalProps {
   onClose: () => void;
@@ -21,11 +20,6 @@ interface QuizModalProps {
       spelling: {
         word: string;
         hint: string;
-      };
-      dragDrop?: {
-        dragItems: { id: string; image: string; label: string }[];
-        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
-        instructions?: string;
       };
     };
   };
@@ -48,15 +42,13 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResults, setOcrResults] = useState<OCRResult[]>([]);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [showLivePreview, setShowLivePreview] = useState(false); // Start with false
-  const [showDragDrop, setShowDragDrop] = useState(true);
-  const [showMultipleChoice, setShowMultipleChoice] = useState(false);
+  const [showLivePreview, setShowLivePreview] = useState(false);
+  const [showMultipleChoice, setShowMultipleChoice] = useState(true);
   const [showSpelling, setShowSpelling] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
-  const [hasReadQuestion, setHasReadQuestion] = useState(false);
   const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
@@ -70,17 +62,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     spelling: {
       word: pageContent.text.split(' ').find(word => word.length > 4) || "story",
       hint: "Try spelling this word from the story"
-    },
-    dragDrop: {
-      dragItems: [
-        { id: 'item1', image: 'https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Rabbit' },
-        { id: 'item2', image: 'https://images.pexels.com/photos/416179/pexels-photo-416179.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Bird' }
-      ],
-      dropZones: [
-        { id: 'zone1', image: 'https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Forest Home', acceptsId: 'item1' },
-        { id: 'zone2', image: 'https://images.pexels.com/photos/531321/pexels-photo-531321.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Tree Nest', acceptsId: 'item2' }
-      ],
-      instructions: "Use arrow keys to move items around, then press Enter to drop them in the right place!"
     }
   };
 
@@ -111,33 +92,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
     getCameras();
   }, [showSpelling]);
-
-  // Auto-read questions when they appear
-  useEffect(() => {
-    if (!hasReadQuestion) {
-      let textToRead = '';
-      
-      if (showDragDrop) {
-        textToRead = quiz.dragDrop?.instructions || "Complete the drag and drop activity by matching the items to their correct places.";
-      } else if (showMultipleChoice) {
-        textToRead = quiz.multipleChoice.question;
-      } else if (showSpelling) {
-        textToRead = `Spell the word: ${quiz.spelling.word}`;
-      }
-      
-      if (textToRead) {
-        setTimeout(() => {
-          readQuestion(textToRead);
-          setHasReadQuestion(true);
-        }, 500); // Small delay to let the UI settle
-      }
-    }
-  }, [showDragDrop, showMultipleChoice, showSpelling, hasReadQuestion]);
-
-  // Reset hasReadQuestion when transitioning between quiz types
-  useEffect(() => {
-    setHasReadQuestion(false);
-  }, [showDragDrop, showMultipleChoice, showSpelling]);
 
   useEffect(() => {
     onScoreUpdate(score);
@@ -192,21 +146,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
     let congratsText = "Correct answer!";
     if (showSpelling) congratsText = "Perfect spelling! Great job!";
-    if (showDragDrop) congratsText = "Excellent matching! Well done!";
     
     readQuestion(congratsText);
-  };
-
-  const handleDragDropComplete = () => {
-    celebrateCorrectAnswer();
-    setScore(score + 1);
-    
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setShowDragDrop(false);
-      setShowMultipleChoice(true);
-      setIsTransitioning(false);
-    }, 2000);
   };
 
   const handleMultipleChoiceAnswer = (isCorrect: boolean) => {
@@ -396,9 +337,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
   const handleListenAgain = () => {
     let textToRead = '';
-    if (showDragDrop) {
-      textToRead = quiz.dragDrop?.instructions || "Complete the drag and drop activity by matching the items to their correct places.";
-    } else if (showMultipleChoice) {
+    if (showMultipleChoice) {
       textToRead = quiz.multipleChoice.question;
     } else if (showSpelling) {
       textToRead = `Spell the word: ${quiz.spelling.word}`;
@@ -426,11 +365,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     let context = `You are helping a child with a reading quiz. 
     Current story text: "${pageContent.text}"`;
     
-    if (showDragDrop) {
-      context += `
-       Drag and drop activity: The child needs to match items to their correct places.
-       Please encourage them and provide hints about the story connections.`;
-    } else if (showMultipleChoice) {
+    if (showMultipleChoice) {
       context += `
        Current question: "${quiz.multipleChoice.question}"
        Available options: ${quiz.multipleChoice.options.map(opt => opt.text).join(', ')}
@@ -482,7 +417,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     }
     
     // If all quiz answers are correct, navigate to next page
-    if (score === 3) {
+    if (score === 2) {
       nextPage();
     }
     
@@ -495,7 +430,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__bounceIn">
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">
-              Quiz Time! ({score}/3) 🎯
+              Quiz Time! ({score}/2) 🎯
             </h2>
             <div className="flex items-center gap-2">
               <ConversationalAIButton
@@ -519,16 +454,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
           
           <div className="p-6">
             {!showScore ? (
-              showDragDrop ? (
-                <div className="animate__animated animate__slideInUp">
-                  <DragDropQuiz
-                    dragItems={quiz.dragDrop?.dragItems || []}
-                    dropZones={quiz.dragDrop?.dropZones || []}
-                    instructions={quiz.dragDrop?.instructions}
-                    onComplete={handleDragDropComplete}
-                  />
-                </div>
-              ) : showMultipleChoice ? (
+              showMultipleChoice ? (
                 <div className="space-y-4 animate__animated animate__fadeInUp">
                   <div className="flex items-center justify-between">
                     <p className="text-lg font-medium">{quiz.multipleChoice.question}</p>
@@ -727,11 +653,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
             ) : (
               <div className="text-center space-y-4 animate__animated animate__bounceIn">
                 <h3 className="text-2xl font-bold animate__animated animate__rubberBand">
-                  You scored {score} out of 3! 🎉
+                  You scored {score} out of 2! 🎉
                 </h3>
                 <p className="text-gray-600 animate__animated animate__fadeInUp animate__delay-1s">
-                  {score === 3 ? "Perfect score! Amazing work! 🌟" :
-                   score === 2 ? "Great job! Almost perfect! 👍" :
+                  {score === 2 ? "Perfect score! Amazing work! 🌟" :
                    score === 1 ? "Good try! Keep practicing! 💪" :
                    "Don't worry, keep learning! 📚"}
                 </p>
@@ -765,7 +690,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                   onClick={handleContinue}
                   className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-110 animate__animated animate__pulse animate__infinite"
                 >
-                  {score === 3 ? 'Next Page' : 'Continue Reading'}
+                  {score === 2 ? 'Next Page' : 'Continue Reading'}
                 </button>
               </div>
             )}

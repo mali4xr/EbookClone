@@ -15,8 +15,7 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading,
-    toggleReading
+    hasStartedReading
   } = useBook();
 
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -25,25 +24,14 @@ const BookContent = () => {
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
 
-  const readingStartedForPage = useRef<number | null>(null);
-
   useEffect(() => {
     setIsPageTurning(true);
     const timeout = setTimeout(() => setIsPageTurning(false), 500);
 
-    // Auto-start reading only if not already started for this page
-    const readingTimeout = setTimeout(() => {
-      if (!isReading && readingStartedForPage.current !== currentPage) {
-        toggleReading();
-        readingStartedForPage.current = currentPage;
-      }
-    }, 1000);
-
     return () => {
       clearTimeout(timeout);
-      clearTimeout(readingTimeout);
     };
-  }, [currentPage, isReading, toggleReading]);
+  }, [currentPage]);
 
   useEffect(() => {
     if (pageContent && pageContent.text) {
@@ -57,7 +45,6 @@ const BookContent = () => {
     setIsPageComplete(false);
     setShowQuiz(false);
     setQuizScore(0);
-    readingStartedForPage.current = null; // Reset ref on page change
   }, [currentPage]);
 
   useEffect(() => {
@@ -187,7 +174,7 @@ const BookContent = () => {
       <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 animate__animated animate__slideInUp">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
           <PageCounter current={currentPage + 1} total={totalPages} />
-          <PageTurner isLocked={quizScore < 3} />
+          <PageTurner isLocked={quizScore < 2} />
         </div>
         
         {/* AI Messages */}

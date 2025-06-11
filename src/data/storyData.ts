@@ -16,15 +16,6 @@ export const storyContent = [
       spelling: {
         word: "rabbit",
         hint: "This furry animal hops around"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'hoppy', image: 'https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Hoppy the Rabbit' }
-        ],
-        dropZones: [
-          { id: 'forest', image: 'https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Whisperwood Forest', acceptsId: 'hoppy' }
-        ],
-        instructions: "Help Hoppy find his home! Use the arrow keys to move him to the magical forest where he belongs!"
       }
     }
   },
@@ -45,17 +36,6 @@ export const storyContent = [
       spelling: {
         word: "forest",
         hint: "A place with many trees"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'sun', image: 'https://images.pexels.com/photos/1431822/pexels-photo-1431822.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Bright Sun' },
-          { id: 'flowers', image: 'https://images.pexels.com/photos/56866/garden-rose-red-pink-56866.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Colorful Flowers' }
-        ],
-        dropZones: [
-          { id: 'sky', image: 'https://images.pexels.com/photos/281260/pexels-photo-281260.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Blue Sky', acceptsId: 'sun' },
-          { id: 'garden', image: 'https://images.pexels.com/photos/1287142/pexels-photo-1287142.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Forest Garden', acceptsId: 'flowers' }
-        ],
-        instructions: "What a beautiful day! Help put the sun in the sky and the flowers in the garden. Use arrow keys to move them to the right places!"
       }
     }
   },
@@ -76,17 +56,6 @@ export const storyContent = [
       spelling: {
         word: "bird",
         hint: "An animal that usually flies"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'bird', image: 'https://images.pexels.com/photos/416179/pexels-photo-416179.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Little Bird' },
-          { id: 'hoppy2', image: 'https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Hoppy' }
-        ],
-        dropZones: [
-          { id: 'ground', image: 'https://images.pexels.com/photos/33109/fall-autumn-red-season.jpg?auto=compress&cs=tinysrgb&w=200', label: 'Forest Ground', acceptsId: 'bird' },
-          { id: 'path', image: 'https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Forest Path', acceptsId: 'hoppy2' }
-        ],
-        instructions: "Hoppy meets a new friend! Help them find where they belong in the forest. Move the characters to their right places!"
       }
     }
   },
@@ -107,15 +76,6 @@ export const storyContent = [
       spelling: {
         word: "wing",
         hint: "Birds use these to fly"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'flutter', image: 'https://images.pexels.com/photos/2662434/pexels-photo-2662434.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Flutter the Bird' }
-        ],
-        dropZones: [
-          { id: 'nest', image: 'https://images.pexels.com/photos/531321/pexels-photo-531321.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Bird Nest', acceptsId: 'flutter' }
-        ],
-        instructions: "Poor Flutter needs to get home! Help Flutter reach the cozy nest high up in the tree. Use the arrow keys to guide Flutter safely home!"
       }
     }
   },
@@ -136,15 +96,6 @@ export const storyContent = [
       spelling: {
         word: "tree",
         hint: "Tall plants that grow in forests"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'team', image: 'https://images.pexels.com/photos/325812/pexels-photo-325812.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Hoppy & Flutter' }
-        ],
-        dropZones: [
-          { id: 'tree', image: 'https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Tall Tree', acceptsId: 'team' }
-        ],
-        instructions: "What teamwork! Hoppy is helping Flutter reach the tall tree. Guide them together to their destination!"
       }
     }
   },
@@ -165,15 +116,6 @@ export const storyContent = [
       spelling: {
         word: "friend",
         hint: "Someone you care about and help"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'journey', image: 'https://images.pexels.com/photos/4588474/pexels-photo-4588474.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Their Journey' }
-        ],
-        dropZones: [
-          { id: 'hill', image: 'https://images.pexels.com/photos/957024/forest-trees-perspective-bright-957024.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Forest Hill', acceptsId: 'journey' }
-        ],
-        instructions: "They're on an adventure together! Help them continue their journey up the forest hill. Every hop brings them closer to their goal!"
       }
     }
   },
@@ -194,15 +136,6 @@ export const storyContent = [
       spelling: {
         word: "family",
         hint: "People or animals who live together and care for each other"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'family', image: 'https://images.pexels.com/photos/6577903/pexels-photo-6577903.jpeg?auto=compress&cs=tinysrgb&w=200', label: "Flutter's Family" }
-        ],
-        dropZones: [
-          { id: 'nest2', image: 'https://images.pexels.com/photos/531321/pexels-photo-531321.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Family Nest', acceptsId: 'family' }
-        ],
-        instructions: "What a happy reunion! Help Flutter's family gather together in their cozy nest to celebrate and thank their new friend Hoppy!"
       }
     }
   },
@@ -223,15 +156,6 @@ export const storyContent = [
       spelling: {
         word: "adventure",
         hint: "An exciting journey or experience"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'friendship', image: 'https://images.pexels.com/photos/1643457/pexels-photo-1643457.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Best Friends' }
-        ],
-        dropZones: [
-          { id: 'whisperwood', image: 'https://images.pexels.com/photos/707344/pexels-photo-707344.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Whisperwood Forest', acceptsId: 'friendship' }
-        ],
-        instructions: "The end of our beautiful story! Help place the friendship in Whisperwood Forest, where it will inspire everyone to help each other!"
       }
     }
   }

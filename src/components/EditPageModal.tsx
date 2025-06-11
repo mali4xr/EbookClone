@@ -17,11 +17,6 @@ interface EditPageModalProps {
         word: string;
         hint: string;
       };
-      dragDrop?: {
-        dragItems: { id: string; image: string; label: string }[];
-        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
-        instructions?: string;
-      };
     };
   };
   onSave: (content: {
@@ -37,11 +32,6 @@ interface EditPageModalProps {
       spelling: {
         word: string;
         hint: string;
-      };
-      dragDrop?: {
-        dragItems: { id: string; image: string; label: string }[];
-        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
-        instructions?: string;
       };
     };
   }) => void;
@@ -63,23 +53,11 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
       spelling: {
         word: pageContent.text.split(' ').find(word => word.length > 4) || "story",
         hint: "Try spelling this word from the story"
-      },
-      dragDrop: {
-        dragItems: [
-          { id: 'item1', image: 'https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Character 1' },
-          { id: 'item2', image: 'https://images.pexels.com/photos/416179/pexels-photo-416179.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Character 2' }
-        ],
-        dropZones: [
-          { id: 'zone1', image: 'https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Location 1', acceptsId: 'item1' },
-          { id: 'zone2', image: 'https://images.pexels.com/photos/531321/pexels-photo-531321.jpeg?auto=compress&cs=tinysrgb&w=200', label: 'Location 2', acceptsId: 'item2' }
-        ],
-        instructions: "Use arrow keys to move items around, then press Enter to drop them in the right place!"
       }
     }
   });
 
   const [showQuizEdit, setShowQuizEdit] = useState(false);
-  const [showDragDropEdit, setShowDragDropEdit] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,36 +74,6 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
           ...prev.quiz!.multipleChoice,
           options: prev.quiz!.multipleChoice.options.map((opt, i) => 
             i === index ? { text, isCorrect } : { ...opt, isCorrect: isCorrect ? false : opt.isCorrect }
-          )
-        }
-      }
-    }));
-  };
-
-  const updateDragItem = (index: number, field: string, value: string) => {
-    setContent(prev => ({
-      ...prev,
-      quiz: {
-        ...prev.quiz!,
-        dragDrop: {
-          ...prev.quiz!.dragDrop!,
-          dragItems: prev.quiz!.dragDrop!.dragItems.map((item, i) => 
-            i === index ? { ...item, [field]: value } : item
-          )
-        }
-      }
-    }));
-  };
-
-  const updateDropZone = (index: number, field: string, value: string) => {
-    setContent(prev => ({
-      ...prev,
-      quiz: {
-        ...prev.quiz!,
-        dragDrop: {
-          ...prev.quiz!.dragDrop!,
-          dropZones: prev.quiz!.dragDrop!.dropZones.map((zone, i) => 
-            i === index ? { ...zone, [field]: value } : zone
           )
         }
       }
@@ -244,33 +192,6 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
 
             {showQuizEdit && (
               <div className="space-y-6 p-4 bg-gray-50 rounded-lg animate__animated animate__slideInDown">
-                {/* Drag & Drop Instructions */}
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Drag & Drop Instructions</h3>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Instructions (Read Aloud)
-                    </label>
-                    <textarea
-                      value={content.quiz?.dragDrop?.instructions || ''}
-                      onChange={(e) => setContent(prev => ({
-                        ...prev,
-                        quiz: {
-                          ...prev.quiz!,
-                          dragDrop: {
-                            ...prev.quiz!.dragDrop!,
-                            instructions: e.target.value
-                          }
-                        }
-                      }))}
-                      className="w-full p-3 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
-                      placeholder="Use arrow keys to move items around, then press Enter to drop them in the right place!"
-                      rows={3}
-                    />
-                    <p className="text-xs text-gray-500">This message will be read aloud when the drag & drop activity starts</p>
-                  </div>
-                </div>
-
                 <div className="space-y-4">
                   <h3 className="font-medium text-gray-900">Multiple Choice Question</h3>
                   <div className="space-y-2">
@@ -362,85 +283,6 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                       />
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowDragDropEdit(!showDragDropEdit)}
-                    className="text-blue-600 hover:text-blue-700 font-medium transition-all duration-300 transform hover:scale-105"
-                  >
-                    {showDragDropEdit ? 'Hide Drag & Drop Editor' : 'Edit Drag & Drop Activity'}
-                  </button>
-
-                  {showDragDropEdit && (
-                    <div className="space-y-6 p-4 bg-blue-50 rounded-lg animate__animated animate__slideInDown">
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-gray-900">Draggable Items</h4>
-                        {content.quiz?.dragDrop?.dragItems.map((item, index) => (
-                          <div key={index} className="grid grid-cols-3 gap-2 animate__animated animate__fadeInLeft" style={{ animationDelay: `${index * 0.1}s` }}>
-                            <input
-                              type="text"
-                              placeholder="Item ID"
-                              value={item.id}
-                              onChange={(e) => updateDragItem(index, 'id', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                            <input
-                              type="url"
-                              placeholder="Image URL"
-                              value={item.image}
-                              onChange={(e) => updateDragItem(index, 'image', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Label"
-                              value={item.label}
-                              onChange={(e) => updateDragItem(index, 'label', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-gray-900">Drop Zones</h4>
-                        {content.quiz?.dragDrop?.dropZones.map((zone, index) => (
-                          <div key={index} className="grid grid-cols-4 gap-2 animate__animated animate__fadeInRight" style={{ animationDelay: `${index * 0.1}s` }}>
-                            <input
-                              type="text"
-                              placeholder="Zone ID"
-                              value={zone.id}
-                              onChange={(e) => updateDropZone(index, 'id', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                            <input
-                              type="url"
-                              placeholder="Image URL"
-                              value={zone.image}
-                              onChange={(e) => updateDropZone(index, 'image', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Label"
-                              value={zone.label}
-                              onChange={(e) => updateDropZone(index, 'label', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Accepts Item ID"
-                              value={zone.acceptsId}
-                              onChange={(e) => updateDropZone(index, 'acceptsId', e.target.value)}
-                              className="p-2 border rounded-md text-sm"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
