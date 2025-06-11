@@ -724,7 +724,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                         <div key={index} className="flex items-center gap-2">
                           {getOCRStatusIcon(result)}
                           {/* <span className="capitalize">{result.method}:</span> */}
-                          <span className="capitalize">Spelling Status:</span>
+                          <span className="capitalize"> -- </span>
                           <span>"{result.text}" ({Math.round(result.confidence * 100)}%)</span>
                         </div>
                       ))}
