@@ -7,15 +7,17 @@ interface ConversationalAIButtonProps {
   context?: string;
   onMessage?: (message: any) => void;
   className?: string;
+  initialShowChat?: boolean;
 }
 
 const ConversationalAIButton = ({ 
   agentId = 'your-agent-id',
   context = '',
   onMessage,
-  className = ''
+  className = '',
+  initialShowChat = false
 }: ConversationalAIButtonProps) => {
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(initialShowChat);
   const [showConfig, setShowConfig] = useState(false);
   const [customAgentId, setCustomAgentId] = useState(agentId);
   const [useSignedUrl, setUseSignedUrl] = useState(false);
