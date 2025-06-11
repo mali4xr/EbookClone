@@ -325,7 +325,7 @@ const DragDropQuiz = ({ dragItems, dropZones, instructions, onComplete }: DragDr
       
       <div className="flex flex-col md:flex-row gap-8 items-start justify-center">
         {/* Draggable Items - Left Side */}
-        <div className="flex-1">
+        <div className="flex-1" rounded-xl>
           <h4 className="text-xl font-semibold mb-6 text-center text-blue-700 animate__animated animate__fadeInLeft">
             🎪 Items to Match
           </h4>
