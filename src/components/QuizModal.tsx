@@ -718,7 +718,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 {/* OCR Summary */}
                 {ocrResults.length > 0 && (
                   <div className="p-3 bg-gray-50 rounded-lg animate__animated animate__fadeInUp animate__delay-2s">
-                    <p className="text-sm text-gray-700 font-medium">OCR Recognition Summary:</p>
+                    <p className="text-sm text-gray-700 font-medium">Spelling Recognition Summary:</p>
                     <div className="text-xs text-gray-600 mt-1 space-y-1">
                       {ocrResults.map((result, index) => (
                         <div key={index} className="flex items-center gap-2">
