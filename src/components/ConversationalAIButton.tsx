@@ -8,6 +8,7 @@ interface ConversationalAIButtonProps {
   onMessage?: (message: any) => void;
   className?: string;
   initialShowChat?: boolean;
+  hideSettings?: boolean;
 }
 
 const ConversationalAIButton = ({ 
@@ -15,7 +16,8 @@ const ConversationalAIButton = ({
   context = '',
   onMessage,
   className = '',
-  initialShowChat = false
+  initialShowChat = false,
+  hideSettings = false
 }: ConversationalAIButtonProps) => {
   const [showChat, setShowChat] = useState(initialShowChat);
   const [showConfig, setShowConfig] = useState(false);
@@ -153,13 +155,15 @@ const ConversationalAIButton = ({
           <span className="hidden sm:inline">AI Helper</span>
         </button>
 
-        <button
-          onClick={() => setShowConfig(!showConfig)}
-          className="p-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors"
-          aria-label="AI Settings"
-        >
-          <Settings size={16} />
-        </button>
+        {!hideSettings && (
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="p-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors"
+            aria-label="AI Settings"
+          >
+            <Settings size={16} />
+          </button>
+        )}
       </div>
 
       {/* Error Display */}

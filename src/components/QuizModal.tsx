@@ -708,6 +708,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 onMessage={handleAIMessage}
                 initialShowChat={true}
                 className="h-full"
+                hideSettings={true}
               />
             </div>
           </div>
