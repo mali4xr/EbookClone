@@ -220,7 +220,7 @@ const ConversationalAIButton = ({
 
       {/* Configuration Panel */}
       {showConfig && (
-        <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-lg z-50 min-w-80 animate__animated animate__fadeInDown">
+        <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-xl z-[60] min-w-80 max-w-sm animate__animated animate__fadeInDown">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-gray-900">AI Configuration</h3>
             <button

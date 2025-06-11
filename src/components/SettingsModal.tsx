@@ -60,8 +60,8 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
   const geminiModels = GeminiService.getAvailableModels();
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
-      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate__animated animate__slideInDown">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate__animated animate__fadeIn">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate__animated animate__slideInDown relative z-[101]">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Settings</h2>
           <div className="flex items-center gap-2">
@@ -85,11 +85,13 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
               <p className="text-sm text-purple-700 mb-3">
                 Get help with reading, understanding the story, and quiz questions from our AI assistant.
               </p>
-              <ConversationalAIButton
-                context={getSettingsAIContext()}
-                onMessage={handleAIMessage}
-                className="animate__animated animate__fadeInDown"
-              />
+              <div className="relative z-[102]">
+                <ConversationalAIButton
+                  context={getSettingsAIContext()}
+                  onMessage={handleAIMessage}
+                  className="animate__animated animate__fadeInDown"
+                />
+              </div>
             </div>
           </div>
 
