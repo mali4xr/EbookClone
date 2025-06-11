@@ -153,14 +153,6 @@ const BookContent = () => {
             </div>
             
             {/* AI Assistant */}
-            <div className={`absolute top-4 left-4 transition-opacity duration-300 ${showQuiz ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-              <ConversationalAIButton
-                context={getReadingAIContext()}
-                onMessage={handleAIMessage}
-                className="animate__animated animate__fadeInLeft animate__delay-1s"
-              />
-            </div>
-          
             <InteractiveElements page={currentPage} />
           </div>
         </div>

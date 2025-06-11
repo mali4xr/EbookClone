@@ -65,11 +65,6 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">Settings</h2>
           <div className="flex items-center gap-2">
-            <ConversationalAIButton
-              context={getSettingsAIContext()}
-              onMessage={handleAIMessage}
-              className="animate__animated animate__fadeInDown"
-            />
             <button 
               onClick={onClose}
               className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
@@ -80,6 +75,24 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
         </div>
         
         <div className="p-6 space-y-6">
+          {/* AI Assistant Section */}
+          <div className="space-y-4 animate__animated animate__fadeInUp">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <MessageCircle size={20} className="text-purple-600" />
+              AI Assistant
+            </h3>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <p className="text-sm text-purple-700 mb-3">
+                Get help with reading, understanding the story, and quiz questions from our AI assistant.
+              </p>
+              <ConversationalAIButton
+                context={getSettingsAIContext()}
+                onMessage={handleAIMessage}
+                className="animate__animated animate__fadeInDown"
+              />
+            </div>
+          </div>
+
           {/* Voice Selection */}
           <div className="space-y-2 animate__animated animate__fadeInUp">
             <label htmlFor="voice-select" className="block text-sm font-medium text-gray-700">
