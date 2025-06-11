@@ -38,7 +38,7 @@ interface OCRResult {
 }
 
 export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
-  const { voiceIndex, rate, pitch, volume, availableVoices, geminiApiKey, geminiModel } = useBook();
+  const { voiceIndex, rate, pitch, volume, availableVoices, geminiApiKey, geminiModel, nextPage } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
@@ -478,7 +478,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     // If all quiz answers are correct, navigate to next page
     if (score === 3) {
       setTimeout(() => {
-        const { nextPage } = useBook();
         nextPage();
       }, 100);
     }
@@ -737,16 +736,4 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 </p>
                 
                 <button
-                  onClick={handleContinue}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 font-medium transform hover:scale-105 animate__animated animate__fadeInUp animate__delay-2s"
-                >
-                  Continue Reading
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
+                  
