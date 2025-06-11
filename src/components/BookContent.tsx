@@ -153,7 +153,7 @@ const BookContent = () => {
             </div>
             
             {/* AI Assistant */}
-            <div className="absolute top-4 left-4">
+            <div className={`absolute top-4 left-4 transition-opacity duration-300 ${showQuiz ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
               <ConversationalAIButton
                 context={getReadingAIContext()}
                 onMessage={handleAIMessage}
