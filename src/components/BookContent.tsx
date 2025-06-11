@@ -47,32 +47,34 @@ const BookContent = () => {
     }
   }, [isPageTurning, hasAutoStarted, isReading, showQuiz, toggleReading]);
 
+  // Check if page is complete based on reading progress
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const totalWords = pageContent.text.split(' ').length;
       const isComplete = currentWord >= totalWords - 1;
       setIsPageComplete(isComplete);
+      
+      // Show quiz when reading is complete
+      if (isComplete && hasStartedReading && !isReading && !showQuiz) {
+        console.log('Page complete, showing quiz...');
+        const timer = setTimeout(() => {
+          setShowQuiz(true);
+          setIsQuizOpen(true);
+        }, 1500); // Give a bit more time for reading to fully stop
+        
+        return () => clearTimeout(timer);
+      }
     }
-  }, [currentWord, pageContent]);
+  }, [currentWord, pageContent, hasStartedReading, isReading, showQuiz, setIsQuizOpen]);
 
+  // Reset states when page changes
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
     setQuizScore(0);
     setHasAutoStarted(false);
-  }, [currentPage]);
-
-  // Show quiz when reading is complete
-  useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete && !showQuiz) {
-      const timer = setTimeout(() => {
-        setShowQuiz(true);
-        setIsQuizOpen(true);
-      }, 1000); // Small delay to ensure reading has fully stopped
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isReading, hasStartedReading, isPageComplete, showQuiz, setIsQuizOpen]);
+    setIsQuizOpen(false);
+  }, [currentPage, setIsQuizOpen]);
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -116,8 +118,10 @@ const BookContent = () => {
     setIsQuizOpen(false);
   };
 
-  const handleQuizScoreUpdate = (score: number) => {
-    setQuizScore(score);
+  const handleQuizContinue = () => {
+    setQuizScore(3); // Mark as completed
+    setShowQuiz(false);
+    setIsQuizOpen(false);
   };
 
   return (
@@ -150,7 +154,7 @@ const BookContent = () => {
               </p>
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
-                  ✓ Page completed
+                  ✓ Page completed - Quiz coming up!
                 </div>
               )}
             </div>
@@ -220,14 +224,12 @@ const BookContent = () => {
         )}
       </div>
 
+      {/* Quiz Modal */}
       {showQuiz && pageContent.quiz && (
         <QuizModal
           isOpen={showQuiz}
           onClose={handleQuizClose}
-          onContinue={() => {
-            setQuizScore(3); // Mark as completed
-            handleQuizClose();
-          }}
+          onContinue={handleQuizContinue}
           questions={[
             {
               question: pageContent.quiz.multipleChoice.question,
