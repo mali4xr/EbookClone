@@ -723,7 +723,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       {ocrResults.map((result, index) => (
                         <div key={index} className="flex items-center gap-2">
                           {getOCRStatusIcon(result)}
-                          <span className="capitalize">{result.method}:</span>
+                          {/* <span className="capitalize">{result.method}:</span> */}
+                          <span className="capitalize">Detected Spelling:</span>
                           <span>"{result.text}" ({Math.round(result.confidence * 100)}%)</span>
                         </div>
                       ))}
