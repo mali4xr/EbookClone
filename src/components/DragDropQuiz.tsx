@@ -189,7 +189,7 @@ const DragDropQuiz = ({ dragItems, dropZones, instructions, onComplete }: DragDr
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 1,
+        distance: -8,
       },
     }),
     keyboardSensor
