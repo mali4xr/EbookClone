@@ -1,33 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, MessageCircle, X, Settings, Send, Wifi, WifiOff, Volume2, User, Bot, Loader, AlertTriangle } from 'lucide-react';
+import { Mic, MicOff, MessageCircle, X, Send, Wifi, WifiOff, Volume2, User, Bot, Loader, AlertTriangle } from 'lucide-react';
 import { useConversationalAI } from '../hooks/useConversationalAI';
+import { ElevenLabsService } from '../services/ElevenLabsService';
 
 interface ConversationalAIButtonProps {
-  agentId?: string;
   context?: string;
   onMessage?: (message: any) => void;
   className?: string;
   initialShowChat?: boolean;
-  hideSettings?: boolean;
 }
 
 const ConversationalAIButton = ({ 
-  agentId = '',
   context = '',
   onMessage,
   className = '',
-  initialShowChat = false,
-  hideSettings = false
+  initialShowChat = false
 }: ConversationalAIButtonProps) => {
   const [showChat, setShowChat] = useState(initialShowChat);
-  const [showConfig, setShowConfig] = useState(false);
-  const [customAgentId, setCustomAgentId] = useState(agentId);
-  const [useSignedUrl, setUseSignedUrl] = useState(false);
-  const [signedUrlEndpoint, setSignedUrlEndpoint] = useState('/signed-url');
-  const [apiKey, setApiKey] = useState('');
   const [inputMessage, setInputMessage] = useState('');
   const [inputVolumeLevel, setInputVolumeLevel] = useState(0);
-  const [showSetupWarning, setShowSetupWarning] = useState(false);
 
   const {
     isConnected,
@@ -52,50 +43,29 @@ const ConversationalAIButton = ({
     return () => clearInterval(volumeInterval);
   }, [isConnected, getInputVolume]);
 
-  const isValidAgentId = (id: string) => {
-    return id && id.trim() !== '' && id !== 'your-agent-id';
-  };
-
   const handleStartConversation = async () => {
     try {
-      let options: any = {};
+      if (!ElevenLabsService.isConfigured()) {
+        console.error('ElevenLabs not configured. Please check your environment variables.');
+        return;
+      }
+      const options = ElevenLabsService.getConnectionOptions(context, (message: any) => {
+        console.log('AI Message:', message);
+        onMessage?.(message);
+      });
 
-      if (useSignedUrl) {
-        const response = await fetch(signedUrlEndpoint);
+      if (ElevenLabsService.useSignedUrl()) {
+        const response = await fetch(ElevenLabsService.getSignedUrlEndpoint());
         if (!response.ok) {
           throw new Error('Failed to get signed URL');
         }
         const signedUrl = await response.text();
         options.signedUrl = signedUrl;
-      } else {
-        if (!isValidAgentId(customAgentId)) {
-          setShowSetupWarning(true);
-          return;
-        }
-        options.agentId = customAgentId;
-        if (apiKey) {
-          options.apiKey = apiKey;
-        }
       }
-
-      if (context) {
-        options.context = context;
-      }
-
-      options.onMessage = (message: any) => {
-        console.log('AI Message:', message);
-        onMessage?.(message);
-      };
 
       await startConversation(options);
-      setShowSetupWarning(false);
     } catch (err: any) {
       console.error('Failed to start conversation:', err);
-      
-      // Check if it's an agent not found error
-      if (err.message && err.message.includes('does not exist')) {
-        setShowSetupWarning(true);
-      }
     }
   };
 
@@ -142,7 +112,7 @@ const ConversationalAIButton = ({
   };
 
   const getButtonColor = () => {
-    if (!isValidAgentId(customAgentId) && !useSignedUrl) {
+    if (!ElevenLabsService.isConfigured()) {
       return 'bg-orange-500 hover:bg-orange-600';
     }
     if (isConnected) {
@@ -154,7 +124,7 @@ const ConversationalAIButton = ({
   };
 
   const getModeText = () => {
-    if (!isValidAgentId(customAgentId) && !useSignedUrl) return 'Setup Required';
+    if (!ElevenLabsService.isConfigured()) return 'Setup Required';
     if (isConnecting) return 'Connecting...';
     if (isConnected) {
       return currentMode === 'speaking' ? 'AI Speaking' : 'Listening';
@@ -168,143 +138,21 @@ const ConversationalAIButton = ({
       <div className="flex items-center gap-2">
         <button
           onClick={() => setShowChat(!showChat)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform hover:scale-105 disabled:opacity-50 ${getButtonColor()}`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform hover:scale-105 ${getButtonColor()}`}
         >
-          {!isValidAgentId(customAgentId) && !useSignedUrl ? (
+          {!ElevenLabsService.isConfigured() ? (
             <AlertTriangle size={20} />
           ) : (
             getModeIcon()
           )}
           <span className="hidden sm:inline">AI Helper</span>
         </button>
-
-        {!hideSettings && (
-          <button
-            onClick={() => setShowConfig(!showConfig)}
-            className="p-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors"
-            aria-label="AI Settings"
-          >
-            <Settings size={16} />
-          </button>
-        )}
       </div>
 
-      {/* Setup Warning */}
-      {showSetupWarning && (
-        <div className="absolute top-full left-0 mt-2 p-3 bg-orange-100 border border-orange-300 rounded-lg text-orange-800 text-sm max-w-xs animate__animated animate__fadeIn z-50">
-          <div className="flex items-start gap-2">
-            <AlertTriangle size={16} className="text-orange-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Setup Required</p>
-              <p className="text-xs mt-1">Please configure your ElevenLabs Agent ID in settings to use the AI helper.</p>
-              <button
-                onClick={() => {
-                  setShowSetupWarning(false);
-                  setShowConfig(true);
-                }}
-                className="text-orange-700 underline text-xs mt-1 hover:text-orange-900"
-              >
-                Open Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Error Display */}
-      {error && !showSetupWarning && (
+      {error && (
         <div className="absolute top-full left-0 mt-2 p-2 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm max-w-xs animate__animated animate__fadeIn z-50">
           {error}
-        </div>
-      )}
-
-      {/* Configuration Panel */}
-      {showConfig && (
-        <div className="absolute top-full right-0 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-xl z-[60] min-w-80 max-w-sm animate__animated animate__fadeInDown">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-gray-900">AI Configuration</h3>
-            <button
-              onClick={() => setShowConfig(false)}
-              className="p-1 rounded-full hover:bg-gray-100"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={useSignedUrl}
-                  onChange={(e) => setUseSignedUrl(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm">Use Signed URL (for private agents)</span>
-              </label>
-            </div>
-
-            {useSignedUrl ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Signed URL Endpoint
-                </label>
-                <input
-                  type="text"
-                  value={signedUrlEndpoint}
-                  onChange={(e) => setSignedUrlEndpoint(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="/signed-url"
-                />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Agent ID <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={customAgentId}
-                    onChange={(e) => setCustomAgentId(e.target.value)}
-                    className={`w-full p-2 border rounded-md text-sm transition-colors ${
-                      !isValidAgentId(customAgentId) 
-                        ? 'border-orange-300 bg-orange-50' 
-                        : 'border-gray-300'
-                    }`}
-                    placeholder="Enter your ElevenLabs Agent ID"
-                  />
-                  {!isValidAgentId(customAgentId) && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      Please enter a valid Agent ID from your ElevenLabs dashboard
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    API Key (optional)
-                  </label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="Your ElevenLabs API Key"
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="text-xs text-gray-500 space-y-1">
-              <p><strong>Setup Instructions:</strong></p>
-              <p>1. Go to <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">ElevenLabs Conversational AI</a></p>
-              <p>2. Create or select an AI agent</p>
-              <p>3. Copy the Agent ID from your dashboard</p>
-              <p>4. Paste it in the Agent ID field above</p>
-              <p>• For public agents, use Agent ID directly</p>
-              <p>• For private agents, set up a signed URL endpoint</p>
-            </div>
-          </div>
         </div>
       )}
 
@@ -342,21 +190,18 @@ const ConversationalAIButton = ({
           </div>
 
           {/* Setup Warning in Chat */}
-          {!isValidAgentId(customAgentId) && !useSignedUrl && (
+          {!ElevenLabsService.isConfigured() && (
             <div className="p-3 bg-orange-50 border-b border-orange-200">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={16} className="text-orange-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
                   <p className="font-medium text-orange-800">Setup Required</p>
                   <p className="text-orange-700 text-xs mt-1">
-                    Configure your ElevenLabs Agent ID to start chatting.
+                    Configure your ElevenLabs settings in environment variables to start chatting.
                   </p>
-                  <button
-                    onClick={() => setShowConfig(true)}
-                    className="text-orange-700 underline text-xs mt-1 hover:text-orange-900"
-                  >
-                    Open Settings
-                  </button>
+                  <p className="text-orange-600 text-xs mt-1">
+                    Check your .env file for VITE_ELEVENLABS_AGENT_ID
+                  </p>
                 </div>
               </div>
             </div>
@@ -368,7 +213,7 @@ const ConversationalAIButton = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleStartConversation}
-                  disabled={isConnecting || isConnected || (!isValidAgentId(customAgentId) && !useSignedUrl)}
+                  disabled={isConnecting || isConnected || !ElevenLabsService.isConfigured()}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-md text-white font-medium text-sm transition-all duration-300 disabled:opacity-50 bg-green-500 hover:bg-green-600 disabled:cursor-not-allowed"
                 >
                   <Wifi size={14} />
@@ -480,24 +325,24 @@ const ConversationalAIButton = ({
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder={
-                  !isValidAgentId(customAgentId) && !useSignedUrl 
-                    ? "Configure Agent ID first..." 
+                  !ElevenLabsService.isConfigured()
+                    ? "Configure environment variables first..." 
                     : "Type your message..."
                 }
                 className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                disabled={!isConnected || (!isValidAgentId(customAgentId) && !useSignedUrl)}
+                disabled={!isConnected || !ElevenLabsService.isConfigured()}
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || !isConnected || (!isValidAgentId(customAgentId) && !useSignedUrl)}
+                disabled={!inputMessage.trim() || !isConnected || !ElevenLabsService.isConfigured()}
                 className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
               >
                 <Send size={16} />
               </button>
             </div>
             <div className="text-xs text-gray-500 mt-2 text-center">
-              {!isValidAgentId(customAgentId) && !useSignedUrl 
-                ? 'Setup required - Configure your ElevenLabs Agent ID'
+              {!ElevenLabsService.isConfigured()
+                ? 'Setup required - Configure environment variables'
                 : isConnected 
                   ? 'Connected - You can type or speak' 
                   : 'Connect to start chatting'

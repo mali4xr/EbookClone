@@ -1,10 +1,21 @@
 export class GeminiService {
+  static getApiKey(): string {
+    return import.meta.env.VITE_GEMINI_API_KEY || '';
+  }
+
+  static getModel(): string {
+    return import.meta.env.VITE_GEMINI_MODEL || 'gemini-1.5-flash';
+  }
+
   static async recognizeText(
     imageData: string, 
-    apiKey: string, 
-    model: string = 'gemini-1.5-flash'
+    apiKey?: string, 
+    model?: string
   ): Promise<{ text: string; confidence: number }> {
-    if (!apiKey) {
+    const finalApiKey = apiKey || this.getApiKey();
+    const finalModel = model || this.getModel();
+    
+    if (!finalApiKey) {
       throw new Error('Gemini API key is required');
     }
 
@@ -14,7 +25,7 @@ export class GeminiService {
       // Convert base64 to blob for Gemini API
       const base64Data = imageData.split(',')[1];
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:generateContent?key=${finalApiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -32,7 +32,7 @@ interface OCRResult {
 }
 
 export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
-  const { voiceIndex, rate, pitch, volume, availableVoices, geminiApiKey, geminiModel, nextPage } = useBook();
+  const { voiceIndex, rate, pitch, volume, availableVoices, nextPage } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
@@ -202,11 +202,11 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const processWithGemini = async (imageSrc: string): Promise<OCRResult> => {
-    if (!geminiApiKey) {
+    if (!GeminiService.getApiKey()) {
       throw new Error('Gemini API key not configured');
     }
 
-    const result = await GeminiService.recognizeText(imageSrc, geminiApiKey, geminiModel);
+    const result = await GeminiService.recognizeText(imageSrc);
     return {
       text: result.text,
       confidence: result.confidence,
@@ -283,7 +283,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         console.log('Tesseract failed, trying Gemini...');
         
         // Try Gemini as fallback
-        if (geminiApiKey) {
+        if (GeminiService.getApiKey()) {
           try {
             const geminiResult = await processWithGemini(imageSrc);
             results.push(geminiResult);
@@ -701,7 +701,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                 onMessage={handleAIMessage}
                 initialShowChat={true}
                 className="h-full"
-                hideSettings={true}
               />
             </div>
           </div>
