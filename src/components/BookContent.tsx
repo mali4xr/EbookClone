@@ -62,12 +62,17 @@ const BookContent = () => {
     setHasAutoStarted(false);
   }, [currentPage]);
 
+  // Show quiz when reading is complete
   useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete) {
-      setShowQuiz(true);
-      setIsQuizOpen(true);
+    if (hasStartedReading && !isReading && isPageComplete && !showQuiz) {
+      const timer = setTimeout(() => {
+        setShowQuiz(true);
+        setIsQuizOpen(true);
+      }, 1000); // Small delay to ensure reading has fully stopped
+      
+      return () => clearTimeout(timer);
     }
-  }, [isReading, hasStartedReading, isPageComplete, setIsQuizOpen]);
+  }, [isReading, hasStartedReading, isPageComplete, showQuiz, setIsQuizOpen]);
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -104,6 +109,15 @@ const BookContent = () => {
     Be encouraging, patient, and use simple language appropriate for children.
     Current reading progress: ${isReading ? 'Currently reading aloud' : 'Not reading'}
     Page completion: ${isPageComplete ? 'Page completed' : 'Still reading'}`;
+  };
+
+  const handleQuizClose = () => {
+    setShowQuiz(false);
+    setIsQuizOpen(false);
+  };
+
+  const handleQuizScoreUpdate = (score: number) => {
+    setQuizScore(score);
   };
 
   return (
@@ -206,14 +220,21 @@ const BookContent = () => {
         )}
       </div>
 
-      {showQuiz && (
+      {showQuiz && pageContent.quiz && (
         <QuizModal
-          onClose={() => {
-            setShowQuiz(false);
-            setIsQuizOpen(false);
+          isOpen={showQuiz}
+          onClose={handleQuizClose}
+          onContinue={() => {
+            setQuizScore(3); // Mark as completed
+            handleQuizClose();
           }}
-          pageContent={pageContent}
-          onScoreUpdate={setQuizScore}
+          questions={[
+            {
+              question: pageContent.quiz.multipleChoice.question,
+              options: pageContent.quiz.multipleChoice.options.map(opt => opt.text),
+              correctAnswer: pageContent.quiz.multipleChoice.options.findIndex(opt => opt.isCorrect)
+            }
+          ]}
         />
       )}
     </div>
