@@ -436,6 +436,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
               <ConversationalAIButton
                 context={getAIContext()}
                 onMessage={handleAIMessage}
+                initialShowChat={true}
                 className="animate__animated animate__fadeInDown"
               />
               <button 
