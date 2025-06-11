@@ -91,19 +91,17 @@ const BookContent = () => {
   };
 
   return (
-    <div className="flex flex-col h-[600px] md:h-[700px] border-4 border-indigo-600 rounded-xl shadow-2xl bg-white overflow-hidden">
+    <div className="flex flex-col h-[600px] md:h-[700px]">
       {/* Progress Indicator */}
-      <div className="border-b-2 border-indigo-200">
-        <ProgressIndicator 
-          currentPage={currentPage} 
-          totalPages={totalPages}
-          isPageComplete={isPageComplete}
-          quizScore={quizScore}
-        />
-      </div>
+      <ProgressIndicator 
+        currentPage={currentPage} 
+        totalPages={totalPages}
+        isPageComplete={isPageComplete}
+        quizScore={quizScore}
+      />
       
       <div 
-        className="flex-grow relative overflow-hidden border-2 border-indigo-300 m-2 rounded-lg"
+        className="flex-grow relative overflow-hidden"
         style={{
           backgroundImage: `url(${pageContent.background})`,
           backgroundSize: 'cover',
@@ -116,12 +114,12 @@ const BookContent = () => {
           }`}
         >
           <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
-            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg border-2 border-blue-200 animate__animated animate__slideInLeft">
+            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft">
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
               {isPageComplete && (
-                <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn border border-green-300 bg-green-50 px-2 py-1 rounded-md">
+                <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
                   ✓ Page completed
                 </div>
               )}
@@ -131,7 +129,7 @@ const BookContent = () => {
           <div className="w-full md:w-1/2 relative">
             {/* Video Circle */}
             <div className="absolute top-4 right-4 z-10">
-              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-indigo-500 shadow-xl animate__animated animate__slideInRight ring-2 ring-indigo-300">
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
                 <video 
                   src={pageContent.video} 
                   autoPlay
@@ -156,41 +154,33 @@ const BookContent = () => {
             
             {/* AI Assistant */}
             <div className={`absolute top-4 left-4 transition-opacity duration-300 ${showQuiz ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-              <div className="border-2 border-purple-400 rounded-full p-1 bg-white/80 backdrop-blur-sm shadow-lg">
-                <ConversationalAIButton
-                  context={getReadingAIContext()}
-                  onMessage={handleAIMessage}
-                  className="animate__animated animate__fadeInLeft animate__delay-1s"
-                />
-              </div>
+              <ConversationalAIButton
+                context={getReadingAIContext()}
+                onMessage={handleAIMessage}
+                className="animate__animated animate__fadeInLeft animate__delay-1s"
+              />
             </div>
-            
+          
             <InteractiveElements page={currentPage} />
           </div>
         </div>
 
         {/* Read Button */}
         <div className="absolute bottom-4 right-4">
-          <div className="border-2 border-green-400 rounded-lg p-1 bg-white/80 backdrop-blur-sm shadow-lg">
-            <Controls />
-          </div>
+          <Controls />
         </div>
       </div>
       
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 flex flex-wrap items-center justify-between gap-4 border-t-2 border-indigo-200 animate__animated animate__slideInUp">
+      <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 animate__animated animate__slideInUp">
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
-          <div className="border border-indigo-300 rounded-lg px-3 py-1 bg-white shadow-sm">
-            <PageCounter current={currentPage + 1} total={totalPages} />
-          </div>
-          <div className="border-2 border-indigo-400 rounded-lg p-1 bg-white shadow-sm">
-            <PageTurner isLocked={quizScore < 2} />
-          </div>
+          <PageCounter current={currentPage + 1} total={totalPages} />
+          <PageTurner isLocked={quizScore < 2} />
         </div>
         
         {/* AI Messages */}
         {aiMessages.length > 0 && (
           <div className="hidden lg:block max-w-xs">
-            <div className="p-2 bg-blue-50 rounded-lg text-xs border border-blue-200 shadow-sm">
+            <div className="p-2 bg-blue-50 rounded-lg text-xs">
               <p className="font-medium text-blue-700">AI Helper:</p>
               <p className="text-blue-600 truncate">
                 {aiMessages[aiMessages.length - 1]?.message || "Ready to help!"}
