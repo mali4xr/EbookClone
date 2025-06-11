@@ -734,5 +734,17 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                    "Don't worry, keep learning! 📚"}
                 </p>
                 
-                {/* OCR Summary */}
-                
+                <button
+                  onClick={handleContinue}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 font-medium transform hover:scale-105 animate__animated animate__fadeInUp animate__delay-2s"
+                >
+                  Continue Reading
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
