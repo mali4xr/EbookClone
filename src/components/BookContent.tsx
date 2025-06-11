@@ -15,7 +15,8 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading
+    hasStartedReading,
+    toggleReading
   } = useBook();
   
   const [isPageTurning, setIsPageTurning] = useState(false);
