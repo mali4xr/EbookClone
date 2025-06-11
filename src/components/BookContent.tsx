@@ -153,7 +153,7 @@ const BookContent = () => {
             </div>
             
             {/* AI Assistant */}
-            <div className="absolute top-2 left-4">
+            <div className="absolute top-2 left-2">
               <ConversationalAIButton
                 context={getReadingAIContext()}
                 onMessage={handleAIMessage}
