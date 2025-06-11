@@ -694,13 +694,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
           
           {/* AI Chat Section */}
           <div className="w-96 border-l border-gray-200 flex flex-col animate__animated animate__slideInRight">
-            <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-              <h3 className="font-medium flex items-center gap-2">
-                <MessageCircle size={20} />
-                AI Helper
-              </h3>
-              <p className="text-sm opacity-90 mt-1">I'm here to help with your quiz!</p>
-            </div>
             
             <div className="flex-1 min-h-0">
               <ConversationalAIButton
