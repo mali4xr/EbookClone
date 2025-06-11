@@ -48,7 +48,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResults, setOcrResults] = useState<OCRResult[]>([]);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [showLivePreview, setShowLivePreview] = useState(true);
+  const [showLivePreview, setShowLivePreview] = useState(false); // Start with false
   const [showDragDrop, setShowDragDrop] = useState(true);
   const [showMultipleChoice, setShowMultipleChoice] = useState(false);
   const [showSpelling, setShowSpelling] = useState(false);
@@ -84,24 +84,33 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     }
   };
 
-  // Get available cameras on component mount
+  // Get available cameras only when spelling quiz starts
   useEffect(() => {
     const getCameras = async () => {
-      try {
-        // Request permission first
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        setAvailableCameras(videoDevices);
-        console.log('Available cameras:', videoDevices);
-      } catch (error) {
-        console.error('Error getting cameras:', error);
+      if (showSpelling) {
+        try {
+          // Request permission first
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          setAvailableCameras(videoDevices);
+          setShowLivePreview(true); // Only start camera during spelling
+          console.log('Available cameras:', videoDevices);
+        } catch (error) {
+          console.error('Error getting cameras:', error);
+        }
+      } else {
+        // Stop camera when not in spelling quiz
+        setShowLivePreview(false);
+        setAvailableCameras([]);
+        setCapturedImage(null);
+        setOcrResults([]);
       }
     };
 
     getCameras();
-  }, []);
+  }, [showSpelling]);
 
   // Auto-read questions when they appear
   useEffect(() => {
@@ -275,7 +284,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     
     // Reset captured image when switching cameras
     setCapturedImage(null);
-    setShowLivePreview(true);
     setOcrResults([]);
     setIsProcessing(false);
     
@@ -584,123 +592,118 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
                   {inputMode === 'camera' ? (
                     <div className="space-y-4 animate__animated animate__fadeIn">
-                      {/* Only show camera controls during spelling quiz */}
-                      {showSpelling && (
-                        <>
-                          <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
-                            <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
-                            <p className="text-xs text-blue-600 mt-1">
-                              We'll try Tesseract first, then Gemini AI if needed
-                            </p>
-                          </div>
-                          
-                          {/* Camera Controls */}
-                          <div className="flex justify-center gap-2 mb-4">
-                            <button
-                              onClick={switchCamera}
-                              className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105"
-                              disabled={isProcessing || availableCameras.length <= 1}
-                            >
-                              <Camera size={16} />
-                              <RotateCcw size={16} />
-                              <span className="text-sm">{getCameraButtonText()}</span>
-                            </button>
-                            
-                            {capturedImage && (
-                              <button
-                                onClick={retakePhoto}
-                                className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all duration-300 transform hover:scale-105"
-                                disabled={isProcessing}
-                              >
-                                <RefreshCw size={16} />
-                                <span className="text-sm">Retake</span>
-                              </button>
-                            )}
-                          </div>
+                      <div className="text-center p-3 bg-blue-50 rounded-lg animate__animated animate__fadeInDown">
+                        <p className="text-sm text-blue-700">Write your answer on paper and show it to the camera</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          We'll try Tesseract first, then Gemini AI if needed
+                        </p>
+                      </div>
+                      
+                      {/* Camera Controls */}
+                      <div className="flex justify-center gap-2 mb-4">
+                        <button
+                          onClick={switchCamera}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105"
+                          disabled={isProcessing || availableCameras.length <= 1}
+                        >
+                          <Camera size={16} />
+                          <RotateCcw size={16} />
+                          <span className="text-sm">{getCameraButtonText()}</span>
+                        </button>
+                        
+                        {capturedImage && (
+                          <button
+                            onClick={retakePhoto}
+                            className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-all duration-300 transform hover:scale-105"
+                            disabled={isProcessing}
+                          >
+                            <RefreshCw size={16} />
+                            <span className="text-sm">Retake</span>
+                          </button>
+                        )}
+                      </div>
 
-                          {/* Camera Preview and Captured Image Side by Side */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Live Preview */}
-                            <div className="space-y-2">
-                              <h4 className="text-sm font-medium text-gray-700 text-center">
-                                {showLivePreview ? 'Live Preview' : 'Camera Off'}
-                              </h4>
-                              {showLivePreview ? (
-                                <Webcam
-                                  ref={webcamRef}
-                                  screenshotFormat="image/jpeg"
-                                  className="w-full h-32 md:h-40 rounded-lg border animate__animated animate__zoomIn object-cover"
-                                  videoConstraints={getCurrentCameraConstraints()}
-                                  onUserMediaError={(error) => {
-                                    console.error('Camera error:', error);
-                                    setShowLivePreview(false);
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-full h-32 md:h-40 rounded-lg border bg-gray-100 flex items-center justify-center">
-                                  <Camera size={32} className="text-gray-400" />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Captured Image */}
-                            <div className="space-y-2">
-                              <h4 className="text-sm font-medium text-gray-700 text-center">
-                                Captured Image
-                              </h4>
-                              {capturedImage ? (
-                                <img
-                                  src={capturedImage}
-                                  alt="Captured handwriting"
-                                  className="w-full h-32 md:h-40 rounded-lg border object-cover animate__animated animate__zoomIn"
-                                />
-                              ) : (
-                                <div className="w-full h-32 md:h-40 rounded-lg border bg-gray-50 flex items-center justify-center">
-                                  <div className="text-center text-gray-400">
-                                    <Camera size={24} className="mx-auto mb-1" />
-                                    <p className="text-xs">No image captured</p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* OCR Results Display */}
-                          {ocrResults.length > 0 && (
-                            <div className="space-y-2 animate__animated animate__fadeInUp">
-                              <h4 className="font-medium text-gray-700">Recognition Results:</h4>
-                              {ocrResults.map((result, index) => (
-                                <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                                  {getOCRStatusIcon(result)}
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium capitalize">{result.method}:</span>
-                                      <span className="text-sm">{result.text || 'No text detected'}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      Confidence: {Math.round(result.confidence * 100)}%
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
+                      {/* Camera Preview and Captured Image Side by Side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Live Preview */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium text-gray-700 text-center">
+                            {showLivePreview ? 'Live Preview' : 'Camera Off'}
+                          </h4>
+                          {showLivePreview ? (
+                            <Webcam
+                              ref={webcamRef}
+                              screenshotFormat="image/jpeg"
+                              className="w-full h-32 md:h-40 rounded-lg border animate__animated animate__zoomIn object-cover"
+                              videoConstraints={getCurrentCameraConstraints()}
+                              onUserMediaError={(error) => {
+                                console.error('Camera error:', error);
+                                setShowLivePreview(false);
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-32 md:h-40 rounded-lg border bg-gray-100 flex items-center justify-center">
+                              <Camera size={32} className="text-gray-400" />
                             </div>
                           )}
-                          
-                          <button
-                            onClick={captureImage}
-                            disabled={isProcessing || !showLivePreview}
-                            className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 disabled:opacity-50 font-medium transform hover:scale-105"
-                          >
-                            {isProcessing ? (
-                              <span className="animate__animated animate__flash animate__infinite">
-                                Processing with AI...
-                              </span>
-                            ) : (
-                              "📸 Capture & Check with AI"
-                            )}
-                          </button>
-                        </>
+                        </div>
+
+                        {/* Captured Image */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium text-gray-700 text-center">
+                            Captured Image
+                          </h4>
+                          {capturedImage ? (
+                            <img
+                              src={capturedImage}
+                              alt="Captured handwriting"
+                              className="w-full h-32 md:h-40 rounded-lg border object-cover animate__animated animate__zoomIn"
+                            />
+                          ) : (
+                            <div className="w-full h-32 md:h-40 rounded-lg border bg-gray-50 flex items-center justify-center">
+                              <div className="text-center text-gray-400">
+                                <Camera size={24} className="mx-auto mb-1" />
+                                <p className="text-xs">No image captured</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* OCR Results Display */}
+                      {ocrResults.length > 0 && (
+                        <div className="space-y-2 animate__animated animate__fadeInUp">
+                          <h4 className="font-medium text-gray-700">Recognition Results:</h4>
+                          {ocrResults.map((result, index) => (
+                            <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                              {getOCRStatusIcon(result)}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium capitalize">{result.method}:</span>
+                                  <span className="text-sm">{result.text || 'No text detected'}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Confidence: {Math.round(result.confidence * 100)}%
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
+                      
+                      <button
+                        onClick={captureImage}
+                        disabled={isProcessing || !showLivePreview}
+                        className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 disabled:opacity-50 font-medium transform hover:scale-105"
+                      >
+                        {isProcessing ? (
+                          <span className="animate__animated animate__flash animate__infinite">
+                            Processing with AI...
+                          </span>
+                        ) : (
+                          "📸 Capture & Check with AI"
+                        )}
+                      </button>
                     </div>
                   ) : (
                     <div className="animate__animated animate__fadeIn">
@@ -741,7 +744,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       {ocrResults.map((result, index) => (
                         <div key={index} className="flex items-center gap-2">
                           {getOCRStatusIcon(result)}
-                          {/* <span className="capitalize">{result.method}:</span> */}
                           <span className="capitalize"> Status</span>
                           <span>"{result.text}" ({Math.round(result.confidence * 100)}%)</span>
                         </div>
