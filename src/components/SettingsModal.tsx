@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Edit, MessageCircle, Info } from 'lucide-react';
+import { X, Edit, MessageCircle, Info, Plus, Trash2 } from 'lucide-react';
 import { useBook } from '../context/BookContext';
 import EditPageModal from './EditPageModal';
+import PageManager from './PageManager';
 import ConversationalAIButton from './ConversationalAIButton';
 import { ElevenLabsService } from '../services/ElevenLabsService';
 import { GeminiService } from '../services/GeminiService';
@@ -26,6 +27,7 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
   } = useBook();
 
   const [showEdit, setShowEdit] = useState(false);
+  const [showPageManager, setShowPageManager] = useState(false);
 
   const handleAIMessage = (message: any) => {
     console.log('Settings AI Message:', message);
@@ -171,15 +173,24 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
             </div>
           </div>
 
-          {/* Edit Page Content */}
+          {/* Page Management */}
           <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-6s">
-            <button
-              onClick={() => setShowEdit(true)}
-              className="w-full flex items-center justify-center gap-2 p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-300 transform hover:scale-105"
-            >
-              <Edit size={20} />
-              <span>Edit Current Page</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowPageManager(true)}
+                className="flex items-center justify-center gap-2 p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105"
+              >
+                <Plus size={20} />
+                <span>Manage Pages</span>
+              </button>
+              <button
+                onClick={() => setShowEdit(true)}
+                className="flex items-center justify-center gap-2 p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-300 transform hover:scale-105"
+              >
+                <Edit size={20} />
+                <span>Edit Current</span>
+              </button>
+            </div>
           </div>
         </div>
         
@@ -197,6 +208,12 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
             onClose={() => setShowEdit(false)}
             pageContent={pageContent}
             onSave={updatePageContent}
+          />
+        )}
+
+        {showPageManager && (
+          <PageManager
+            onClose={() => setShowPageManager(false)}
           />
         )}
       </div>

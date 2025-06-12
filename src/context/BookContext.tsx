@@ -33,8 +33,10 @@ interface BookContextType {
   setRate: (rate: number) => void;
   setPitch: (pitch: number) => void;
   setVolume: (volume: number) => void;
-  updatePageContent: (content: Partial<PageContent>) => void;
+  updatePageContent: (content: Partial<PageContent>) => Promise<void>;
   refreshStoryData: () => Promise<void>;
+  addNewPage: () => Promise<void>;
+  deletePage: (pageNumber: number) => Promise<void>;
 }
 
 const BookContext = createContext<BookContextType | undefined>(undefined);
@@ -61,6 +63,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const wordsRef = useRef<string[]>([]);
   const startTimeRef = useRef<number>(0);
+  const wordIndexRef = useRef<number>(0);
 
   // Load voices
   useEffect(() => {
@@ -132,6 +135,55 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadStoryData();
   };
 
+  const addNewPage = async () => {
+    try {
+      const newPageNumber = totalPages + 1;
+      const newPageData = {
+        page_number: newPageNumber,
+        title: `Page ${newPageNumber}`,
+        text: "Once upon a time, there was a new adventure waiting to be written...",
+        image_url: "https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+        video_url: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
+        background_url: "https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+        quiz_data: {
+          multipleChoice: {
+            question: "What is this new adventure about?",
+            options: [
+              { text: "A magical journey", isCorrect: true },
+              { text: "A scary story", isCorrect: false },
+              { text: "A cooking lesson", isCorrect: false }
+            ]
+          },
+          spelling: {
+            word: "adventure",
+            hint: "An exciting journey or experience"
+          }
+        }
+      };
+
+      const supabaseService = SupabaseService.getInstance();
+      await supabaseService.createStoryPage(newPageData);
+    } catch (error) {
+      console.error('Failed to add new page:', error);
+      throw error;
+    }
+  };
+
+  const deletePage = async (pageNumber: number) => {
+    try {
+      const supabaseService = SupabaseService.getInstance();
+      await supabaseService.deleteStoryPage(pageNumber);
+      
+      // If we deleted the current page and it was the last page, go to previous page
+      if (pageNumber === currentPage + 1 && currentPage >= totalPages - 1) {
+        setCurrentPage(Math.max(0, currentPage - 1));
+      }
+    } catch (error) {
+      console.error('Failed to delete page:', error);
+      throw error;
+    }
+  };
+
   const pageContent = pages[currentPage] || {
     text: '',
     image: '',
@@ -168,6 +220,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       intervalRef.current = null;
     }
     setIsReading(false);
+    wordIndexRef.current = 0;
   };
 
   const startReading = () => {
@@ -176,6 +229,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setHasStartedReading(true);
     setIsReading(true);
     setCurrentWord(0);
+    wordIndexRef.current = 0;
 
     const words = pageContent.text.split(' ');
     wordsRef.current = words;
@@ -191,55 +245,57 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     utterance.volume = isMuted ? 0 : volume;
     
     utteranceRef.current = utterance;
-
-    // More accurate word timing calculation
-    const estimatedDuration = (pageContent.text.length / (rate * 12)) * 1000; // ~12 chars per second at normal rate
-    const wordDuration = estimatedDuration / words.length;
-    
     startTimeRef.current = Date.now();
-    let wordIndex = 0;
-    
-    intervalRef.current = setInterval(() => {
-      if (wordIndex < words.length && isReading) {
-        setCurrentWord(wordIndex);
-        wordIndex++;
-      } else {
-        // Ensure we mark the last word and complete the reading
-        if (wordIndex >= words.length) {
-          setCurrentWord(words.length - 1);
-          setTimeout(() => {
-            stopReading();
-            // Mark reading as complete after a short delay
-            setTimeout(() => {
-              setCurrentWord(words.length);
-            }, 100);
-          }, 500);
+
+    // Enhanced word tracking with onboundary event
+    utterance.onboundary = (event) => {
+      if (event.name === 'word' && isReading) {
+        // Use the character offset to determine word position
+        const text = pageContent.text;
+        const beforeChar = text.substring(0, event.charIndex);
+        const wordCount = beforeChar.trim().split(/\s+/).length - 1;
+        
+        if (wordCount >= 0 && wordCount < words.length) {
+          wordIndexRef.current = wordCount;
+          setCurrentWord(wordCount);
         }
       }
-    }, wordDuration);
+    };
 
     utterance.onstart = () => {
       startTimeRef.current = Date.now();
+      setIsReading(true);
     };
 
     utterance.onend = () => {
       // Ensure completion is properly marked
       setCurrentWord(words.length);
+      setIsReading(false);
+      wordIndexRef.current = words.length;
+    };
+
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event);
       stopReading();
     };
 
-    utterance.onerror = () => {
-      stopReading();
-    };
-
-    // Handle boundary events for more accurate word tracking
-    utterance.onboundary = (event) => {
-      if (event.name === 'word') {
-        const elapsedTime = Date.now() - startTimeRef.current;
-        const estimatedWordIndex = Math.floor((elapsedTime / estimatedDuration) * words.length);
-        setCurrentWord(Math.min(estimatedWordIndex, words.length - 1));
+    // Fallback timing mechanism in case onboundary doesn't work
+    const estimatedDuration = (pageContent.text.length / (rate * 12)) * 1000;
+    const wordDuration = estimatedDuration / words.length;
+    
+    intervalRef.current = setInterval(() => {
+      if (isReading && wordIndexRef.current < words.length) {
+        // Only update if onboundary hasn't already updated this word
+        const currentTime = Date.now();
+        const elapsedTime = currentTime - startTimeRef.current;
+        const expectedWordIndex = Math.floor(elapsedTime / wordDuration);
+        
+        if (expectedWordIndex > wordIndexRef.current) {
+          wordIndexRef.current = Math.min(expectedWordIndex, words.length - 1);
+          setCurrentWord(wordIndexRef.current);
+        }
       }
-    };
+    }, Math.max(wordDuration / 4, 100)); // Check more frequently than word duration
 
     speechSynthesis.speak(utterance);
   };
@@ -277,9 +333,13 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
         background_url: updatedContent.background,
         quiz_data: updatedContent.quiz
       });
+
+      // Refresh the story data to ensure consistency
+      await refreshStoryData();
     } catch (err) {
       console.error('Failed to update page content:', err);
       setError('Failed to save changes to database');
+      throw err;
     }
   };
 
@@ -287,6 +347,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     setCurrentWord(0);
     setHasStartedReading(false);
+    wordIndexRef.current = 0;
     stopReading();
   }, [currentPage]);
 
@@ -321,7 +382,9 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPitch,
     setVolume,
     updatePageContent,
-    refreshStoryData
+    refreshStoryData,
+    addNewPage,
+    deletePage
   };
 
   return (
