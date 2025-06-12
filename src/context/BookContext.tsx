@@ -2,6 +2,15 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { SupabaseService } from '../services/SupabaseService';
 import { storyContent } from '../data/storyData';
 
+interface QuizAnswer {
+  pageTitle: string;
+  multipleChoiceQuestion: string;
+  multipleChoiceAnswer: string;
+  spellingWord: string;
+  spellingAnswer: string;
+  isCorrect: boolean;
+}
+
 interface PageContent {
   title: string;
   text: string;
@@ -39,11 +48,19 @@ interface BookContextType {
   addNewPage: () => Promise<void>;
   deletePage: (pageNumber: number) => Promise<void>;
   readText: (text: string) => void;
+  quizAnswers: QuizAnswer[];
+  addQuizAnswer: (answer: QuizAnswer) => void;
+  resetQuizAnswers: () => void;
 }
 
 const BookContext = createContext<BookContextType | undefined>(undefined);
 
-export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface BookProviderProps {
+  children: React.ReactNode;
+  onStoryComplete?: (answers: QuizAnswer[], totalScore: number) => void;
+}
+
+export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryComplete }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [pages, setPages] = useState<PageContent[]>([]);
@@ -53,6 +70,9 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Quiz tracking
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswer[]>([]);
   
   // Voice settings
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -67,6 +87,14 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const startTimeRef = useRef<number>(0);
   const wordIndexRef = useRef<number>(0);
   const isReadingStoryRef = useRef<boolean>(false);
+
+  // Check if story is complete
+  useEffect(() => {
+    if (quizAnswers.length === totalPages && totalPages > 0 && onStoryComplete) {
+      const totalScore = quizAnswers.reduce((sum, answer) => sum + (answer.isCorrect ? 2 : 0), 0);
+      onStoryComplete(quizAnswers, totalScore);
+    }
+  }, [quizAnswers, totalPages, onStoryComplete]);
 
   // Load voices
   useEffect(() => {
@@ -390,6 +418,18 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const addQuizAnswer = (answer: QuizAnswer) => {
+    setQuizAnswers(prev => {
+      // Remove any existing answer for this page and add the new one
+      const filtered = prev.filter(a => a.pageTitle !== answer.pageTitle);
+      return [...filtered, answer];
+    });
+  };
+
+  const resetQuizAnswers = () => {
+    setQuizAnswers([]);
+  };
+
   // Reset word tracking when page changes
   useEffect(() => {
     setCurrentWord(0);
@@ -433,7 +473,10 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshStoryData,
     addNewPage,
     deletePage,
-    readText
+    readText,
+    quizAnswers,
+    addQuizAnswer,
+    resetQuizAnswers
   };
 
   return (

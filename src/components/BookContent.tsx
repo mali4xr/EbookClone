@@ -8,7 +8,20 @@ import ConversationalAIButton from './ConversationalAIButton';
 import { QuizModal } from './QuizModal';
 import ProgressIndicator from './ProgressIndicator';
 
-const BookContent = () => {
+interface QuizAnswer {
+  pageTitle: string;
+  multipleChoiceQuestion: string;
+  multipleChoiceAnswer: string;
+  spellingWord: string;
+  spellingAnswer: string;
+  isCorrect: boolean;
+}
+
+interface BookContentProps {
+  onStoryComplete?: (answers: QuizAnswer[], totalScore: number) => void;
+}
+
+const BookContent = ({ onStoryComplete }: BookContentProps) => {
   const { 
     currentPage,
     totalPages,

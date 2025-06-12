@@ -7,6 +7,15 @@ import { createWorker } from 'tesseract.js';
 import { GeminiService } from '../services/GeminiService';
 import ConversationalAIButton from './ConversationalAIButton';
 
+interface QuizAnswer {
+  pageTitle: string;
+  multipleChoiceQuestion: string;
+  multipleChoiceAnswer: string;
+  spellingWord: string;
+  spellingAnswer: string;
+  isCorrect: boolean;
+}
+
 interface QuizModalProps {
   onClose: () => void;
   onScoreUpdate: (score: number) => void;
@@ -33,7 +42,7 @@ interface OCRResult {
 }
 
 export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
-  const { voiceIndex, rate, pitch, volume, availableVoices, nextPage, readText } = useBook();
+  const { voiceIndex, rate, pitch, volume, availableVoices, nextPage, readText, addQuizAnswer } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
@@ -50,6 +59,8 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   const [aiMessages, setAiMessages] = useState<any[]>([]);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
+  const [selectedMultipleChoiceAnswer, setSelectedMultipleChoiceAnswer] = useState<string>('');
+  const [finalSpellingAnswer, setFinalSpellingAnswer] = useState<string>('');
   const webcamRef = React.useRef<Webcam>(null);
 
   const quiz = pageContent.quiz || {
@@ -151,6 +162,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const handleMultipleChoiceAnswer = (isCorrect: boolean) => {
+    const selectedOption = quiz.multipleChoice.options.find(opt => opt.isCorrect === isCorrect);
+    setSelectedMultipleChoiceAnswer(selectedOption?.text || '');
+    
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
@@ -167,6 +181,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const handleSpellingSubmit = () => {
+    setFinalSpellingAnswer(spellingAnswer);
     const isCorrect = spellingAnswer.toLowerCase() === quiz.spelling.word.toLowerCase();
     if (isCorrect) {
       celebrateCorrectAnswer();
@@ -405,6 +420,18 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const handleContinue = () => {
+    // Record the quiz answers
+    const quizAnswer: QuizAnswer = {
+      pageTitle: pageContent.title,
+      multipleChoiceQuestion: quiz.multipleChoice.question,
+      multipleChoiceAnswer: selectedMultipleChoiceAnswer,
+      spellingWord: quiz.spelling.word,
+      spellingAnswer: finalSpellingAnswer || spellingAnswer,
+      isCorrect: score === 2
+    };
+    
+    addQuizAnswer(quizAnswer);
+    
     // If all quiz answers are correct, navigate to next page
     if (score === 2) {
       nextPage();
@@ -458,7 +485,10 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                     {quiz.multipleChoice.options.map((option, index) => (
                       <button
                         key={index}
-                        onClick={() => handleMultipleChoiceAnswer(option.isCorrect)}
+                        onClick={() => {
+                          setSelectedMultipleChoiceAnswer(option.text);
+                          handleMultipleChoiceAnswer(option.isCorrect);
+                        }}
                         className="w-full p-3 text-left border rounded-lg hover:bg-purple-50 transition-all duration-300 transform hover:scale-105 animate__animated animate__fadeInUp"
                         style={{ animationDelay: `${index * 0.1}s` }}
                       >

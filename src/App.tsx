@@ -1,11 +1,27 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import BookContent from './components/BookContent';
+import LandingPage from './components/LandingPage';
+import EndPage from './components/EndPage';
 import { BookProvider } from './context/BookContext';
 import SettingsModal from './components/SettingsModal';
 
+type AppState = 'landing' | 'story' | 'end';
+
+interface QuizAnswer {
+  pageTitle: string;
+  multipleChoiceQuestion: string;
+  multipleChoiceAnswer: string;
+  spellingWord: string;
+  spellingAnswer: string;
+  isCorrect: boolean;
+}
+
 function App() {
   const [showSupabaseWarning, setShowSupabaseWarning] = React.useState(false);
+  const [appState, setAppState] = React.useState<AppState>('landing');
+  const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswer[]>([]);
+  const [totalScore, setTotalScore] = React.useState(0);
 
   React.useEffect(() => {
     // Check if Supabase is configured
@@ -17,8 +33,44 @@ function App() {
     }
   }, []);
 
+  const handleStartStory = () => {
+    setAppState('story');
+    setQuizAnswers([]);
+    setTotalScore(0);
+  };
+
+  const handleStoryComplete = (answers: QuizAnswer[], score: number) => {
+    setQuizAnswers(answers);
+    setTotalScore(score);
+    setAppState('end');
+  };
+
+  const handleReturnToLanding = () => {
+    setAppState('landing');
+    setQuizAnswers([]);
+    setTotalScore(0);
+  };
+
+  // Show landing page
+  if (appState === 'landing') {
+    return <LandingPage onStartStory={handleStartStory} />;
+  }
+
+  // Show end page
+  if (appState === 'end') {
+    return (
+      <EndPage
+        onReturnToLanding={handleReturnToLanding}
+        quizAnswers={quizAnswers}
+        totalScore={totalScore}
+        maxScore={quizAnswers.length * 2} // 2 points per page (multiple choice + spelling)
+      />
+    );
+  }
+
+  // Show main story
   return (
-    <BookProvider>
+    <BookProvider onStoryComplete={handleStoryComplete}>
       <div className="font-sans min-h-screen bg-gradient-to-b from-blue-100 to-purple-100 flex flex-col">
         {/* Supabase Configuration Warning */}
         {showSupabaseWarning && (
@@ -54,7 +106,7 @@ function App() {
         
         <main className="flex-grow flex items-center justify-center p-4">
           <div className="w-full max-w-5xl bg-white rounded-xl shadow-xl overflow-hidden transform transition-all">
-            <BookContent />
+            <BookContent onStoryComplete={handleStoryComplete} />
           </div>
         </main>
         
