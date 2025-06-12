@@ -135,7 +135,7 @@ const ConversationalAIButton = ({
   return (
     <div className={`relative ${className}`}>
       {/* Main AI Button */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => setShowChat(!showChat)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform hover:scale-105 ${getButtonColor()}`}
