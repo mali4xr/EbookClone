@@ -117,17 +117,54 @@ export class SupabaseService {
         .from('story_pages')
         .update(updateData)
         .eq('page_number', pageNumber)
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error('Error updating story page:', error);
         throw new Error(`Failed to update story page: ${error.message}`);
       }
 
-      return data;
+      if (!data || data.length === 0) {
+        throw new Error('No story page found to update');
+      }
+
+      return data[0];
     } catch (error) {
       console.error('Error in updateStoryPage:', error);
+      throw error;
+    }
+  }
+
+  async upsertStoryPage(pageNumber: number, updates: Partial<StoryPageInput>): Promise<StoryPage> {
+    try {
+      const upsertData = {
+        page_number: pageNumber,
+        title: updates.title || '',
+        text: updates.text || '',
+        image_url: updates.image_url || '',
+        video_url: updates.video_url || '',
+        background_url: updates.background_url || '',
+        quiz_data: updates.quiz_data || {},
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await this.supabase
+        .from('story_pages')
+        .upsert(upsertData, { 
+          onConflict: 'page_number',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error upserting story page:', error);
+        throw new Error(`Failed to upsert story page: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in upsertStoryPage:', error);
       throw error;
     }
   }

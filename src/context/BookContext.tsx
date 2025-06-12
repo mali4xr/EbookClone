@@ -97,7 +97,8 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       // Try to load from Supabase first
-      const supabasePages = await SupabaseService.getStoryPages();
+      const supabaseService = SupabaseService.getInstance();
+      const supabasePages = await supabaseService.getAllStoryPages();
       
       if (supabasePages && supabasePages.length > 0) {
         const formattedPages = supabasePages.map(page => ({
@@ -235,7 +236,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Try to update in Supabase
       const supabaseService = SupabaseService.getInstance();
-      await supabaseService.updateStoryPage(currentPage + 1, {
+      await supabaseService.upsertStoryPage(currentPage + 1, {
         text: updatedContent.text,
         image_url: updatedContent.image,
         video_url: updatedContent.video,
