@@ -214,3 +214,5 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
 };
 
 export default SettingsModal;
+
+export default SettingsModal
