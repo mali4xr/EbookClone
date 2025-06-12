@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Save, Loader } from 'lucide-react';
 
 interface EditPageModalProps {
   onClose: () => void;
@@ -34,7 +34,7 @@ interface EditPageModalProps {
         hint: string;
       };
     };
-  }) => void;
+  }) => Promise<void>;
 }
 
 const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => {
@@ -58,11 +58,26 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
   });
 
   const [showQuizEdit, setShowQuizEdit] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(content);
-    onClose();
+    handleSave();
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    
+    try {
+      await onSave(content);
+      onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save changes');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateMultipleChoiceOption = (index: number, text: string, isCorrect: boolean) => {
@@ -288,19 +303,38 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
             )}
           </div>
           
+          {/* Save Error Display */}
+          {saveError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg animate__animated animate__fadeIn">
+              <p className="text-red-700 text-sm">{saveError}</p>
+            </div>
+          )}
+          
           <div className="flex justify-end gap-2 animate__animated animate__fadeInUp animate__delay-4s">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded-md hover:bg-gray-50 transition-all duration-300 transform hover:scale-105"
+              disabled={isSaving}
+              className="px-4 py-2 border rounded-md hover:bg-gray-50 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-105"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Changes
+              {isSaving ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  Save Changes
+                </>
+              )}
             </button>
           </div>
         </form>

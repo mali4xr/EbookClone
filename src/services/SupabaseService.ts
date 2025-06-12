@@ -1,0 +1,213 @@
+import { createClient } from '@supabase/supabase-js';
+
+export interface StoryPage {
+  id: string;
+  page_number: number;
+  title: string;
+  text: string;
+  image_url: string;
+  video_url: string;
+  background_url: string;
+  quiz_data: {
+    multipleChoice: {
+      question: string;
+      options: { text: string; isCorrect: boolean; }[];
+    };
+    spelling: {
+      word: string;
+      hint: string;
+    };
+    dragDrop?: {
+      dragItems: { id: string; image: string; label: string }[];
+      dropZones: { id: string; image: string; label: string; acceptsId: string }[];
+      instructions?: string;
+    };
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoryPageInput {
+  page_number: number;
+  title?: string;
+  text: string;
+  image_url: string;
+  video_url: string;
+  background_url: string;
+  quiz_data: StoryPage['quiz_data'];
+}
+
+export class SupabaseService {
+  private static instance: SupabaseService;
+  private supabase;
+
+  private constructor() {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration missing. Please check your environment variables.');
+    }
+
+    this.supabase = createClient(supabaseUrl, supabaseKey);
+  }
+
+  static getInstance(): SupabaseService {
+    if (!SupabaseService.instance) {
+      SupabaseService.instance = new SupabaseService();
+    }
+    return SupabaseService.instance;
+  }
+
+  static isConfigured(): boolean {
+    return !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+  }
+
+  async getAllStoryPages(): Promise<StoryPage[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('story_pages')
+        .select('*')
+        .order('page_number', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching story pages:', error);
+        throw new Error(`Failed to fetch story pages: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getAllStoryPages:', error);
+      throw error;
+    }
+  }
+
+  async getStoryPage(pageNumber: number): Promise<StoryPage | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('story_pages')
+        .select('*')
+        .eq('page_number', pageNumber)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          return null;
+        }
+        console.error('Error fetching story page:', error);
+        throw new Error(`Failed to fetch story page: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in getStoryPage:', error);
+      throw error;
+    }
+  }
+
+  async updateStoryPage(pageNumber: number, updates: Partial<StoryPageInput>): Promise<StoryPage> {
+    try {
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await this.supabase
+        .from('story_pages')
+        .update(updateData)
+        .eq('page_number', pageNumber)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating story page:', error);
+        throw new Error(`Failed to update story page: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in updateStoryPage:', error);
+      throw error;
+    }
+  }
+
+  async createStoryPage(pageData: StoryPageInput): Promise<StoryPage> {
+    try {
+      const { data, error } = await this.supabase
+        .from('story_pages')
+        .insert([pageData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating story page:', error);
+        throw new Error(`Failed to create story page: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in createStoryPage:', error);
+      throw error;
+    }
+  }
+
+  async deleteStoryPage(pageNumber: number): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('story_pages')
+        .delete()
+        .eq('page_number', pageNumber);
+
+      if (error) {
+        console.error('Error deleting story page:', error);
+        throw new Error(`Failed to delete story page: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error in deleteStoryPage:', error);
+      throw error;
+    }
+  }
+
+  async getTotalPages(): Promise<number> {
+    try {
+      const { count, error } = await this.supabase
+        .from('story_pages')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) {
+        console.error('Error getting total pages:', error);
+        throw new Error(`Failed to get total pages: ${error.message}`);
+      }
+
+      return count || 0;
+    } catch (error) {
+      console.error('Error in getTotalPages:', error);
+      throw error;
+    }
+  }
+
+  // Convert database format to component format
+  static convertToComponentFormat(dbPage: StoryPage) {
+    return {
+      text: dbPage.text,
+      image: dbPage.image_url,
+      video: dbPage.video_url,
+      background: dbPage.background_url,
+      quiz: dbPage.quiz_data
+    };
+  }
+
+  // Convert component format to database format
+  static convertToDatabaseFormat(componentData: any, pageNumber: number): StoryPageInput {
+    return {
+      page_number: pageNumber,
+      title: componentData.title || '',
+      text: componentData.text,
+      image_url: componentData.image || componentData.image_url,
+      video_url: componentData.video || componentData.video_url,
+      background_url: componentData.background || componentData.background_url,
+      quiz_data: componentData.quiz || {}
+    };
+  }
+}

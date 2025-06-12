@@ -15,7 +15,9 @@ const BookContent = () => {
     pageContent,
     currentWord,
     isReading,
-    hasStartedReading
+    hasStartedReading,
+    isLoading,
+    error
   } = useBook();
 
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -89,6 +91,46 @@ const BookContent = () => {
     Current reading progress: ${isReading ? 'Currently reading aloud' : 'Not reading'}
     Page completion: ${isPageComplete ? 'Page completed' : 'Still reading'}`;
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
+        <p className="mt-4 text-lg text-gray-600">Loading story from database...</p>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
+        <div className="text-center p-6 bg-red-50 rounded-lg border border-red-200">
+          <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Story</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state if no pages
+  if (totalPages === 0) {
+    return (
+      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
+        <div className="text-center p-6 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Story Pages Found</h3>
+          <p className="text-gray-600 mb-4">Please check your database connection or add some story pages.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[600px] md:h-[700px]">

@@ -1,262 +1,236 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { storyContent as initialStoryContent } from '../data/storyData';
+import React, { useEffect, useRef, useState } from 'react';
+import { useBook } from '../context/BookContext';
+import PageTurner from './PageTurner';
+import Controls from './Controls';
+import PageCounter from './PageCounter';
+import InteractiveElements from './InteractiveElements';
+import ConversationalAIButton from './ConversationalAIButton';
+import { QuizModal } from './QuizModal';
+import ProgressIndicator from './ProgressIndicator';
 
-interface BookContextType {
-  currentPage: number;
-  totalPages: number;
-  isReading: boolean;
-  isMuted: boolean;
-  voiceIndex: number;
-  rate: number;
-  pitch: number;
-  volume: number;
-  currentWord: number;
-  hasStartedReading: boolean;
-  availableVoices: SpeechSynthesisVoice[];
-  nextPage: () => void;
-  prevPage: () => void;
-  toggleReading: () => void;
-  toggleMute: () => void;
-  setVoiceIndex: (index: number) => void;
-  setRate: (rate: number) => void;
-  setPitch: (pitch: number) => void;
-  setVolume: (volume: number) => void;
-  goToPage: (page: number) => void;
-  pageContent: {
-    text: string;
-    image: string;
-    video: string;
-    background: string;
-    quiz?: {
-      multipleChoice: {
-        question: string;
-        options: { text: string; isCorrect: boolean; }[];
-      };
-      spelling: {
-        word: string;
-        hint: string;
-      };
-      dragDrop?: {
-        dragItems: { id: string; image: string; label: string }[];
-        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
-        instructions?: string;
-      };
-    };
-  };
-  updatePageContent: (content: { 
-    text: string; 
-    image: string; 
-    video: string;
-    background: string;
-    quiz?: {
-      multipleChoice: {
-        question: string;
-        options: { text: string; isCorrect: boolean; }[];
-      };
-      spelling: {
-        word: string;
-        hint: string;
-      };
-      dragDrop?: {
-        dragItems: { id: string; image: string; label: string }[];
-        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
-        instructions?: string;
-      };
-    };
-  }) => void;
-}
-
-const BookContext = createContext<BookContextType | undefined>(undefined);
-
-export const useBook = () => {
-  const context = useContext(BookContext);
-  if (context === undefined) {
-    throw new Error('useBook must be used within a BookProvider');
-  }
-  return context;
-};
-
-interface BookProviderProps {
-  children: ReactNode;
-}
-
-export const BookProvider = ({ children }: BookProviderProps) => {
-  const [storyContent, setStoryContent] = useState(initialStoryContent);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [isReading, setIsReading] = useState(false);
-  const [hasStartedReading, setHasStartedReading] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [voiceIndex, setVoiceIndex] = useState(0);
-  const [rate, setRate] = useState(1);
-  const [pitch, setPitch] = useState(1);
-  const [volume, setVolume] = useState(1);
-  const [currentWord, setCurrentWord] = useState(-1);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [utterance, setUtterance] = useState<SpeechSynthesisUtterance | null>(null);
-
-  const totalPages = storyContent.length;
-  const pageContent = storyContent[currentPage];
-
-  useEffect(() => {
-    const synth = window.speechSynthesis;
-    const updateVoices = () => {
-      const voices = synth.getVoices();
-      setAvailableVoices(voices);
-      
-      // Set Zira as default voice if available
-      const ziraVoice = voices.findIndex(voice => 
-        voice.name.toLowerCase().includes('zira') || 
-        voice.name.toLowerCase().includes('microsoft zira')
-      );
-      if (ziraVoice !== -1) {
-        setVoiceIndex(ziraVoice);
-      }
-    };
-
-    if (synth.onvoiceschanged !== undefined) {
-      synth.onvoiceschanged = updateVoices;
-    }
-    
-    updateVoices();
-
-    return () => {
-      if (synth.speaking) {
-        synth.cancel();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isReading && !isMuted) {
-      setHasStartedReading(true);
-      readCurrentPage();
-    } else if (!isReading && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setCurrentWord(-1);
-    }
-    
-    return () => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-        setCurrentWord(-1);
-      }
-    };
-  }, [isReading, isMuted, currentPage, voiceIndex, rate, pitch, volume]);
-
-  const readCurrentPage = () => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-    
-    setCurrentWord(-1);
-    const text = pageContent.text;
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    if (availableVoices.length > 0) {
-      utterance.voice = availableVoices[voiceIndex];
-    }
-    
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-    
-    utterance.onboundary = (event) => {
-      if (event.name === 'word') {
-        const textUpToChar = text.slice(0, event.charIndex);
-        const wordIndex = textUpToChar.split(' ').length - 1;
-        setCurrentWord(wordIndex);
-      }
-    };
-    
-    utterance.onend = () => {
-      setCurrentWord(-1);
-      setIsReading(false);
-    };
-    
-    setUtterance(utterance);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const nextPage = () => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage(prev => prev + 1);
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  const goToPage = (page: number) => {
-    if (page >= 0 && page < totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  const toggleReading = () => {
-    setIsReading(!isReading);
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (!isMuted && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setCurrentWord(-1);
-    }
-  };
-
-  const updatePageContent = (content: {
-    text: string;
-    image: string;
-    video: string;
-    background: string;
-    quiz?: {
-      multipleChoice: {
-        question: string;
-        options: { text: string; isCorrect: boolean; }[];
-      };
-      spelling: {
-        word: string;
-        hint: string;
-      };
-      dragDrop?: {
-        dragItems: { id: string; image: string; label: string }[];
-        dropZones: { id: string; image: string; label: string; acceptsId: string }[];
-        instructions?: string;
-      };
-    };
-  }) => {
-    const newContent = [...storyContent];
-    newContent[currentPage] = content;
-    setStoryContent(newContent);
-  };
-
-  const value = {
+const BookContent = () => {
+  const { 
     currentPage,
     totalPages,
-    isReading,
-    isMuted,
-    voiceIndex,
-    rate,
-    pitch,
-    volume,
-    currentWord,
-    hasStartedReading,
-    availableVoices,
-    nextPage,
-    prevPage,
-    toggleReading,
-    toggleMute,
-    setVoiceIndex,
-    setRate,
-    setPitch,
-    setVolume,
-    goToPage,
     pageContent,
-    updatePageContent
+    currentWord,
+    isReading,
+    hasStartedReading,
+    isLoading,
+    error
+  } = useBook();
+
+  const [isPageTurning, setIsPageTurning] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [isPageComplete, setIsPageComplete] = useState(false);
+  const [quizScore, setQuizScore] = useState(0);
+  const [aiMessages, setAiMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    setIsPageTurning(true);
+    const timeout = setTimeout(() => setIsPageTurning(false), 500);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (pageContent && pageContent.text) {
+      const totalWords = pageContent.text.split(' ').length;
+      const isComplete = currentWord >= totalWords - 1;
+      setIsPageComplete(isComplete);
+    }
+  }, [currentWord, pageContent]);
+
+  useEffect(() => {
+    setIsPageComplete(false);
+    setShowQuiz(false);
+    setQuizScore(0);
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (hasStartedReading && !isReading && isPageComplete) {
+      setShowQuiz(true);
+    }
+  }, [isReading, hasStartedReading, isPageComplete]);
+
+  const renderHighlightedText = (text: string) => {
+    const words = text.split(' ');
+    return words.map((word, index) => (
+      <span
+        key={index}
+        className={`inline-block transition-all duration-150 mx-[2px] px-1 rounded ${
+          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105 animate__animated animate__pulse' : 
+          index < currentWord ? 'bg-green-100' : ''
+        }`}
+      >
+        {word}
+      </span>
+    ));
   };
 
-  return <BookContext.Provider value={value}>{children}</BookContext.Provider>;
+  const handleAIMessage = (message: any) => {
+    setAiMessages(prev => [...prev, message]);
+    console.log('Reading AI Message:', message);
+  };
+
+  const getReadingAIContext = () => {
+    return `You are helping a child read a story. 
+    Current page: ${currentPage + 1} of ${totalPages}
+    Story text: "${pageContent.text}"
+    
+    You can help with:
+    - Explaining difficult words
+    - Discussing what's happening in the story
+    - Answering questions about characters and events
+    - Encouraging reading comprehension
+    - Making the story more engaging
+    
+    Be encouraging, patient, and use simple language appropriate for children.
+    Current reading progress: ${isReading ? 'Currently reading aloud' : 'Not reading'}
+    Page completion: ${isPageComplete ? 'Page completed' : 'Still reading'}`;
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
+        <p className="mt-4 text-lg text-gray-600">Loading story...</p>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
+        <div className="text-center p-6 bg-red-50 rounded-lg border border-red-200">
+          <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Story</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-sm text-red-500">
+            Please check your Supabase configuration and try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state if no content
+  if (!pageContent || !pageContent.text) {
+    return (
+      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
+        <div className="text-center p-6 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Story Content</h3>
+          <p className="text-gray-600">
+            No story pages found. Please check your database configuration.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col h-[600px] md:h-[700px]">
+      {/* Progress Indicator */}
+      <ProgressIndicator 
+        currentPage={currentPage} 
+        totalPages={totalPages}
+        isPageComplete={isPageComplete}
+        quizScore={quizScore}
+      />
+      
+      <div 
+        className="flex-grow relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${pageContent.background})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
+        <div 
+          className={`absolute inset-0 flex flex-col md:flex-row transition-opacity duration-500 ${
+            isPageTurning ? 'opacity-0' : 'opacity-100 animate__animated animate__fadeIn'
+          }`}
+        >
+          <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
+            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft">
+              <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
+                {renderHighlightedText(pageContent.text)}
+              </p>
+              {isPageComplete && (
+                <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
+                  ✓ Page completed
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="w-full md:w-1/2 relative">
+            {/* Video Circle */}
+            <div className="absolute top-4 right-4 z-10">
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
+                <video 
+                  src={pageContent.video} 
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                  style={{ objectFit: 'cover' }}
+                  onError={(e) => {
+                    console.log('Video failed to load, falling back to image');
+                    const target = e.target as HTMLVideoElement;
+                    const img = document.createElement('img');
+                    img.src = pageContent.image;
+                    img.className = 'w-full h-full object-cover';
+                    img.alt = `Illustration for page ${currentPage + 1}`;
+                    img.style.objectFit = 'cover';
+                    target.parentNode?.replaceChild(img, target);
+                  }}
+                />
+              </div>
+            </div>
+            
+            {/* AI Assistant */}
+            <InteractiveElements page={currentPage} />
+          </div>
+        </div>
+
+        {/* Read Button */}
+        <div className="absolute bottom-4 right-4">
+          <Controls />
+        </div>
+      </div>
+      
+      <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 animate__animated animate__slideInUp">
+        <div className="flex items-center gap-4 mx-auto sm:mx-0">
+          <PageCounter current={currentPage + 1} total={totalPages} />
+          <PageTurner isLocked={quizScore < 2} />
+        </div>
+        
+        {/* AI Messages */}
+        {aiMessages.length > 0 && (
+          <div className="hidden lg:block max-w-xs">
+            <div className="p-2 bg-blue-50 rounded-lg text-xs">
+              <p className="font-medium text-blue-700">AI Helper:</p>
+              <p className="text-blue-600 truncate">
+                {aiMessages[aiMessages.length - 1]?.message || "Ready to help!"}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showQuiz && (
+        <QuizModal
+          onClose={() => setShowQuiz(false)}
+          pageContent={pageContent}
+          onScoreUpdate={setQuizScore}
+        />
+      )}
+    </div>
+  );
 };
+
+export default BookContent;
