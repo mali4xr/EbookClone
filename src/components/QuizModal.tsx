@@ -11,6 +11,7 @@ interface QuizModalProps {
   onClose: () => void;
   onScoreUpdate: (score: number) => void;
   pageContent: {
+    title: string;
     text: string;
     quiz?: {
       multipleChoice: {
@@ -32,7 +33,7 @@ interface OCRResult {
 }
 
 export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProps) => {
-  const { voiceIndex, rate, pitch, volume, availableVoices, nextPage } = useBook();
+  const { voiceIndex, rate, pitch, volume, availableVoices, nextPage, readText } = useBook();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showScore, setShowScore] = useState(false);
@@ -93,27 +94,26 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     getCameras();
   }, [showSpelling]);
 
+  // Auto-read quiz questions when they appear
+  useEffect(() => {
+    if (showMultipleChoice) {
+      setTimeout(() => {
+        readText(quiz.multipleChoice.question);
+      }, 500);
+    }
+  }, [showMultipleChoice, quiz.multipleChoice.question, readText]);
+
+  useEffect(() => {
+    if (showSpelling) {
+      setTimeout(() => {
+        readText(`Spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`);
+      }, 500);
+    }
+  }, [showSpelling, quiz.spelling.word, quiz.spelling.hint, readText]);
+
   useEffect(() => {
     onScoreUpdate(score);
   }, [score, onScoreUpdate]);
-
-  const readQuestion = (text: string) => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    if (availableVoices.length > 0) {
-      utterance.voice = availableVoices[voiceIndex];
-    }
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-
-    setIsReading(true);
-    utterance.onend = () => setIsReading(false);
-    window.speechSynthesis.speak(utterance);
-  };
 
   const playCorrectSound = () => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -147,19 +147,15 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     let congratsText = "Correct answer!";
     if (showSpelling) congratsText = "Perfect spelling! Great job!";
     
-    readQuestion(congratsText);
+    readText(congratsText);
   };
 
   const handleMultipleChoiceAnswer = (isCorrect: boolean) => {
-    if (isReading) {
-      window.speechSynthesis.cancel();
-    }
-    
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
     } else {
-      readQuestion("That's not correct. Try again next time!");
+      readText("That's not correct. Try again next time!");
     }
     
     setIsTransitioning(true);
@@ -171,16 +167,12 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const handleSpellingSubmit = () => {
-    if (isReading) {
-      window.speechSynthesis.cancel();
-    }
-
     const isCorrect = spellingAnswer.toLowerCase() === quiz.spelling.word.toLowerCase();
     if (isCorrect) {
       celebrateCorrectAnswer();
       setScore(score + 1);
     } else {
-      readQuestion(`Not quite right. The correct spelling was ${quiz.spelling.word}`);
+      readText(`Not quite right. The correct spelling was ${quiz.spelling.word}`);
     }
     
     setShowScore(true);
@@ -316,15 +308,15 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
         celebrateCorrectAnswer();
         setScore(score + 1);
         setShowScore(true);
-        readQuestion(`Great job! Now let's continue the story`);
+        readText(`Great job! Now let's continue the story`);
       } else {
-        readQuestion(`You tried but your spelling is not correct. The word was "${quiz.spelling.word}". Please, read the story and try again.`);
+        readText(`You tried but your spelling is not correct. The word was "${quiz.spelling.word}". Please, read the story and try again.`);
         setShowScore(true);
       }
       
     } catch (error) {
       console.error('OCR Error:', error);
-      readQuestion("Sorry, I couldn't read your spelling clearly. Please try again or type your answer.");
+      readText("Sorry, I couldn't read your spelling clearly. Please try again or type your answer.");
       setOcrResults([{
         text: 'Processing Error',
         confidence: 0,
@@ -340,9 +332,9 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
     if (showMultipleChoice) {
       textToRead = quiz.multipleChoice.question;
     } else if (showSpelling) {
-      textToRead = `Spell the word: ${quiz.spelling.word}`;
+      textToRead = `Spell the word: ${quiz.spelling.word}. ${quiz.spelling.hint}`;
     }
-    readQuestion(textToRead);
+    readText(textToRead);
   };
 
   const handleAIMessage = (message: any) => {
@@ -363,6 +355,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
 
   const getAIContext = () => {
     let context = `You are helping a child with a reading quiz. 
+    Current story title: "${pageContent.title}"
     Current story text: "${pageContent.text}"`;
     
     if (showMultipleChoice) {
@@ -412,10 +405,6 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
   };
 
   const handleContinue = () => {
-    if (isReading) {
-      window.speechSynthesis.cancel();
-    }
-    
     // If all quiz answers are correct, navigate to next page
     if (score === 2) {
       nextPage();
@@ -431,14 +420,18 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
           {/* Quiz Content Section */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">
-                Quiz Time! ({score}/2) 🎯
-              </h2>
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 animate__animated animate__fadeInLeft">
+                  Quiz Time! ({score}/2) 🎯
+                </h2>
+                {pageContent.title && (
+                  <p className="text-sm text-gray-600 animate__animated animate__fadeInLeft animate__delay-1s">
+                    {pageContent.title}
+                  </p>
+                )}
+              </div>
               <button 
                 onClick={() => {
-                  if (isReading) {
-                    window.speechSynthesis.cancel();
-                  }
                   onClose();
                 }}
                 className="p-1 rounded-full hover:bg-gray-100 animate__animated animate__fadeInRight"
@@ -664,7 +657,7 @@ export const QuizModal = ({ onClose, pageContent, onScoreUpdate }: QuizModalProp
                       {ocrResults.map((result, index) => (
                         <div key={index} className="flex items-center gap-2">
                           {getOCRStatusIcon(result)}
-                          <span className="capitalize"> Status</span>
+                          <span className="capitalize">{result.method}:</span>
                           <span>"{result.text}" ({Math.round(result.confidence * 100)}%)</span>
                         </div>
                       ))}

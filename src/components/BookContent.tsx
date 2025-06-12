@@ -38,7 +38,8 @@ const BookContent = () => {
   // Improved page completion detection
   useEffect(() => {
     if (pageContent && pageContent.text) {
-      const totalWords = pageContent.text.split(' ').length;
+      const words = pageContent.text.split(/\s+/);
+      const totalWords = words.length;
       // Page is complete when currentWord equals or exceeds total words
       const isComplete = currentWord >= totalWords;
       setIsPageComplete(isComplete);
@@ -61,12 +62,12 @@ const BookContent = () => {
   }, [currentPage]);
 
   const renderHighlightedText = (text: string) => {
-    const words = text.split(' ');
+    const words = text.split(/\s+/);
     return words.map((word, index) => (
       <span
         key={index}
-        className={`inline-block transition-all duration-150 mx-[2px] px-1 rounded ${
-          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105 animate__animated animate__pulse' : 
+        className={`inline-block transition-all duration-200 mx-[2px] px-1 rounded ${
+          index === currentWord ? 'bg-yellow-300 shadow-md transform scale-105 animate__animated animate__pulse' : 
           index < currentWord ? 'bg-green-100' : ''
         }`}
       >
@@ -83,6 +84,7 @@ const BookContent = () => {
   const getReadingAIContext = () => {
     return `You are helping a child read a story. 
     Current page: ${currentPage + 1} of ${totalPages}
+    Page title: "${pageContent.title}"
     Story text: "${pageContent.text}"
     
     You can help with:
@@ -162,6 +164,13 @@ const BookContent = () => {
         >
           <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
             <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft">
+              {/* Page Title */}
+              {pageContent.title && (
+                <h2 className="text-2xl md:text-3xl font-bold text-purple-700 mb-4 animate__animated animate__fadeInDown">
+                  {pageContent.title}
+                </h2>
+              )}
+              
               <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
                 {renderHighlightedText(pageContent.text)}
               </p>
@@ -199,7 +208,7 @@ const BookContent = () => {
               </div>
             </div>
             
-            {/* AI Assistant */}
+            {/* Interactive Elements */}
             <InteractiveElements page={currentPage} />
           </div>
         </div>

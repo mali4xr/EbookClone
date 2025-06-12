@@ -4,6 +4,7 @@ import { X, Save, Loader } from 'lucide-react';
 interface EditPageModalProps {
   onClose: () => void;
   pageContent: {
+    title: string;
     text: string;
     image: string;
     video: string;
@@ -20,6 +21,7 @@ interface EditPageModalProps {
     };
   };
   onSave: (content: {
+    title: string;
     text: string;
     image: string;
     video: string;
@@ -109,6 +111,19 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="space-y-2 animate__animated animate__fadeInUp">
+            <label className="block text-sm font-medium text-gray-700">
+              Page Title
+            </label>
+            <input
+              type="text"
+              value={content.title}
+              onChange={(e) => setContent({ ...content, title: e.target.value })}
+              className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
+              placeholder="Enter page title..."
+            />
+          </div>
+
           <div className="space-y-2 animate__animated animate__fadeInUp">
             <label className="block text-sm font-medium text-gray-700">
               Story Text

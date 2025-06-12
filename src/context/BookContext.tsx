@@ -3,6 +3,7 @@ import { SupabaseService } from '../services/SupabaseService';
 import { storyContent } from '../data/storyData';
 
 interface PageContent {
+  title: string;
   text: string;
   image: string;
   video: string;
@@ -37,6 +38,7 @@ interface BookContextType {
   refreshStoryData: () => Promise<void>;
   addNewPage: () => Promise<void>;
   deletePage: (pageNumber: number) => Promise<void>;
+  readText: (text: string) => void;
 }
 
 const BookContext = createContext<BookContextType | undefined>(undefined);
@@ -64,6 +66,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const wordsRef = useRef<string[]>([]);
   const startTimeRef = useRef<number>(0);
   const wordIndexRef = useRef<number>(0);
+  const isReadingStoryRef = useRef<boolean>(false);
 
   // Load voices
   useEffect(() => {
@@ -107,6 +110,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (supabasePages && supabasePages.length > 0) {
         const formattedPages = supabasePages.map(page => ({
+          title: page.title || '',
           text: page.text,
           image: page.image_url,
           video: page.video_url,
@@ -140,7 +144,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newPageNumber = totalPages + 1;
       const newPageData = {
         page_number: newPageNumber,
-        title: `Page ${newPageNumber}`,
+        title: `Chapter ${newPageNumber}`,
         text: "Once upon a time, there was a new adventure waiting to be written...",
         image_url: "https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
         video_url: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
@@ -185,6 +189,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const pageContent = pages[currentPage] || {
+    title: '',
     text: '',
     image: '',
     video: '',
@@ -220,7 +225,35 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       intervalRef.current = null;
     }
     setIsReading(false);
+    isReadingStoryRef.current = false;
     wordIndexRef.current = 0;
+  };
+
+  // Generic text reading function for quiz questions and other text
+  const readText = (text: string) => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    if (availableVoices[voiceIndex]) {
+      utterance.voice = availableVoices[voiceIndex];
+    }
+    
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = isMuted ? 0 : volume;
+    
+    utterance.onend = () => {
+      // Don't change reading state for quiz text
+    };
+
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event);
+    };
+
+    speechSynthesis.speak(utterance);
   };
 
   const startReading = () => {
@@ -230,8 +263,9 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsReading(true);
     setCurrentWord(0);
     wordIndexRef.current = 0;
+    isReadingStoryRef.current = true;
 
-    const words = pageContent.text.split(' ');
+    const words = pageContent.text.split(/\s+/);
     wordsRef.current = words;
     
     const utterance = new SpeechSynthesisUtterance(pageContent.text);
@@ -249,15 +283,17 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Enhanced word tracking with onboundary event
     utterance.onboundary = (event) => {
-      if (event.name === 'word' && isReading) {
-        // Use the character offset to determine word position
+      if (event.name === 'word' && isReadingStoryRef.current) {
+        // Use the character offset to determine word position more accurately
         const text = pageContent.text;
         const beforeChar = text.substring(0, event.charIndex);
-        const wordCount = beforeChar.trim().split(/\s+/).length - 1;
         
-        if (wordCount >= 0 && wordCount < words.length) {
-          wordIndexRef.current = wordCount;
-          setCurrentWord(wordCount);
+        // Count words more precisely by splitting on whitespace
+        const wordsBefore = beforeChar.trim() === '' ? 0 : beforeChar.trim().split(/\s+/).length;
+        
+        if (wordsBefore >= 0 && wordsBefore < words.length) {
+          wordIndexRef.current = wordsBefore;
+          setCurrentWord(wordsBefore);
         }
       }
     };
@@ -265,13 +301,17 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     utterance.onstart = () => {
       startTimeRef.current = Date.now();
       setIsReading(true);
+      isReadingStoryRef.current = true;
     };
 
     utterance.onend = () => {
       // Ensure completion is properly marked
-      setCurrentWord(words.length);
-      setIsReading(false);
-      wordIndexRef.current = words.length;
+      if (isReadingStoryRef.current) {
+        setCurrentWord(words.length);
+        setIsReading(false);
+        isReadingStoryRef.current = false;
+        wordIndexRef.current = words.length;
+      }
     };
 
     utterance.onerror = (event) => {
@@ -279,23 +319,23 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       stopReading();
     };
 
-    // Fallback timing mechanism in case onboundary doesn't work
-    const estimatedDuration = (pageContent.text.length / (rate * 12)) * 1000;
+    // Improved fallback timing mechanism
+    const estimatedDuration = (pageContent.text.length / (rate * 15)) * 1000; // More accurate timing
     const wordDuration = estimatedDuration / words.length;
     
     intervalRef.current = setInterval(() => {
-      if (isReading && wordIndexRef.current < words.length) {
-        // Only update if onboundary hasn't already updated this word
+      if (isReadingStoryRef.current && wordIndexRef.current < words.length) {
         const currentTime = Date.now();
         const elapsedTime = currentTime - startTimeRef.current;
         const expectedWordIndex = Math.floor(elapsedTime / wordDuration);
         
-        if (expectedWordIndex > wordIndexRef.current) {
-          wordIndexRef.current = Math.min(expectedWordIndex, words.length - 1);
-          setCurrentWord(wordIndexRef.current);
+        // Only update if we haven't received a more recent onboundary event
+        if (expectedWordIndex > wordIndexRef.current && expectedWordIndex < words.length) {
+          wordIndexRef.current = expectedWordIndex;
+          setCurrentWord(expectedWordIndex);
         }
       }
-    }, Math.max(wordDuration / 4, 100)); // Check more frequently than word duration
+    }, Math.max(wordDuration / 6, 50)); // Check more frequently for smoother highlighting
 
     speechSynthesis.speak(utterance);
   };
@@ -327,6 +367,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Try to update in Supabase
       const supabaseService = SupabaseService.getInstance();
       await supabaseService.upsertStoryPage(currentPage + 1, {
+        title: updatedContent.title,
         text: updatedContent.text,
         image_url: updatedContent.image,
         video_url: updatedContent.video,
@@ -348,6 +389,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentWord(0);
     setHasStartedReading(false);
     wordIndexRef.current = 0;
+    isReadingStoryRef.current = false;
     stopReading();
   }, [currentPage]);
 
@@ -384,7 +426,8 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updatePageContent,
     refreshStoryData,
     addNewPage,
-    deletePage
+    deletePage,
+    readText
   };
 
   return (

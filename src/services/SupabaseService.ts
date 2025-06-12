@@ -198,6 +198,7 @@ export class SupabaseService {
   // Convert database format to component format
   static convertToComponentFormat(dbPage: StoryPage) {
     return {
+      title: dbPage.title,
       text: dbPage.text,
       image: dbPage.image_url,
       video: dbPage.video_url,
