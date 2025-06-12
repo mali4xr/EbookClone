@@ -35,25 +35,30 @@ const BookContent = () => {
     };
   }, [currentPage]);
 
+  // Improved page completion detection
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const totalWords = pageContent.text.split(' ').length;
-      const isComplete = currentWord >= totalWords - 1;
+      // Page is complete when currentWord equals or exceeds total words
+      const isComplete = currentWord >= totalWords;
       setIsPageComplete(isComplete);
+      
+      // Show quiz when reading is complete and user has started reading
+      if (isComplete && hasStartedReading && !isReading) {
+        // Add a small delay to ensure the completion state is properly set
+        setTimeout(() => {
+          setShowQuiz(true);
+        }, 1000);
+      }
     }
-  }, [currentWord, pageContent]);
+  }, [currentWord, pageContent, hasStartedReading, isReading]);
 
+  // Reset states when page changes
   useEffect(() => {
     setIsPageComplete(false);
     setShowQuiz(false);
     setQuizScore(0);
   }, [currentPage]);
-
-  useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete) {
-      setShowQuiz(true);
-    }
-  }, [isReading, hasStartedReading, isPageComplete]);
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(' ');
@@ -162,7 +167,7 @@ const BookContent = () => {
               </p>
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
-                  ✓ Page completed
+                  ✓ Page completed - Quiz will appear shortly!
                 </div>
               )}
             </div>

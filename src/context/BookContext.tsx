@@ -59,6 +59,8 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wordsRef = useRef<string[]>([]);
+  const startTimeRef = useRef<number>(0);
 
   // Load voices
   useEffect(() => {
@@ -142,6 +144,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentPage < totalPages - 1) {
       setCurrentPage(prev => prev + 1);
       setCurrentWord(0);
+      setHasStartedReading(false);
       stopReading();
     }
   };
@@ -150,6 +153,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentPage > 0) {
       setCurrentPage(prev => prev - 1);
       setCurrentWord(0);
+      setHasStartedReading(false);
       stopReading();
     }
   };
@@ -174,6 +178,8 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentWord(0);
 
     const words = pageContent.text.split(' ');
+    wordsRef.current = words;
+    
     const utterance = new SpeechSynthesisUtterance(pageContent.text);
     
     if (availableVoices[voiceIndex]) {
@@ -186,25 +192,53 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     utteranceRef.current = utterance;
 
-    // Word highlighting
+    // More accurate word timing calculation
+    const estimatedDuration = (pageContent.text.length / (rate * 12)) * 1000; // ~12 chars per second at normal rate
+    const wordDuration = estimatedDuration / words.length;
+    
+    startTimeRef.current = Date.now();
     let wordIndex = 0;
-    const wordDuration = (60 / (rate * 150)) * 1000; // Approximate timing
     
     intervalRef.current = setInterval(() => {
-      if (wordIndex < words.length) {
+      if (wordIndex < words.length && isReading) {
         setCurrentWord(wordIndex);
         wordIndex++;
       } else {
-        stopReading();
+        // Ensure we mark the last word and complete the reading
+        if (wordIndex >= words.length) {
+          setCurrentWord(words.length - 1);
+          setTimeout(() => {
+            stopReading();
+            // Mark reading as complete after a short delay
+            setTimeout(() => {
+              setCurrentWord(words.length);
+            }, 100);
+          }, 500);
+        }
       }
     }, wordDuration);
 
+    utterance.onstart = () => {
+      startTimeRef.current = Date.now();
+    };
+
     utterance.onend = () => {
+      // Ensure completion is properly marked
+      setCurrentWord(words.length);
       stopReading();
     };
 
     utterance.onerror = () => {
       stopReading();
+    };
+
+    // Handle boundary events for more accurate word tracking
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        const elapsedTime = Date.now() - startTimeRef.current;
+        const estimatedWordIndex = Math.floor((elapsedTime / estimatedDuration) * words.length);
+        setCurrentWord(Math.min(estimatedWordIndex, words.length - 1));
+      }
     };
 
     speechSynthesis.speak(utterance);
@@ -248,6 +282,13 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError('Failed to save changes to database');
     }
   };
+
+  // Reset word tracking when page changes
+  useEffect(() => {
+    setCurrentWord(0);
+    setHasStartedReading(false);
+    stopReading();
+  }, [currentPage]);
 
   // Cleanup on unmount
   useEffect(() => {
