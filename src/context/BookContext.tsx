@@ -1,236 +1,297 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useBook } from '../context/BookContext';
-import PageTurner from './PageTurner';
-import Controls from './Controls';
-import PageCounter from './PageCounter';
-import InteractiveElements from './InteractiveElements';
-import ConversationalAIButton from './ConversationalAIButton';
-import { QuizModal } from './QuizModal';
-import ProgressIndicator from './ProgressIndicator';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { SupabaseService } from '../services/SupabaseService';
+import { storyData } from '../data/storyData';
 
-const BookContent = () => {
-  const { 
+interface PageContent {
+  text: string;
+  image: string;
+  video: string;
+  background: string;
+  quiz?: any;
+}
+
+interface BookContextType {
+  currentPage: number;
+  totalPages: number;
+  pageContent: PageContent;
+  currentWord: number;
+  isReading: boolean;
+  hasStartedReading: boolean;
+  isMuted: boolean;
+  isLoading: boolean;
+  error: string | null;
+  availableVoices: SpeechSynthesisVoice[];
+  voiceIndex: number;
+  rate: number;
+  pitch: number;
+  volume: number;
+  nextPage: () => void;
+  prevPage: () => void;
+  toggleReading: () => void;
+  toggleMute: () => void;
+  setVoiceIndex: (index: number) => void;
+  setRate: (rate: number) => void;
+  setPitch: (pitch: number) => void;
+  setVolume: (volume: number) => void;
+  updatePageContent: (content: Partial<PageContent>) => void;
+  refreshStoryData: () => Promise<void>;
+}
+
+const BookContext = createContext<BookContextType | undefined>(undefined);
+
+export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pages, setPages] = useState<PageContent[]>([]);
+  const [currentWord, setCurrentWord] = useState(0);
+  const [isReading, setIsReading] = useState(false);
+  const [hasStartedReading, setHasStartedReading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Voice settings
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceIndex, setVoiceIndex] = useState(0);
+  const [rate, setRate] = useState(1);
+  const [pitch, setPitch] = useState(1);
+  const [volume, setVolume] = useState(1);
+  
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        setAvailableVoices(voices);
+        // Try to find a child-friendly voice
+        const childVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('child') || 
+          voice.name.toLowerCase().includes('kid') ||
+          voice.name.toLowerCase().includes('female')
+        );
+        if (childVoice) {
+          setVoiceIndex(voices.indexOf(childVoice));
+        }
+      }
+    };
+
+    loadVoices();
+    speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    
+    return () => {
+      speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+    };
+  }, []);
+
+  // Load story data
+  useEffect(() => {
+    loadStoryData();
+  }, []);
+
+  const loadStoryData = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Try to load from Supabase first
+      const supabasePages = await SupabaseService.getStoryPages();
+      
+      if (supabasePages && supabasePages.length > 0) {
+        const formattedPages = supabasePages.map(page => ({
+          text: page.text,
+          image: page.image_url,
+          video: page.video_url,
+          background: page.background_url,
+          quiz: page.quiz_data
+        }));
+        setPages(formattedPages);
+        setTotalPages(formattedPages.length);
+      } else {
+        // Fallback to local data
+        setPages(storyData);
+        setTotalPages(storyData.length);
+      }
+    } catch (err) {
+      console.warn('Failed to load from Supabase, using local data:', err);
+      // Fallback to local data
+      setPages(storyData);
+      setTotalPages(storyData.length);
+      setError('Using offline story data. Connect to database for full features.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshStoryData = async () => {
+    await loadStoryData();
+  };
+
+  const pageContent = pages[currentPage] || {
+    text: '',
+    image: '',
+    video: '',
+    background: '',
+    quiz: null
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(prev => prev + 1);
+      setCurrentWord(0);
+      stopReading();
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(prev => prev - 1);
+      setCurrentWord(0);
+      stopReading();
+    }
+  };
+
+  const stopReading = () => {
+    if (utteranceRef.current) {
+      speechSynthesis.cancel();
+      utteranceRef.current = null;
+    }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsReading(false);
+  };
+
+  const startReading = () => {
+    if (!pageContent.text) return;
+    
+    setHasStartedReading(true);
+    setIsReading(true);
+    setCurrentWord(0);
+
+    const words = pageContent.text.split(' ');
+    const utterance = new SpeechSynthesisUtterance(pageContent.text);
+    
+    if (availableVoices[voiceIndex]) {
+      utterance.voice = availableVoices[voiceIndex];
+    }
+    
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = isMuted ? 0 : volume;
+    
+    utteranceRef.current = utterance;
+
+    // Word highlighting
+    let wordIndex = 0;
+    const wordDuration = (60 / (rate * 150)) * 1000; // Approximate timing
+    
+    intervalRef.current = setInterval(() => {
+      if (wordIndex < words.length) {
+        setCurrentWord(wordIndex);
+        wordIndex++;
+      } else {
+        stopReading();
+      }
+    }, wordDuration);
+
+    utterance.onend = () => {
+      stopReading();
+    };
+
+    utterance.onerror = () => {
+      stopReading();
+    };
+
+    speechSynthesis.speak(utterance);
+  };
+
+  const toggleReading = () => {
+    if (isReading) {
+      stopReading();
+    } else {
+      startReading();
+    }
+  };
+
+  const toggleMute = () => {
+    setIsMuted(prev => !prev);
+    if (utteranceRef.current) {
+      utteranceRef.current.volume = !isMuted ? 0 : volume;
+    }
+  };
+
+  const updatePageContent = async (content: Partial<PageContent>) => {
+    try {
+      const updatedContent = { ...pageContent, ...content };
+      
+      // Update local state
+      const updatedPages = [...pages];
+      updatedPages[currentPage] = updatedContent;
+      setPages(updatedPages);
+      
+      // Try to update in Supabase
+      await SupabaseService.updateStoryPage(currentPage + 1, {
+        text: updatedContent.text,
+        image_url: updatedContent.image,
+        video_url: updatedContent.video,
+        background_url: updatedContent.background,
+        quiz_data: updatedContent.quiz
+      });
+    } catch (err) {
+      console.error('Failed to update page content:', err);
+      setError('Failed to save changes to database');
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopReading();
+    };
+  }, []);
+
+  const value: BookContextType = {
     currentPage,
     totalPages,
     pageContent,
     currentWord,
     isReading,
     hasStartedReading,
+    isMuted,
     isLoading,
-    error
-  } = useBook();
-
-  const [isPageTurning, setIsPageTurning] = useState(false);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [isPageComplete, setIsPageComplete] = useState(false);
-  const [quizScore, setQuizScore] = useState(0);
-  const [aiMessages, setAiMessages] = useState<any[]>([]);
-
-  useEffect(() => {
-    setIsPageTurning(true);
-    const timeout = setTimeout(() => setIsPageTurning(false), 500);
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [currentPage]);
-
-  useEffect(() => {
-    if (pageContent && pageContent.text) {
-      const totalWords = pageContent.text.split(' ').length;
-      const isComplete = currentWord >= totalWords - 1;
-      setIsPageComplete(isComplete);
-    }
-  }, [currentWord, pageContent]);
-
-  useEffect(() => {
-    setIsPageComplete(false);
-    setShowQuiz(false);
-    setQuizScore(0);
-  }, [currentPage]);
-
-  useEffect(() => {
-    if (hasStartedReading && !isReading && isPageComplete) {
-      setShowQuiz(true);
-    }
-  }, [isReading, hasStartedReading, isPageComplete]);
-
-  const renderHighlightedText = (text: string) => {
-    const words = text.split(' ');
-    return words.map((word, index) => (
-      <span
-        key={index}
-        className={`inline-block transition-all duration-150 mx-[2px] px-1 rounded ${
-          index === currentWord ? 'bg-yellow-300 -skew-x-3 scale-105 animate__animated animate__pulse' : 
-          index < currentWord ? 'bg-green-100' : ''
-        }`}
-      >
-        {word}
-      </span>
-    ));
+    error,
+    availableVoices,
+    voiceIndex,
+    rate,
+    pitch,
+    volume,
+    nextPage,
+    prevPage,
+    toggleReading,
+    toggleMute,
+    setVoiceIndex,
+    setRate,
+    setPitch,
+    setVolume,
+    updatePageContent,
+    refreshStoryData
   };
 
-  const handleAIMessage = (message: any) => {
-    setAiMessages(prev => [...prev, message]);
-    console.log('Reading AI Message:', message);
-  };
-
-  const getReadingAIContext = () => {
-    return `You are helping a child read a story. 
-    Current page: ${currentPage + 1} of ${totalPages}
-    Story text: "${pageContent.text}"
-    
-    You can help with:
-    - Explaining difficult words
-    - Discussing what's happening in the story
-    - Answering questions about characters and events
-    - Encouraging reading comprehension
-    - Making the story more engaging
-    
-    Be encouraging, patient, and use simple language appropriate for children.
-    Current reading progress: ${isReading ? 'Currently reading aloud' : 'Not reading'}
-    Page completion: ${isPageComplete ? 'Page completed' : 'Still reading'}`;
-  };
-
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600"></div>
-        <p className="mt-4 text-lg text-gray-600">Loading story...</p>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
-        <div className="text-center p-6 bg-red-50 rounded-lg border border-red-200">
-          <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Story</h3>
-          <p className="text-red-600 mb-4">{error}</p>
-          <p className="text-sm text-red-500">
-            Please check your Supabase configuration and try again.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show empty state if no content
-  if (!pageContent || !pageContent.text) {
-    return (
-      <div className="flex flex-col h-[600px] md:h-[700px] items-center justify-center">
-        <div className="text-center p-6 bg-gray-50 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Story Content</h3>
-          <p className="text-gray-600">
-            No story pages found. Please check your database configuration.
-          </p>
-        </div>
-      </div>
-    );
-  }
   return (
-    <div className="flex flex-col h-[600px] md:h-[700px]">
-      {/* Progress Indicator */}
-      <ProgressIndicator 
-        currentPage={currentPage} 
-        totalPages={totalPages}
-        isPageComplete={isPageComplete}
-        quizScore={quizScore}
-      />
-      
-      <div 
-        className="flex-grow relative overflow-hidden"
-        style={{
-          backgroundImage: `url(${pageContent.background})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        }}
-      >
-        <div 
-          className={`absolute inset-0 flex flex-col md:flex-row transition-opacity duration-500 ${
-            isPageTurning ? 'opacity-0' : 'opacity-100 animate__animated animate__fadeIn'
-          }`}
-        >
-          <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
-            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft">
-              <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
-                {renderHighlightedText(pageContent.text)}
-              </p>
-              {isPageComplete && (
-                <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
-                  ✓ Page completed
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="w-full md:w-1/2 relative">
-            {/* Video Circle */}
-            <div className="absolute top-4 right-4 z-10">
-              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
-                <video 
-                  src={pageContent.video} 
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                  style={{ objectFit: 'cover' }}
-                  onError={(e) => {
-                    console.log('Video failed to load, falling back to image');
-                    const target = e.target as HTMLVideoElement;
-                    const img = document.createElement('img');
-                    img.src = pageContent.image;
-                    img.className = 'w-full h-full object-cover';
-                    img.alt = `Illustration for page ${currentPage + 1}`;
-                    img.style.objectFit = 'cover';
-                    target.parentNode?.replaceChild(img, target);
-                  }}
-                />
-              </div>
-            </div>
-            
-            {/* AI Assistant */}
-            <InteractiveElements page={currentPage} />
-          </div>
-        </div>
-
-        {/* Read Button */}
-        <div className="absolute bottom-4 right-4">
-          <Controls />
-        </div>
-      </div>
-      
-      <div className="bg-white p-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 animate__animated animate__slideInUp">
-        <div className="flex items-center gap-4 mx-auto sm:mx-0">
-          <PageCounter current={currentPage + 1} total={totalPages} />
-          <PageTurner isLocked={quizScore < 2} />
-        </div>
-        
-        {/* AI Messages */}
-        {aiMessages.length > 0 && (
-          <div className="hidden lg:block max-w-xs">
-            <div className="p-2 bg-blue-50 rounded-lg text-xs">
-              <p className="font-medium text-blue-700">AI Helper:</p>
-              <p className="text-blue-600 truncate">
-                {aiMessages[aiMessages.length - 1]?.message || "Ready to help!"}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {showQuiz && (
-        <QuizModal
-          onClose={() => setShowQuiz(false)}
-          pageContent={pageContent}
-          onScoreUpdate={setQuizScore}
-        />
-      )}
-    </div>
+    <BookContext.Provider value={value}>
+      {children}
+    </BookContext.Provider>
   );
 };
 
-export default BookContent;
+export const useBook = () => {
+  const context = useContext(BookContext);
+  if (context === undefined) {
+    throw new Error('useBook must be used within a BookProvider');
+  }
+  return context;
+};
