@@ -234,7 +234,8 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPages(updatedPages);
       
       // Try to update in Supabase
-      await SupabaseService.updateStoryPage(currentPage + 1, {
+      const supabaseService = SupabaseService.getInstance();
+      await supabaseService.updateStoryPage(currentPage + 1, {
         text: updatedContent.text,
         image_url: updatedContent.image,
         video_url: updatedContent.video,
