@@ -250,7 +250,10 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+      // Only log actual errors, not interruptions which are expected
+      if (event.error !== 'interrupted') {
+        console.error('Speech synthesis error:', event);
+      }
     };
 
     speechSynthesis.speak(utterance);
@@ -315,7 +318,10 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+      // Only log actual errors, not interruptions which are expected
+      if (event.error !== 'interrupted') {
+        console.error('Speech synthesis error:', event);
+      }
       stopReading();
     };
 
