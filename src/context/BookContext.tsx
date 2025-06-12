@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
-import { storyData } from '../data/storyData';
+import { storyContent } from '../data/storyData';
 
 interface PageContent {
   text: string;
@@ -111,14 +111,14 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTotalPages(formattedPages.length);
       } else {
         // Fallback to local data
-        setPages(storyData);
-        setTotalPages(storyData.length);
+        setPages(storyContent);
+        setTotalPages(storyContent.length);
       }
     } catch (err) {
       console.warn('Failed to load from Supabase, using local data:', err);
       // Fallback to local data
-      setPages(storyData);
-      setTotalPages(storyData.length);
+      setPages(storyContent);
+      setTotalPages(storyContent.length);
       setError('Using offline story data. Connect to database for full features.');
     } finally {
       setIsLoading(false);
