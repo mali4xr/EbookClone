@@ -5,9 +5,44 @@ import { BookProvider } from './context/BookContext';
 import SettingsModal from './components/SettingsModal';
 
 function App() {
+  const [showSupabaseWarning, setShowSupabaseWarning] = React.useState(false);
+
+  React.useEffect(() => {
+    // Check if Supabase is configured
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      setShowSupabaseWarning(true);
+    }
+  }, []);
+
   return (
     <BookProvider>
       <div className="font-sans min-h-screen bg-gradient-to-b from-blue-100 to-purple-100 flex flex-col">
+        {/* Supabase Configuration Warning */}
+        {showSupabaseWarning && (
+          <div className="bg-orange-100 border-b border-orange-200 p-3">
+            <div className="max-w-6xl mx-auto flex items-center gap-3">
+              <AlertTriangle size={20} className="text-orange-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-orange-800 text-sm font-medium">
+                  Database Not Connected
+                </p>
+                <p className="text-orange-700 text-xs">
+                  Configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file to enable database features.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSupabaseWarning(false)}
+                className="text-orange-600 hover:text-orange-800 text-sm font-medium"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+        
         <header className="bg-white shadow-md p-4">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
             <h1 className="text-2xl md:text-3xl font-bold text-purple-600">

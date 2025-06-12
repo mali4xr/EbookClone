@@ -174,6 +174,15 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
           {/* Edit Page Content */}
           <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-6s">
             <button
+              onClick={refreshStoryData}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 p-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
+              <span>{isLoading ? 'Refreshing...' : 'Refresh Story Data'}</span>
+            </button>
+            
+            <button
               onClick={() => setShowEdit(true)}
               className="w-full flex items-center justify-center gap-2 p-3 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-all duration-300 transform hover:scale-105"
             >
