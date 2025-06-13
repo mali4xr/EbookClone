@@ -63,7 +63,7 @@ const LandingPage = ({ onStartStory }: LandingPageProps) => {
         {/* Description - more compact */}
         <p className="text-sm sm:text-base md:text-lg text-gray-700 max-w-xl mx-auto leading-relaxed animate__animated animate__fadeInUp animate__delay-3s px-4"
            style={{ fontFamily: 'Comic Sans MS, Chalkboard SE, Arial, sans-serif' }}>
-          Join Hoppy the Rabbit on an amazing adventure through the magical Whisperwood Forest! 
+          Join Luna on an amazing adventure through the Garden
           Read along, answer fun questions, and discover the joy of helping friends! 📚✨
         </p>
 
