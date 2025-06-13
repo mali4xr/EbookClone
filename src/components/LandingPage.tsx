@@ -76,7 +76,7 @@ const LandingPage = ({ onStartStory }: LandingPageProps) => {
           <div className="flex items-center gap-2 sm:gap-3">
             <Play size={20} className="sm:w-6 sm:h-6 md:w-8 md:h-8 group-hover:animate-bounce" />
             <span>Start Adventure!</span>
-            <span className="text-xl sm:text-2xl md:text-3xl">🚀</span>
+            <span className="text-xl sm:text-2xl md:text-2xl">🚀</span>
           </div>
           
           {/* Button glow effect */}
