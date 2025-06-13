@@ -174,6 +174,6 @@ Be interactive and ask the child questions about what they think will happen nex
     const character = pageContent.title?.includes('Hoppy') ? 'Hoppy' : 
                     pageContent.title?.includes('Flutter') ? 'Flutter' : 'our story friend';
     
-    return `Hi there! I'm so excited to talk about this part of the story with you! We're reading about ${character} on page ${currentPage + 1}. What do you think about what's happening so far?`;
+    return `Hi there! I'm your story companion and I'm so excited to chat with you about this adventure! We're on page ${currentPage + 1} reading about ${character}. What do you think about what's happening in the story so far?`;
   }
 }
