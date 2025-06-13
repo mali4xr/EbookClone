@@ -7,6 +7,7 @@ import InteractiveElements from './InteractiveElements';
 import ConversationalAIButton from './ConversationalAIButton';
 import { QuizModal } from './QuizModal';
 import ProgressIndicator from './ProgressIndicator';
+import TavusConversationVideo from './TavusConversationVideo';
 
 interface QuizAnswer {
   pageTitle: string;
@@ -228,7 +229,11 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
 
         {/* Tavus Conversation Video - Bottom Left */}
         <div className="absolute bottom-4 left-4 z-20">
-          <ConversationVideo pageContent={pageContent} />
+          <TavusConversationVideo 
+            pageContent={pageContent} 
+            currentPage={currentPage}
+            totalPages={totalPages}
+          />
         </div>
 
         {/* Read Button */}
@@ -262,70 +267,6 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
           pageContent={pageContent}
           onScoreUpdate={setQuizScore}
         />
-      )}
-    </div>
-  );
-};
-
-const ConversationVideo = ({ pageContent }: { pageContent: any }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isMinimized, setIsMinimized] = useState(true);
-
-  if (!pageContent.tavusVideo) {
-    return null;
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-100 border border-red-300 rounded-lg p-2 max-w-xs">
-        <p className="text-red-700 text-xs">Failed to load conversation</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`bg-white rounded-lg shadow-xl border-2 border-purple-300 transition-all duration-300 ${
-      isMinimized ? 'w-16 h-16' : 'w-80 h-60'
-    }`}>
-      {isMinimized ? (
-        <button
-          onClick={() => setIsMinimized(false)}
-          className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105"
-        >
-          <div className="text-center">
-            <div className="text-2xl mb-1">🎭</div>
-            <div className="text-xs font-bold">Chat</div>
-          </div>
-        </button>
-      ) : (
-        <div className="relative w-full h-full">
-          <div className="flex items-center justify-between p-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
-            <span className="text-sm font-bold">Story Chat</span>
-            <button
-              onClick={() => setIsMinimized(true)}
-              className="text-white hover:text-gray-200 transition-colors"
-            >
-              <X size={16} />
-            </button>
-          </div>
-          
-          {isLoading ? (
-            <div className="flex items-center justify-center h-48 bg-gray-50">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">Starting conversation...</p>
-              </div>
-            </div>
-          ) : (
-            <iframe
-              src={pageContent.tavusVideo}
-              className="w-full h-48 rounded-b-lg"
-              allow="camera; microphone; autoplay; encrypted-media; fullscreen"
-              style={{ border: 'none' }}
-            />
-          )}
-        </div>
       )}
     </div>
   );
