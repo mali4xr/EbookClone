@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Video, VideoOff, Loader, AlertTriangle, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Video, VideoOff, Loader, AlertTriangle, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
 import { TavusService, TavusConversation } from '../services/TavusService';
 
 interface TavusConversationVideoProps {
@@ -15,13 +15,18 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
   const [conversation, setConversation] = useState<TavusConversation | null>(null);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [embedMethod, setEmbedMethod] = useState<'iframe' | 'popup' | 'newTab'>('iframe');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const popupRef = useRef<Window | null>(null);
 
   // Clean up conversation when component unmounts or page changes
   useEffect(() => {
     return () => {
       if (conversation) {
         TavusService.endConversation(conversation.conversation_id).catch(console.error);
+      }
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close();
       }
     };
   }, [conversation]);
@@ -35,6 +40,9 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
           setIframeLoaded(false);
         })
         .catch(console.error);
+    }
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
     }
   }, [currentPage]);
 
@@ -90,6 +98,9 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
 
   const handleMinimize = () => {
     setIsMinimized(true);
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
+    }
   };
 
   const handleEndConversation = async () => {
@@ -103,6 +114,9 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
         console.error('Error ending conversation:', err);
       }
     }
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
+    }
   };
 
   const handleIframeLoad = () => {
@@ -111,10 +125,42 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
     setIsLoading(false);
   };
 
-  const handleIframeError = () => {
-    console.error('Tavus iframe failed to load');
-    setError('Failed to load conversation video. Please check your network connection.');
+  const handleIframeError = (e: any) => {
+    console.error('Tavus iframe failed to load:', e);
+    setError('Iframe embedding blocked. Try opening in a new window.');
     setIsLoading(false);
+    setEmbedMethod('popup');
+  };
+
+  const openInPopup = () => {
+    if (!conversation) return;
+    
+    const popup = window.open(
+      conversation.conversation_url,
+      'tavus-conversation',
+      'width=800,height=600,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no'
+    );
+    
+    if (popup) {
+      popupRef.current = popup;
+      setEmbedMethod('popup');
+      setError(null);
+      
+      // Check if popup is closed
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          popupRef.current = null;
+        }
+      }, 1000);
+    } else {
+      setError('Popup blocked. Please allow popups or open in new tab.');
+    }
+  };
+
+  const openInNewTab = () => {
+    if (!conversation) return;
+    window.open(conversation.conversation_url, '_blank');
   };
 
   if (!TavusService.isConfigured()) {
@@ -168,13 +214,22 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
             </div>
             <div className="flex items-center gap-1">
               {conversation && (
-                <button
-                  onClick={handleEndConversation}
-                  className="text-white hover:text-gray-200 transition-colors p-1 rounded"
-                  title="End conversation"
-                >
-                  <VideoOff size={14} />
-                </button>
+                <>
+                  <button
+                    onClick={openInPopup}
+                    className="text-white hover:text-gray-200 transition-colors p-1 rounded"
+                    title="Open in popup"
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                  <button
+                    onClick={handleEndConversation}
+                    className="text-white hover:text-gray-200 transition-colors p-1 rounded"
+                    title="End conversation"
+                  >
+                    <VideoOff size={14} />
+                  </button>
+                </>
               )}
               <button
                 onClick={handleMinimize}
@@ -192,15 +247,34 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
               <div className="flex items-center justify-center h-full p-4">
                 <div className="text-center">
                   <AlertTriangle size={24} className="text-red-500 mx-auto mb-2" />
-                  <p className="text-red-600 text-sm mb-2">{error}</p>
+                  <p className="text-red-600 text-sm mb-3">{error}</p>
+                  
+                  {conversation && (
+                    <div className="space-y-2">
+                      <button
+                        onClick={openInPopup}
+                        className="block w-full px-3 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+                      >
+                        Open in Popup Window
+                      </button>
+                      <button
+                        onClick={openInNewTab}
+                        className="block w-full px-3 py-2 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors"
+                      >
+                        Open in New Tab
+                      </button>
+                    </div>
+                  )}
+                  
                   <button
                     onClick={() => {
                       setError(null);
+                      setEmbedMethod('iframe');
                       createConversation();
                     }}
-                    className="px-3 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors"
+                    className="mt-2 px-3 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors"
                   >
-                    Retry
+                    Retry Iframe
                   </button>
                 </div>
               </div>
@@ -214,32 +288,61 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
               </div>
             ) : conversation ? (
               <>
-                {/* Loading overlay */}
-                {(isLoading || !iframeLoaded) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                {embedMethod === 'iframe' && (
+                  <>
+                    {/* Loading overlay */}
+                    {(isLoading || !iframeLoaded) && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                        <div className="text-center text-white">
+                          <Loader size={32} className="animate-spin mx-auto mb-3 text-purple-400" />
+                          <p className="text-sm">Loading conversation...</p>
+                          <p className="text-xs text-gray-300 mt-1">Connecting to your story companion</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Tavus iframe with enhanced error handling */}
+                    <iframe
+                      ref={iframeRef}
+                      src={conversation.conversation_url}
+                      className="w-full h-full"
+                      allow="camera; microphone; autoplay; encrypted-media; fullscreen; display-capture; geolocation"
+                      allowFullScreen
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-top-navigation"
+                      style={{ 
+                        border: 'none',
+                        backgroundColor: '#1a1a1a'
+                      }}
+                      onLoad={handleIframeLoad}
+                      onError={handleIframeError}
+                      title="Tavus Conversation"
+                    />
+                  </>
+                )}
+                
+                {embedMethod === 'popup' && (
+                  <div className="flex items-center justify-center h-full p-4">
                     <div className="text-center text-white">
-                      <Loader size={32} className="animate-spin mx-auto mb-3 text-purple-400" />
-                      <p className="text-sm">Loading conversation...</p>
-                      <p className="text-xs text-gray-300 mt-1">Connecting to your story companion</p>
+                      <ExternalLink size={32} className="text-purple-400 mx-auto mb-3" />
+                      <p className="text-sm mb-2">Conversation opened in popup</p>
+                      <p className="text-xs text-gray-300 mb-3">Check your popup window to continue chatting</p>
+                      <div className="space-y-2">
+                        <button
+                          onClick={openInPopup}
+                          className="block w-full px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
+                        >
+                          Reopen Popup
+                        </button>
+                        <button
+                          onClick={() => setEmbedMethod('iframe')}
+                          className="block w-full px-4 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+                        >
+                          Try Iframe Again
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
-                
-                {/* Tavus iframe with proper permissions */}
-                <iframe
-                  ref={iframeRef}
-                  src={conversation.conversation_url}
-                  className="w-full h-full"
-                  allow="camera; microphone; autoplay; encrypted-media; fullscreen; display-capture"
-                  allowFullScreen
-                  style={{ 
-                    border: 'none',
-                    backgroundColor: '#1a1a1a'
-                  }}
-                  onLoad={handleIframeLoad}
-                  onError={handleIframeError}
-                  title="Tavus Conversation"
-                />
               </>
             ) : (
               <div className="flex items-center justify-center h-full p-4">
