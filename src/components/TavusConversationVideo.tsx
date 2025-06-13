@@ -374,5 +374,3 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
 };
 
 export default TavusConversationVideo;
-
-export default TavusConversationVideo
