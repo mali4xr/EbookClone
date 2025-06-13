@@ -84,7 +84,7 @@ const LandingPage = ({ onStartStory }: LandingPageProps) => {
         </button>
 
         {/* Fun facts - more compact grid */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 max-w-2xl mx-auto animate__animated animate__fadeInUp animate__delay-5s">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-2 max-w-2xl mx-auto animate__animated animate__fadeInUp animate__delay-5s">
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-2 sm:p-3 shadow-lg border-2 sm:border-4 border-yellow-300">
             <div className="text-xl sm:text-2xl mb-1">📖</div>
             <p className="text-purple-700 font-bold text-xs sm:text-sm" style={{ fontFamily: 'Comic Sans MS, Chalkboard SE, Arial, sans-serif' }}>
