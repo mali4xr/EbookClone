@@ -1,3 +1,5 @@
+import DailyIframe from '@daily-co/daily-js';
+
 export interface TavusConversation {
   conversation_id: string;
   conversation_name: string;
