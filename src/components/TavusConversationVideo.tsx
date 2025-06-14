@@ -240,7 +240,7 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
         if (videoPlayable && audioPlayable) {
           hasWorkingAudioVideo = true;
           setReplicaConnected(true);
-          setConnectionStatus('🎉 Replica connected - conversation active!');
+          setConnectionStatus('Teacher connected - conversation active!');
           setIsLoading(false);
         }
 
