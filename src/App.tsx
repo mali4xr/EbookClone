@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import BookContent from './components/BookContent';
 import LibraryPage from './components/LibraryPage';
 import EndPage from './components/EndPage';
-import { BookProvider } from './context/BookContext';
+import { BookProvider, BookContext } from './context/BookContext';
 import { Book } from './types/Book';
 import SettingsModal from './components/SettingsModal';
 
@@ -150,7 +150,7 @@ function App() {
 
 // Component to initialize book in context
 const BookInitializer = ({ book }: { book: Book | null }) => {
-  const { setCurrentBook } = React.useContext(require('./context/BookContext').BookContext);
+  const { setCurrentBook } = React.useContext(BookContext);
   
   React.useEffect(() => {
     if (book) {
