@@ -40,7 +40,6 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
-  const [autoScroll, setAutoScroll] = useState(true);
   const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(false);
   const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(0.3);
   
@@ -84,29 +83,6 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
       }
     }
   }, [currentWord, pageContent, hasStartedReading, isReading, readingComplete]);
-
-  // Auto-scroll functionality
-  useEffect(() => {
-    if (autoScroll && isReading && textContainerRef.current) {
-      const container = textContainerRef.current;
-      const words = container.querySelectorAll('.word-highlight');
-      const currentWordElement = words[currentWord];
-      
-      if (currentWordElement) {
-        const containerRect = container.getBoundingClientRect();
-        const wordRect = currentWordElement.getBoundingClientRect();
-        
-        // Check if word is outside visible area
-        if (wordRect.bottom > containerRect.bottom || wordRect.top < containerRect.top) {
-          currentWordElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'nearest'
-          });
-        }
-      }
-    }
-  }, [currentWord, isReading, autoScroll]);
 
   // Background music management
   useEffect(() => {
@@ -244,17 +220,6 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
       <div className="bg-white border-b border-gray-200 p-2">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            {/* Auto Scroll Toggle */}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={autoScroll}
-                onChange={(e) => setAutoScroll(e.target.checked)}
-                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-              />
-              <span className="text-gray-700">Auto Scroll</span>
-            </label>
-
             {/* Background Music Controls */}
             {pageContent.backgroundMusic && (
               <div className="flex items-center gap-3">
@@ -326,7 +291,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
                 </h2>
               )}
               
-              {/* Scrollable Text Container */}
+              {/* Text Container */}
               <div 
                 ref={textContainerRef}
                 className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4 overflow-y-auto max-h-80 pr-2"
