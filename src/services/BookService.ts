@@ -88,22 +88,16 @@ export class BookService {
         .select('*')
         .eq('book_id', bookId)
         .eq('user_id', userId || null)
-        .single();
+        .limit(1);
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
         console.error('Error fetching user settings:', error);
         throw new Error(`Failed to fetch user settings: ${error.message}`);
       }
 
-      return data;
+      // Return the first result if data exists, otherwise null
+      return data && data.length > 0 ? data[0] : null;
     } catch (error) {
-      // Handle the case where no user settings are found
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') {
-        return null;
-      }
       console.error('Error in getUserSettings:', error);
       throw error;
     }
