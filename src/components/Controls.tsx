@@ -10,10 +10,15 @@ const Controls = () => {
     toggleMute
   } = useBook();
 
+  console.log('Controls render - isReading:', isReading);
+
   return (
     <div className="flex items-center gap-3">
       <button 
-        onClick={toggleReading}
+        onClick={() => {
+          console.log('Play/Pause button clicked, current isReading:', isReading);
+          toggleReading();
+        }}
         className={`flex items-center justify-center w-14 h-14 rounded-full text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg border-4 border-white transform hover:scale-110 ${
           isReading 
             ? 'bg-gradient-to-r from-red-500 to-orange-500 animate-pulse' 

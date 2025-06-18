@@ -56,19 +56,31 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
     };
   }, [currentPage]);
 
-  // Enhanced page completion detection
+  // Enhanced page completion detection with better logging
   useEffect(() => {
+    console.log('Page completion check:', {
+      readingComplete,
+      hasStartedReading,
+      isReading,
+      currentWord,
+      totalWords: pageContent?.text ? pageContent.text.split(/\s+/).length : 0
+    });
+
     if (pageContent && pageContent.text) {
-      const words = pageContent.text.split(/\s+/);
+      const words = pageContent.text.split(/\s+/).filter(word => word.length > 0);
       const totalWords = words.length;
       const isComplete = readingComplete || currentWord >= totalWords;
+      
+      console.log('Setting page complete:', isComplete);
       setIsPageComplete(isComplete);
       
       // Show quiz when reading is complete and user has started reading
       if (isComplete && hasStartedReading && !isReading) {
+        console.log('Conditions met for quiz, setting timeout...');
         setTimeout(() => {
+          console.log('Showing quiz now');
           setShowQuiz(true);
-        }, 1500); // Increased delay for better UX
+        }, 1000); // Reduced delay for better responsiveness
       }
     }
   }, [currentWord, pageContent, hasStartedReading, isReading, readingComplete]);
@@ -135,7 +147,9 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
   }, [currentPage]);
 
   const renderHighlightedText = (text: string) => {
-    const words = text.split(/\s+/);
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    console.log('Rendering highlighted text:', { currentWord, totalWords: words.length });
+    
     return (
       <div className="leading-relaxed">
         {words.map((word, index) => (
@@ -278,7 +292,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
             {isReading && (
               <span className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                Reading... ({currentWord + 1} of {pageContent.text.split(/\s+/).length} words)
+                Reading... ({currentWord + 1} of {pageContent.text.split(/\s+/).filter(w => w.length > 0).length} words)
               </span>
             )}
             {isPageComplete && (

@@ -97,6 +97,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   const startTimeRef = useRef<number>(0);
   const wordIndexRef = useRef<number>(0);
   const isReadingStoryRef = useRef<boolean>(false);
+  const readingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if story is complete
   useEffect(() => {
@@ -328,21 +329,24 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   const nextPage = () => {
     if (currentPage < totalPages - 1) {
       setCurrentPage(prev => prev + 1);
-      setCurrentWord(0);
-      setHasStartedReading(false);
-      setReadingComplete(false);
-      stopReading();
+      resetPageState();
     }
   };
 
   const prevPage = () => {
     if (currentPage > 0) {
       setCurrentPage(prev => prev - 1);
-      setCurrentWord(0);
-      setHasStartedReading(false);
-      setReadingComplete(false);
-      stopReading();
+      resetPageState();
     }
+  };
+
+  const resetPageState = () => {
+    setCurrentWord(0);
+    setHasStartedReading(false);
+    setReadingComplete(false);
+    wordIndexRef.current = 0;
+    isReadingStoryRef.current = false;
+    stopReading();
   };
 
   const stopReading = () => {
@@ -354,9 +358,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    if (readingTimeoutRef.current) {
+      clearTimeout(readingTimeoutRef.current);
+      readingTimeoutRef.current = null;
+    }
     setIsReading(false);
     isReadingStoryRef.current = false;
-    wordIndexRef.current = 0;
   };
 
   // Generic text reading function for quiz questions and other text
@@ -392,6 +399,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   const startReading = () => {
     if (!pageContent.text) return;
     
+    console.log('Starting reading...');
     setHasStartedReading(true);
     setIsReading(true);
     setCurrentWord(0);
@@ -399,8 +407,9 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     wordIndexRef.current = 0;
     isReadingStoryRef.current = true;
 
-    const words = pageContent.text.split(/\s+/);
+    const words = pageContent.text.split(/\s+/).filter(word => word.length > 0);
     wordsRef.current = words;
+    console.log('Total words:', words.length);
     
     const utterance = new SpeechSynthesisUtterance(pageContent.text);
     
@@ -415,70 +424,95 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     utteranceRef.current = utterance;
     startTimeRef.current = Date.now();
 
-    // Enhanced word tracking with onboundary event
+    // Enhanced word tracking with timing-based fallback
+    let lastBoundaryTime = Date.now();
+    
     utterance.onboundary = (event) => {
       if (event.name === 'word' && isReadingStoryRef.current) {
-        // Use the character offset to determine word position more accurately
+        lastBoundaryTime = Date.now();
         const text = pageContent.text;
         const beforeChar = text.substring(0, event.charIndex);
         
-        // Count words more precisely by splitting on whitespace
+        // Count words more precisely
         const wordsBefore = beforeChar.trim() === '' ? 0 : beforeChar.trim().split(/\s+/).length;
         
         if (wordsBefore >= 0 && wordsBefore < words.length) {
           wordIndexRef.current = wordsBefore;
           setCurrentWord(wordsBefore);
+          console.log(`Word boundary: ${wordsBefore}/${words.length} - "${words[wordsBefore]}"`);
         }
       }
     };
 
     utterance.onstart = () => {
+      console.log('Speech started');
       startTimeRef.current = Date.now();
+      lastBoundaryTime = Date.now();
       setIsReading(true);
       isReadingStoryRef.current = true;
     };
 
     utterance.onend = () => {
-      // Ensure completion is properly marked
+      console.log('Speech ended');
       if (isReadingStoryRef.current) {
         setCurrentWord(words.length);
         setIsReading(false);
         setReadingComplete(true);
         isReadingStoryRef.current = false;
         wordIndexRef.current = words.length;
+        
+        // Clear any existing timeout
+        if (readingTimeoutRef.current) {
+          clearTimeout(readingTimeoutRef.current);
+        }
+        
+        console.log('Reading completed, setting timeout for quiz...');
+        // Set a timeout to ensure quiz shows up
+        readingTimeoutRef.current = setTimeout(() => {
+          console.log('Quiz timeout triggered');
+          setReadingComplete(true);
+        }, 500);
       }
     };
 
     utterance.onerror = (event) => {
-      // Only log actual errors, not interruptions which are expected
+      console.error('Speech synthesis error:', event);
       if (event.error !== 'interrupted') {
-        console.error('Speech synthesis error:', event);
+        stopReading();
       }
-      stopReading();
     };
 
-    // Improved fallback timing mechanism
-    const estimatedDuration = (pageContent.text.length / (rate * 15)) * 1000; // More accurate timing
+    // Improved timing-based fallback for word highlighting
+    const estimatedDuration = (pageContent.text.length / (rate * 12)) * 1000; // More conservative timing
     const wordDuration = estimatedDuration / words.length;
+    
+    console.log(`Estimated duration: ${estimatedDuration}ms, Word duration: ${wordDuration}ms`);
     
     intervalRef.current = setInterval(() => {
       if (isReadingStoryRef.current && wordIndexRef.current < words.length) {
         const currentTime = Date.now();
         const elapsedTime = currentTime - startTimeRef.current;
-        const expectedWordIndex = Math.floor(elapsedTime / wordDuration);
+        const timeSinceLastBoundary = currentTime - lastBoundaryTime;
         
-        // Only update if we haven't received a more recent onboundary event
-        if (expectedWordIndex > wordIndexRef.current && expectedWordIndex < words.length) {
-          wordIndexRef.current = expectedWordIndex;
-          setCurrentWord(expectedWordIndex);
+        // Use timing fallback if no boundary event for too long
+        if (timeSinceLastBoundary > wordDuration * 2) {
+          const expectedWordIndex = Math.floor(elapsedTime / wordDuration);
+          
+          if (expectedWordIndex > wordIndexRef.current && expectedWordIndex < words.length) {
+            wordIndexRef.current = expectedWordIndex;
+            setCurrentWord(expectedWordIndex);
+            lastBoundaryTime = currentTime;
+            console.log(`Timing fallback: ${expectedWordIndex}/${words.length} - "${words[expectedWordIndex]}"`);
+          }
         }
       }
-    }, Math.max(wordDuration / 6, 50)); // Check more frequently for smoother highlighting
+    }, Math.max(wordDuration / 4, 100)); // Check more frequently
 
     speechSynthesis.speak(utterance);
   };
 
   const toggleReading = () => {
+    console.log('Toggle reading, current state:', isReading);
     if (isReading) {
       stopReading();
     } else {
@@ -540,12 +574,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
 
   // Reset word tracking when page changes
   useEffect(() => {
-    setCurrentWord(0);
-    setHasStartedReading(false);
-    setReadingComplete(false);
-    wordIndexRef.current = 0;
-    isReadingStoryRef.current = false;
-    stopReading();
+    resetPageState();
   }, [currentPage]);
 
   // Cleanup on unmount
