@@ -476,8 +476,9 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+      // Only log actual errors, not interruptions which are expected
       if (event.error !== 'interrupted') {
+        console.error('Speech synthesis error:', event);
         stopReading();
       }
     };
