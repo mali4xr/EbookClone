@@ -100,6 +100,10 @@ export class BookService {
 
       return data;
     } catch (error) {
+      // Handle the case where no user settings are found
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') {
+        return null;
+      }
       console.error('Error in getUserSettings:', error);
       throw error;
     }
