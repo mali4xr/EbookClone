@@ -150,13 +150,15 @@ function App() {
 
 // Component to initialize book in context
 const BookInitializer = ({ book }: { book: Book | null }) => {
-  const { setCurrentBook } = React.useContext(BookContext);
+  const context = React.useContext(BookContext);
+  if (!context) throw new Error('BookInitializer must be used within a BookProvider');
+  const { setCurrentBook, currentBook } = context;
   
   React.useEffect(() => {
-    if (book) {
+    if (book && (!currentBook || book.id !== currentBook.id)) {
       setCurrentBook(book);
     }
-  }, [book, setCurrentBook]); // Added proper dependency array
+  }, [book, currentBook, setCurrentBook]);
 
   return null;
 };
