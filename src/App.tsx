@@ -156,7 +156,7 @@ const BookInitializer = ({ book }: { book: Book | null }) => {
     if (book) {
       setCurrentBook(book);
     }
-  }, [book, setCurrentBook]);
+  }, [book, setCurrentBook]); // Added proper dependency array
 
   return null;
 };
