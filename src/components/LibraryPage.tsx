@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield } from 'lucide-react';
+import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield, AlertCircle } from 'lucide-react';
 import { BookService } from '../services/BookService';
 import { AuthService, User } from '../services/AuthService';
 import { Book as BookType, SUBJECT_COLORS, SUBJECT_ICONS } from '../types/Book';
@@ -37,6 +37,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [authConfigError, setAuthConfigError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
@@ -70,10 +71,22 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
 
   const checkAuthStatus = async () => {
     try {
+      // Check if Supabase is configured
+      const configStatus = authService.getConfigurationStatus();
+      if (!configStatus.isConfigured) {
+        setAuthConfigError(configStatus.message || 'Authentication not configured');
+        setCurrentUser(null);
+        setIsCheckingAuth(false);
+        return;
+      }
+
       const user = await authService.getCurrentUser();
       setCurrentUser(user);
+      setAuthConfigError(null);
     } catch (error) {
       console.error('Error checking auth status:', error);
+      setAuthConfigError('Failed to check authentication status');
+      setCurrentUser(null);
     } finally {
       setIsCheckingAuth(false);
     }
@@ -155,6 +168,10 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   };
 
   const handleAddBook = () => {
+    if (authConfigError) {
+      setError('Authentication is not configured. Please check your Supabase environment variables.');
+      return;
+    }
     if (!currentUser) {
       setShowAuthModal(true);
       return;
@@ -165,6 +182,10 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   };
 
   const handleEditBook = (book: BookType) => {
+    if (authConfigError) {
+      setError('Authentication is not configured. Please check your Supabase environment variables.');
+      return;
+    }
     if (!currentUser) {
       setShowAuthModal(true);
       return;
@@ -304,8 +325,16 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Auth Configuration Warning */}
+              {authConfigError && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg">
+                  <AlertCircle size={16} />
+                  <span className="text-sm font-medium">Auth not configured</span>
+                </div>
+              )}
+
               {/* Auth Status */}
-              {currentUser ? (
+              {!authConfigError && currentUser ? (
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg">
                     <Shield size={16} />
@@ -319,7 +348,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                     <span>Sign Out</span>
                   </button>
                 </div>
-              ) : (
+              ) : !authConfigError ? (
                 <button
                   onClick={() => setShowAuthModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
@@ -327,18 +356,18 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                   <LogIn size={20} />
                   <span>Admin Login</span>
                 </button>
-              )}
+              ) : null}
 
               {/* Add Book Button */}
               <button
                 onClick={handleAddBook}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors transform hover:scale-105 ${
-                  currentUser 
+                  currentUser && !authConfigError
                     ? 'bg-green-600 text-white hover:bg-green-700' 
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
-                disabled={!currentUser}
-                title={!currentUser ? 'Admin login required' : 'Add new book'}
+                disabled={!currentUser || !!authConfigError}
+                title={authConfigError ? 'Authentication not configured' : !currentUser ? 'Admin login required' : 'Add new book'}
               >
                 <Plus size={20} />
                 <span>Add Book</span>
@@ -425,7 +454,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 </div>
                 
                 {/* Action buttons overlay - only show for authenticated users */}
-                {currentUser && (
+                {currentUser && !authConfigError && (
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <div className="flex gap-2">
                       <button
@@ -508,7 +537,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       </div>
 
       {/* Auth Modal */}
-      {showAuthModal && (
+      {showAuthModal && !authConfigError && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
@@ -516,7 +545,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       )}
 
       {/* Add/Edit Book Modal */}
-      {showAddBook && currentUser && (
+      {showAddBook && currentUser && !authConfigError && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
