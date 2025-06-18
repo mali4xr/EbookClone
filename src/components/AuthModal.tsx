@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, LogIn, UserPlus, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, LogIn, UserPlus, Eye, EyeOff, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { AuthService } from '../services/AuthService';
 
 interface AuthModalProps {
@@ -54,7 +54,20 @@ const AuthModal = ({ onClose, onSuccess }: AuthModalProps) => {
       }, 1500);
 
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      let errorMessage = err.message || 'An error occurred';
+      
+      // Provide more helpful error messages for common issues
+      if (errorMessage.includes('Invalid login credentials') || errorMessage.includes('invalid_credentials')) {
+        if (mode === 'signin') {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again, or create a new account if you don\'t have one yet.';
+        }
+      } else if (errorMessage.includes('User already registered')) {
+        errorMessage = 'An account with this email already exists. Please sign in instead or use a different email address.';
+      } else if (errorMessage.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and click the confirmation link before signing in.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -102,9 +115,20 @@ const AuthModal = ({ onClose, onSuccess }: AuthModalProps) => {
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg animate__animated animate__fadeIn">
-              <AlertCircle size={16} className="text-red-600" />
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg animate__animated animate__fadeIn">
+              <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
               <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Info Message for Sign In */}
+          {mode === 'signin' && !error && !success && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-blue-700 text-sm">
+                <p className="font-medium mb-1">First time here?</p>
+                <p>If you don't have an admin account yet, click "Create one" below to get started.</p>
+              </div>
             </div>
           )}
 
@@ -150,6 +174,9 @@ const AuthModal = ({ onClose, onSuccess }: AuthModalProps) => {
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+            {mode === 'signup' && (
+              <p className="text-xs text-gray-500">Password must be at least 6 characters long</p>
+            )}
           </div>
 
           {/* Confirm Password Field (Sign Up only) */}
@@ -204,10 +231,10 @@ const AuthModal = ({ onClose, onSuccess }: AuthModalProps) => {
           </div>
 
           {/* Info */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-700 text-xs">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-800 text-xs">
               <strong>Note:</strong> Admin access is required to add, edit, or delete books. 
-              Regular users can still read and interact with existing books.
+              Regular users can still read and interact with existing books without signing in.
             </p>
           </div>
         </form>
