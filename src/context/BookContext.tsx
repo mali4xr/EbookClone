@@ -59,7 +59,7 @@ interface BookContextType {
   saveBookSettings: () => Promise<void>;
 }
 
-const BookContext = createContext<BookContextType | undefined>(undefined);
+export const BookContext = createContext<BookContextType | undefined>(undefined);
 
 interface BookProviderProps {
   children: React.ReactNode;
