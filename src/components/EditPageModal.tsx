@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Loader } from 'lucide-react';
+import { X, Save, Loader, Music } from 'lucide-react';
 
 interface EditPageModalProps {
   onClose: () => void;
@@ -9,6 +9,7 @@ interface EditPageModalProps {
     image: string;
     video: string;
     background: string;
+    backgroundMusic?: string;
     quiz?: {
       multipleChoice: {
         question: string;
@@ -26,6 +27,7 @@ interface EditPageModalProps {
     image: string;
     video: string;
     background: string;
+    backgroundMusic?: string;
     quiz?: {
       multipleChoice: {
         question: string;
@@ -43,6 +45,7 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
   const [content, setContent] = useState({
     ...pageContent,
     video: pageContent.video || pageContent.image, // Fallback to image if no video
+    backgroundMusic: pageContent.backgroundMusic || '',
     quiz: pageContent.quiz || {
       multipleChoice: {
         question: "What happened in this part of the story?",
@@ -209,6 +212,38 @@ const EditPageModal = ({ onClose, pageContent, onSave }: EditPageModalProps) => 
                 }}
               />
             </div>
+          </div>
+
+          {/* Background Music Section */}
+          <div className="space-y-2 animate__animated animate__fadeInUp animate__delay-2s">
+            <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+              <Music size={16} className="text-purple-600" />
+              Background Music URL (Optional)
+            </label>
+            <input
+              type="url"
+              value={content.backgroundMusic}
+              onChange={(e) => setContent({ ...content, backgroundMusic: e.target.value })}
+              className="w-full p-2 border rounded-md transition-all duration-300 focus:ring-2 focus:ring-purple-500"
+              placeholder="https://example.com/background-music.mp3"
+            />
+            {content.backgroundMusic && (
+              <div className="mt-2">
+                <audio
+                  src={content.backgroundMusic}
+                  controls
+                  className="w-full max-w-xs"
+                  onError={(e) => {
+                    const target = e.target as HTMLAudioElement;
+                    target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <p className="text-xs text-gray-500">
+              Add ambient background music that will play softly while reading this page. 
+              Users can enable/disable and control volume in page settings.
+            </p>
           </div>
 
           <div className="space-y-4 animate__animated animate__fadeInUp animate__delay-3s">

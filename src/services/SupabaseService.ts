@@ -8,6 +8,7 @@ export interface StoryPage {
   image_url: string;
   video_url: string;
   background_url: string;
+  background_music_url?: string;
   quiz_data: {
     multipleChoice: {
       question: string;
@@ -35,6 +36,7 @@ export interface StoryPageInput {
   image_url: string;
   video_url: string;
   background_url: string;
+  background_music_url?: string;
   quiz_data: StoryPage['quiz_data'];
   book_id?: string;
 }
@@ -128,6 +130,7 @@ export class SupabaseService {
         image_url: updates.image_url || '',
         video_url: updates.video_url || '',
         background_url: updates.background_url || '',
+        background_music_url: updates.background_music_url || null,
         quiz_data: updates.quiz_data || {},
         book_id: updates.book_id,
         updated_at: new Date().toISOString()
@@ -230,6 +233,7 @@ export class SupabaseService {
       image: dbPage.image_url,
       video: dbPage.video_url,
       background: dbPage.background_url,
+      backgroundMusic: dbPage.background_music_url,
       quiz: dbPage.quiz_data
     };
   }
@@ -243,6 +247,7 @@ export class SupabaseService {
       image_url: componentData.image || componentData.image_url,
       video_url: componentData.video || componentData.video_url,
       background_url: componentData.background || componentData.background_url,
+      background_music_url: componentData.backgroundMusic || componentData.background_music_url,
       quiz_data: componentData.quiz || {},
       book_id: bookId
     };

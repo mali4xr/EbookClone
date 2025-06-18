@@ -31,7 +31,8 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
     isReading,
     hasStartedReading,
     isLoading,
-    error
+    error,
+    readingComplete
   } = useBook();
 
   const [isPageTurning, setIsPageTurning] = useState(false);
@@ -39,6 +40,12 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(false);
+  const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(0.3);
+  
+  const textContainerRef = useRef<HTMLDivElement>(null);
+  const backgroundAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setIsPageTurning(true);
@@ -49,24 +56,76 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
     };
   }, [currentPage]);
 
-  // Improved page completion detection
+  // Enhanced page completion detection
   useEffect(() => {
     if (pageContent && pageContent.text) {
       const words = pageContent.text.split(/\s+/);
       const totalWords = words.length;
-      // Page is complete when currentWord equals or exceeds total words
-      const isComplete = currentWord >= totalWords;
+      const isComplete = readingComplete || currentWord >= totalWords;
       setIsPageComplete(isComplete);
       
       // Show quiz when reading is complete and user has started reading
       if (isComplete && hasStartedReading && !isReading) {
-        // Add a small delay to ensure the completion state is properly set
         setTimeout(() => {
           setShowQuiz(true);
-        }, 1000);
+        }, 1500); // Increased delay for better UX
       }
     }
-  }, [currentWord, pageContent, hasStartedReading, isReading]);
+  }, [currentWord, pageContent, hasStartedReading, isReading, readingComplete]);
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (autoScroll && isReading && textContainerRef.current) {
+      const container = textContainerRef.current;
+      const words = container.querySelectorAll('.word-highlight');
+      const currentWordElement = words[currentWord];
+      
+      if (currentWordElement) {
+        const containerRect = container.getBoundingClientRect();
+        const wordRect = currentWordElement.getBoundingClientRect();
+        
+        // Check if word is outside visible area
+        if (wordRect.bottom > containerRect.bottom || wordRect.top < containerRect.top) {
+          currentWordElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }
+    }
+  }, [currentWord, isReading, autoScroll]);
+
+  // Background music management
+  useEffect(() => {
+    if (backgroundMusicEnabled && pageContent.backgroundMusic) {
+      if (!backgroundAudioRef.current) {
+        backgroundAudioRef.current = new Audio(pageContent.backgroundMusic);
+        backgroundAudioRef.current.loop = true;
+        backgroundAudioRef.current.volume = backgroundMusicVolume;
+      }
+      
+      backgroundAudioRef.current.play().catch(e => {
+        console.log('Background music autoplay prevented:', e);
+      });
+    } else if (backgroundAudioRef.current) {
+      backgroundAudioRef.current.pause();
+    }
+
+    return () => {
+      if (backgroundAudioRef.current) {
+        backgroundAudioRef.current.pause();
+        backgroundAudioRef.current = null;
+      }
+    };
+  }, [backgroundMusicEnabled, pageContent.backgroundMusic, currentPage]);
+
+  // Update background music volume
+  useEffect(() => {
+    if (backgroundAudioRef.current) {
+      backgroundAudioRef.current.volume = backgroundMusicVolume;
+    }
+  }, [backgroundMusicVolume]);
 
   // Reset states when page changes
   useEffect(() => {
@@ -77,17 +136,21 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
 
   const renderHighlightedText = (text: string) => {
     const words = text.split(/\s+/);
-    return words.map((word, index) => (
-      <span
-        key={index}
-        className={`inline-block transition-all duration-200 mx-[2px] px-1 rounded ${
-          index === currentWord ? 'bg-yellow-300 shadow-md transform scale-105 animate__animated animate__pulse' : 
-          index < currentWord ? 'bg-green-100' : ''
-        }`}
-      >
-        {word}
-      </span>
-    ));
+    return (
+      <div className="leading-relaxed">
+        {words.map((word, index) => (
+          <span
+            key={index}
+            className={`word-highlight inline-block transition-all duration-300 mx-1 px-1 py-0.5 rounded ${
+              index === currentWord ? 'bg-yellow-300 shadow-md transform scale-110 animate-pulse font-bold text-purple-800' : 
+              index < currentWord ? 'bg-green-100 text-green-800' : 'text-gray-800'
+            }`}
+          >
+            {word}
+          </span>
+        ))}
+      </div>
+    );
   };
 
   const handleAIMessage = (message: any) => {
@@ -163,6 +226,70 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
         quizScore={quizScore}
       />
       
+      {/* Page Settings Bar */}
+      <div className="bg-white border-b border-gray-200 p-2">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
+          <div className="flex items-center gap-4">
+            {/* Auto Scroll Toggle */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autoScroll}
+                onChange={(e) => setAutoScroll(e.target.checked)}
+                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              <span className="text-gray-700">Auto Scroll</span>
+            </label>
+
+            {/* Background Music Controls */}
+            {pageContent.backgroundMusic && (
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={backgroundMusicEnabled}
+                    onChange={(e) => setBackgroundMusicEnabled(e.target.checked)}
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-gray-700">🎵 Background Music</span>
+                </label>
+                
+                {backgroundMusicEnabled && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Volume:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={backgroundMusicVolume}
+                      onChange={(e) => setBackgroundMusicVolume(Number(e.target.value))}
+                      className="w-16 accent-purple-600"
+                    />
+                    <span className="text-xs text-gray-500 w-8">{Math.round(backgroundMusicVolume * 100)}%</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reading Status */}
+          <div className="text-sm text-gray-600">
+            {isReading && (
+              <span className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Reading... ({currentWord + 1} of {pageContent.text.split(/\s+/).length} words)
+              </span>
+            )}
+            {isPageComplete && (
+              <span className="text-green-600 font-semibold">
+                ✓ Page completed - Quiz available!
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      
       <div 
         className="flex-grow relative overflow-hidden"
         style={{
@@ -177,7 +304,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
           }`}
         >
           <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col justify-center">
-            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft">
+            <div className="bg-white/95 backdrop-blur-sm p-6 rounded-xl shadow-lg animate__animated animate__slideInLeft max-h-full overflow-hidden">
               {/* Page Title */}
               {pageContent.title && (
                 <h2 className="text-2xl md:text-3xl font-bold text-purple-700 mb-4 animate__animated animate__fadeInDown">
@@ -185,9 +312,35 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
                 </h2>
               )}
               
-              <p className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4">
+              {/* Scrollable Text Container */}
+              <div 
+                ref={textContainerRef}
+                className="text-xl md:text-2xl leading-relaxed text-gray-800 font-medium mb-4 overflow-y-auto max-h-80 pr-2"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#8B5CF6 #E5E7EB'
+                }}
+              >
+                <style jsx>{`
+                  div::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  div::-webkit-scrollbar-track {
+                    background: #F3F4F6;
+                    border-radius: 10px;
+                  }
+                  div::-webkit-scrollbar-thumb {
+                    background: linear-gradient(45deg, #8B5CF6, #EC4899);
+                    border-radius: 10px;
+                    border: 2px solid #F3F4F6;
+                  }
+                  div::-webkit-scrollbar-thumb:hover {
+                    background: linear-gradient(45deg, #7C3AED, #DB2777);
+                  }
+                `}</style>
                 {renderHighlightedText(pageContent.text)}
-              </p>
+              </div>
+              
               {isPageComplete && (
                 <div className="text-sm text-green-600 font-semibold mt-2 animate__animated animate__bounceIn">
                   ✓ Page completed - Quiz will appear shortly!
@@ -198,7 +351,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
           
           <div className="w-full md:w-1/2 relative">
             {/* Video Circle */}
-            <div className="absolute  right-20 z-10">
+            <div className="absolute right-20 z-10">
               <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
                 <video 
                   src={pageContent.video} 
@@ -228,7 +381,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
         </div>
 
         {/* Tavus Conversation Video - Bottom Left */}
-        <div className="absolute bottom-4 right-2  z-20">
+        <div className="absolute bottom-4 right-2 z-20">
           <TavusConversationVideo 
             pageContent={pageContent} 
             currentPage={currentPage}

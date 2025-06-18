@@ -19,6 +19,7 @@ interface PageContent {
   image: string;
   video: string;
   background: string;
+  backgroundMusic?: string;
   quiz?: any;
 }
 
@@ -30,6 +31,7 @@ interface BookContextType {
   currentWord: number;
   isReading: boolean;
   hasStartedReading: boolean;
+  readingComplete: boolean;
   isMuted: boolean;
   isLoading: boolean;
   error: string | null;
@@ -74,6 +76,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   const [currentWord, setCurrentWord] = useState(0);
   const [isReading, setIsReading] = useState(false);
   const [hasStartedReading, setHasStartedReading] = useState(false);
+  const [readingComplete, setReadingComplete] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +145,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     setCurrentPage(0);
     setQuizAnswers([]);
     setHasStartedReading(false);
+    setReadingComplete(false);
     stopReading();
   };
 
@@ -210,6 +214,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
           image: page.image_url,
           video: page.video_url,
           background: page.background_url,
+          backgroundMusic: page.background_music_url,
           quiz: page.quiz_data
         }));
         setPages(formattedPages);
@@ -217,8 +222,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       } else {
         // Fallback to local data only for story books
         if (currentBook.subject === 'STORY') {
-          setPages(storyContent);
-          setTotalPages(storyContent.length);
+          const enhancedStoryContent = storyContent.map(page => ({
+            ...page,
+            backgroundMusic: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' // Default background music
+          }));
+          setPages(enhancedStoryContent);
+          setTotalPages(enhancedStoryContent.length);
         } else {
           // For other subjects, show empty state
           setPages([]);
@@ -230,8 +239,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       console.warn('Failed to load from Supabase:', err);
       // Fallback to local data only for story books
       if (currentBook.subject === 'STORY') {
-        setPages(storyContent);
-        setTotalPages(storyContent.length);
+        const enhancedStoryContent = storyContent.map(page => ({
+          ...page,
+          backgroundMusic: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
+        }));
+        setPages(enhancedStoryContent);
+        setTotalPages(enhancedStoryContent.length);
         setError('Using offline story data. Connect to database for full features.');
       } else {
         setPages([]);
@@ -259,6 +272,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
         image_url: "https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
         video_url: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
         background_url: "https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+        background_music_url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
         book_id: currentBook.id,
         quiz_data: {
           multipleChoice: {
@@ -307,6 +321,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     image: '',
     video: '',
     background: '',
+    backgroundMusic: '',
     quiz: null
   };
 
@@ -315,6 +330,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       setCurrentPage(prev => prev + 1);
       setCurrentWord(0);
       setHasStartedReading(false);
+      setReadingComplete(false);
       stopReading();
     }
   };
@@ -324,6 +340,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       setCurrentPage(prev => prev - 1);
       setCurrentWord(0);
       setHasStartedReading(false);
+      setReadingComplete(false);
       stopReading();
     }
   };
@@ -378,6 +395,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     setHasStartedReading(true);
     setIsReading(true);
     setCurrentWord(0);
+    setReadingComplete(false);
     wordIndexRef.current = 0;
     isReadingStoryRef.current = true;
 
@@ -425,6 +443,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       if (isReadingStoryRef.current) {
         setCurrentWord(words.length);
         setIsReading(false);
+        setReadingComplete(true);
         isReadingStoryRef.current = false;
         wordIndexRef.current = words.length;
       }
@@ -493,6 +512,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
         image_url: updatedContent.image,
         video_url: updatedContent.video,
         background_url: updatedContent.background,
+        background_music_url: updatedContent.backgroundMusic,
         quiz_data: updatedContent.quiz,
         book_id: currentBook.id
       });
@@ -522,6 +542,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   useEffect(() => {
     setCurrentWord(0);
     setHasStartedReading(false);
+    setReadingComplete(false);
     wordIndexRef.current = 0;
     isReadingStoryRef.current = false;
     stopReading();
@@ -542,6 +563,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     currentWord,
     isReading,
     hasStartedReading,
+    readingComplete,
     isMuted,
     isLoading,
     error,
