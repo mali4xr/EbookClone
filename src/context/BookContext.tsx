@@ -94,6 +94,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const wordsRef = useRef<string[]>([]);
   const isReadingStoryRef = useRef<boolean>(false);
+  const backgroundAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Check if story is complete
   useEffect(() => {
@@ -103,20 +104,35 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     }
   }, [quizAnswers, totalPages, onStoryComplete]);
 
-  // Load voices
+  // Load voices and set Zira as default
   useEffect(() => {
     const loadVoices = () => {
       const voices = speechSynthesis.getVoices();
       if (voices.length > 0) {
         setAvailableVoices(voices);
-        // Try to find a child-friendly voice
-        const childVoice = voices.find(voice => 
-          voice.name.toLowerCase().includes('child') || 
-          voice.name.toLowerCase().includes('kid') ||
-          voice.name.toLowerCase().includes('female')
+        
+        // Try to find Zira voice first
+        const ziraVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('zira') ||
+          voice.name.toLowerCase().includes('microsoft zira')
         );
-        if (childVoice) {
-          setVoiceIndex(voices.indexOf(childVoice));
+        
+        if (ziraVoice) {
+          setVoiceIndex(voices.indexOf(ziraVoice));
+          console.log('Zira voice found and set as default:', ziraVoice.name);
+        } else {
+          // Fallback to other child-friendly voices
+          const childVoice = voices.find(voice => 
+            voice.name.toLowerCase().includes('child') || 
+            voice.name.toLowerCase().includes('kid') ||
+            voice.name.toLowerCase().includes('female')
+          );
+          if (childVoice) {
+            setVoiceIndex(voices.indexOf(childVoice));
+            console.log('Child-friendly voice found:', childVoice.name);
+          } else {
+            console.log('No Zira or child-friendly voice found, using default');
+          }
         }
       }
     };
@@ -349,6 +365,13 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
       speechSynthesis.cancel();
       utteranceRef.current = null;
     }
+    
+    // Stop background music when reading stops
+    if (backgroundAudioRef.current) {
+      backgroundAudioRef.current.pause();
+      backgroundAudioRef.current.currentTime = 0;
+    }
+    
     setIsReading(false);
     isReadingStoryRef.current = false;
   };
@@ -393,6 +416,19 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     setReadingComplete(false);
     isReadingStoryRef.current = true;
 
+    // Start background music if available
+    if (pageContent.backgroundMusic) {
+      if (!backgroundAudioRef.current) {
+        backgroundAudioRef.current = new Audio(pageContent.backgroundMusic);
+        backgroundAudioRef.current.loop = true;
+        backgroundAudioRef.current.volume = 0.3; // Lower volume for background music
+      }
+      
+      backgroundAudioRef.current.play().catch(e => {
+        console.log('Background music autoplay prevented:', e);
+      });
+    }
+
     const words = pageContent.text.split(/\s+/).filter(word => word.length > 0);
     wordsRef.current = words;
     console.log('Total words:', words.length);
@@ -401,6 +437,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     
     if (availableVoices[voiceIndex]) {
       utterance.voice = availableVoices[voiceIndex];
+      console.log('Using voice:', availableVoices[voiceIndex].name);
     }
     
     utterance.rate = rate;
@@ -409,7 +446,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     
     utteranceRef.current = utterance;
 
-    // Word highlighting using Web Speech API boundary events only
+    // Word highlighting using Web Speech API boundary events
     utterance.onboundary = (event) => {
       if (event.name === 'word' && isReadingStoryRef.current) {
         const text = pageContent.text;
@@ -438,6 +475,12 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
         setIsReading(false);
         setReadingComplete(true);
         isReadingStoryRef.current = false;
+        
+        // Stop background music when reading ends
+        if (backgroundAudioRef.current) {
+          backgroundAudioRef.current.pause();
+          backgroundAudioRef.current.currentTime = 0;
+        }
         
         console.log('Reading completed - quiz should appear');
       }
@@ -524,6 +567,10 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   useEffect(() => {
     return () => {
       stopReading();
+      if (backgroundAudioRef.current) {
+        backgroundAudioRef.current.pause();
+        backgroundAudioRef.current = null;
+      }
     };
   }, []);
 

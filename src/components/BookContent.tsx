@@ -40,11 +40,8 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
   const [isPageComplete, setIsPageComplete] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [aiMessages, setAiMessages] = useState<any[]>([]);
-  const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(false);
-  const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(0.3);
   
   const textContainerRef = useRef<HTMLDivElement>(null);
-  const backgroundAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setIsPageTurning(true);
@@ -83,37 +80,6 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
       }
     }
   }, [currentWord, pageContent, hasStartedReading, isReading, readingComplete]);
-
-  // Background music management
-  useEffect(() => {
-    if (backgroundMusicEnabled && pageContent.backgroundMusic) {
-      if (!backgroundAudioRef.current) {
-        backgroundAudioRef.current = new Audio(pageContent.backgroundMusic);
-        backgroundAudioRef.current.loop = true;
-        backgroundAudioRef.current.volume = backgroundMusicVolume;
-      }
-      
-      backgroundAudioRef.current.play().catch(e => {
-        console.log('Background music autoplay prevented:', e);
-      });
-    } else if (backgroundAudioRef.current) {
-      backgroundAudioRef.current.pause();
-    }
-
-    return () => {
-      if (backgroundAudioRef.current) {
-        backgroundAudioRef.current.pause();
-        backgroundAudioRef.current = null;
-      }
-    };
-  }, [backgroundMusicEnabled, pageContent.backgroundMusic, currentPage]);
-
-  // Update background music volume
-  useEffect(() => {
-    if (backgroundAudioRef.current) {
-      backgroundAudioRef.current.volume = backgroundMusicVolume;
-    }
-  }, [backgroundMusicVolume]);
 
   // Reset states when page changes
   useEffect(() => {
@@ -220,34 +186,10 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
       <div className="bg-white border-b border-gray-200 p-2">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            {/* Background Music Controls */}
+            {/* Background Music Status */}
             {pageContent.backgroundMusic && (
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={backgroundMusicEnabled}
-                    onChange={(e) => setBackgroundMusicEnabled(e.target.checked)}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <span className="text-gray-700">🎵 Background Music</span>
-                </label>
-                
-                {backgroundMusicEnabled && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Volume:</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={backgroundMusicVolume}
-                      onChange={(e) => setBackgroundMusicVolume(Number(e.target.value))}
-                      className="w-16 accent-purple-600"
-                    />
-                    <span className="text-xs text-gray-500 w-8">{Math.round(backgroundMusicVolume * 100)}%</span>
-                  </div>
-                )}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>🎵 Background music will play during reading</span>
               </div>
             )}
           </div>
