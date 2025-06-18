@@ -1,12 +1,13 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import BookContent from './components/BookContent';
-import LandingPage from './components/LandingPage';
+import LibraryPage from './components/LibraryPage';
 import EndPage from './components/EndPage';
 import { BookProvider } from './context/BookContext';
+import { Book } from './types/Book';
 import SettingsModal from './components/SettingsModal';
 
-type AppState = 'landing' | 'story' | 'end';
+type AppState = 'library' | 'story' | 'end';
 
 interface QuizAnswer {
   pageTitle: string;
@@ -19,7 +20,8 @@ interface QuizAnswer {
 
 function App() {
   const [showSupabaseWarning, setShowSupabaseWarning] = React.useState(false);
-  const [appState, setAppState] = React.useState<AppState>('landing');
+  const [appState, setAppState] = React.useState<AppState>('library');
+  const [selectedBook, setSelectedBook] = React.useState<Book | null>(null);
   const [quizAnswers, setQuizAnswers] = React.useState<QuizAnswer[]>([]);
   const [totalScore, setTotalScore] = React.useState(0);
 
@@ -33,7 +35,8 @@ function App() {
     }
   }, []);
 
-  const handleStartStory = () => {
+  const handleSelectBook = (book: Book) => {
+    setSelectedBook(book);
     setAppState('story');
     setQuizAnswers([]);
     setTotalScore(0);
@@ -45,22 +48,28 @@ function App() {
     setAppState('end');
   };
 
-  const handleReturnToLanding = () => {
-    setAppState('landing');
+  const handleReturnToLibrary = () => {
+    setAppState('library');
+    setSelectedBook(null);
     setQuizAnswers([]);
     setTotalScore(0);
   };
 
-  // Show landing page
-  if (appState === 'landing') {
-    return <LandingPage onStartStory={handleStartStory} />;
+  // Show library page
+  if (appState === 'library') {
+    return (
+      <LibraryPage 
+        onSelectBook={handleSelectBook}
+        onBack={() => {}} // No back action from library
+      />
+    );
   }
 
   // Show end page
   if (appState === 'end') {
     return (
       <EndPage
-        onReturnToLanding={handleReturnToLanding}
+        onReturnToLanding={handleReturnToLibrary}
         quizAnswers={quizAnswers}
         totalScore={totalScore}
         maxScore={quizAnswers.length * 2} // 2 points per page (multiple choice + spelling)
@@ -68,9 +77,13 @@ function App() {
     );
   }
 
-  // Show main story
+  // Show main story with selected book
   return (
-    <BookProvider onStoryComplete={handleStoryComplete}>
+    <BookProvider 
+      onStoryComplete={handleStoryComplete}
+      key={selectedBook?.id} // Force re-render when book changes
+    >
+      <BookInitializer book={selectedBook} />
       <div className="font-sans min-h-screen bg-gradient-to-b from-blue-100 to-purple-100 flex flex-col">
         {/* Supabase Configuration Warning */}
         {showSupabaseWarning && (
@@ -97,9 +110,24 @@ function App() {
         
         <header className="bg-white shadow-md p-4">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 className="text-2xl md:text-3xl font-bold text-purple-600">
-              StoryTime
-            </h1>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleReturnToLibrary}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+              >
+                ← Library
+              </button>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-purple-600">
+                  {selectedBook?.title || 'Interactive Learning'}
+                </h1>
+                {selectedBook && (
+                  <p className="text-sm text-gray-600">
+                    {selectedBook.subject} • by {selectedBook.author}
+                  </p>
+                )}
+              </div>
+            </div>
             <SettingsButton />
           </div>
         </header>
@@ -112,13 +140,26 @@ function App() {
         
         <footer className="bg-white shadow-md-up p-4 mt-auto">
           <div className="max-w-6xl mx-auto text-center text-sm text-gray-500">
-            © 2025 StoryTime - Interactive Kids Books
+            © 2025 Interactive Learning Platform - Educational Content for Kids
           </div>
         </footer>
       </div>
     </BookProvider>
   );
 }
+
+// Component to initialize book in context
+const BookInitializer = ({ book }: { book: Book | null }) => {
+  const { setCurrentBook } = React.useContext(require('./context/BookContext').BookContext);
+  
+  React.useEffect(() => {
+    if (book) {
+      setCurrentBook(book);
+    }
+  }, [book, setCurrentBook]);
+
+  return null;
+};
 
 const SettingsButton = () => {
   const [isOpen, setIsOpen] = React.useState(false);

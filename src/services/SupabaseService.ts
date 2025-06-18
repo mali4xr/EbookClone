@@ -23,6 +23,7 @@ export interface StoryPage {
       instructions?: string;
     };
   };
+  book_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -35,11 +36,12 @@ export interface StoryPageInput {
   video_url: string;
   background_url: string;
   quiz_data: StoryPage['quiz_data'];
+  book_id?: string;
 }
 
 export class SupabaseService {
   private static instance: SupabaseService;
-  private supabase;
+  public supabase;
 
   private constructor() {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -63,12 +65,18 @@ export class SupabaseService {
     return !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
   }
 
-  async getAllStoryPages(): Promise<StoryPage[]> {
+  async getAllStoryPages(bookId?: string): Promise<StoryPage[]> {
     try {
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('story_pages')
         .select('*')
         .order('page_number', { ascending: true });
+
+      if (bookId) {
+        query = query.eq('book_id', bookId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching story pages:', error);
@@ -82,13 +90,18 @@ export class SupabaseService {
     }
   }
 
-  async getStoryPage(pageNumber: number): Promise<StoryPage | null> {
+  async getStoryPage(pageNumber: number, bookId?: string): Promise<StoryPage | null> {
     try {
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('story_pages')
         .select('*')
-        .eq('page_number', pageNumber)
-        .single();
+        .eq('page_number', pageNumber);
+
+      if (bookId) {
+        query = query.eq('book_id', bookId);
+      }
+
+      const { data, error } = await query.single();
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -116,13 +129,14 @@ export class SupabaseService {
         video_url: updates.video_url || '',
         background_url: updates.background_url || '',
         quiz_data: updates.quiz_data || {},
+        book_id: updates.book_id,
         updated_at: new Date().toISOString()
       };
 
       const { data, error } = await this.supabase
         .from('story_pages')
         .upsert(upsertData, { 
-          onConflict: 'page_number',
+          onConflict: 'page_number,book_id',
           ignoreDuplicates: false 
         })
         .select()
@@ -160,12 +174,18 @@ export class SupabaseService {
     }
   }
 
-  async deleteStoryPage(pageNumber: number): Promise<void> {
+  async deleteStoryPage(pageNumber: number, bookId?: string): Promise<void> {
     try {
-      const { error } = await this.supabase
+      let query = this.supabase
         .from('story_pages')
         .delete()
         .eq('page_number', pageNumber);
+
+      if (bookId) {
+        query = query.eq('book_id', bookId);
+      }
+
+      const { error } = await query;
 
       if (error) {
         console.error('Error deleting story page:', error);
@@ -177,11 +197,17 @@ export class SupabaseService {
     }
   }
 
-  async getTotalPages(): Promise<number> {
+  async getTotalPages(bookId?: string): Promise<number> {
     try {
-      const { count, error } = await this.supabase
+      let query = this.supabase
         .from('story_pages')
         .select('*', { count: 'exact', head: true });
+
+      if (bookId) {
+        query = query.eq('book_id', bookId);
+      }
+
+      const { count, error } = await query;
 
       if (error) {
         console.error('Error getting total pages:', error);
@@ -208,7 +234,7 @@ export class SupabaseService {
   }
 
   // Convert component format to database format
-  static convertToDatabaseFormat(componentData: any, pageNumber: number): StoryPageInput {
+  static convertToDatabaseFormat(componentData: any, pageNumber: number, bookId?: string): StoryPageInput {
     return {
       page_number: pageNumber,
       title: componentData.title || '',
@@ -216,7 +242,8 @@ export class SupabaseService {
       image_url: componentData.image || componentData.image_url,
       video_url: componentData.video || componentData.video_url,
       background_url: componentData.background || componentData.background_url,
-      quiz_data: componentData.quiz || {}
+      quiz_data: componentData.quiz || {},
+      book_id: bookId
     };
   }
 }

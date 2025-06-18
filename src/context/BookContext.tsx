@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
+import { BookService } from '../services/BookService';
+import { Book, UserSettings } from '../types/Book';
 import { storyContent } from '../data/storyData';
 
 interface QuizAnswer {
@@ -21,6 +23,7 @@ interface PageContent {
 }
 
 interface BookContextType {
+  currentBook: Book | null;
   currentPage: number;
   totalPages: number;
   pageContent: PageContent;
@@ -51,6 +54,9 @@ interface BookContextType {
   quizAnswers: QuizAnswer[];
   addQuizAnswer: (answer: QuizAnswer) => void;
   resetQuizAnswers: () => void;
+  setCurrentBook: (book: Book) => void;
+  loadBookSettings: () => Promise<void>;
+  saveBookSettings: () => Promise<void>;
 }
 
 const BookContext = createContext<BookContextType | undefined>(undefined);
@@ -61,6 +67,7 @@ interface BookProviderProps {
 }
 
 export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryComplete }) => {
+  const [currentBook, setCurrentBookState] = useState<Book | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [pages, setPages] = useState<PageContent[]>([]);
@@ -74,7 +81,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   // Quiz tracking
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswer[]>([]);
   
-  // Voice settings
+  // Voice settings - now book-specific
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceIndex, setVoiceIndex] = useState(0);
   const [rate, setRate] = useState(1);
@@ -122,19 +129,79 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     };
   }, []);
 
-  // Load story data
+  // Load book settings when book changes
   useEffect(() => {
-    loadStoryData();
-  }, []);
+    if (currentBook) {
+      loadBookSettings();
+      loadStoryData();
+    }
+  }, [currentBook]);
+
+  const setCurrentBook = (book: Book) => {
+    setCurrentBookState(book);
+    setCurrentPage(0);
+    setQuizAnswers([]);
+    setHasStartedReading(false);
+    stopReading();
+  };
+
+  const loadBookSettings = async () => {
+    if (!currentBook) return;
+
+    try {
+      const bookService = BookService.getInstance();
+      const settings = await bookService.getUserSettings(currentBook.id);
+      
+      if (settings) {
+        setVoiceIndex(settings.voice_index);
+        setRate(settings.rate);
+        setPitch(settings.pitch);
+        setVolume(settings.volume);
+      }
+    } catch (error) {
+      console.warn('Failed to load book settings:', error);
+    }
+  };
+
+  const saveBookSettings = async () => {
+    if (!currentBook) return;
+
+    try {
+      const bookService = BookService.getInstance();
+      await bookService.saveUserSettings({
+        book_id: currentBook.id,
+        voice_index: voiceIndex,
+        rate,
+        pitch,
+        volume,
+        settings_data: {}
+      });
+    } catch (error) {
+      console.warn('Failed to save book settings:', error);
+    }
+  };
+
+  // Auto-save settings when they change
+  useEffect(() => {
+    if (currentBook) {
+      const timeoutId = setTimeout(() => {
+        saveBookSettings();
+      }, 1000); // Debounce saves
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [voiceIndex, rate, pitch, volume, currentBook]);
 
   const loadStoryData = async () => {
+    if (!currentBook) return;
+
     setIsLoading(true);
     setError(null);
     
     try {
       // Try to load from Supabase first
       const supabaseService = SupabaseService.getInstance();
-      const supabasePages = await supabaseService.getAllStoryPages();
+      const supabasePages = await supabaseService.getAllStoryPages(currentBook.id);
       
       if (supabasePages && supabasePages.length > 0) {
         const formattedPages = supabasePages.map(page => ({
@@ -148,16 +215,29 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
         setPages(formattedPages);
         setTotalPages(formattedPages.length);
       } else {
-        // Fallback to local data
-        setPages(storyContent);
-        setTotalPages(storyContent.length);
+        // Fallback to local data only for story books
+        if (currentBook.subject === 'STORY') {
+          setPages(storyContent);
+          setTotalPages(storyContent.length);
+        } else {
+          // For other subjects, show empty state
+          setPages([]);
+          setTotalPages(0);
+          setError(`No content available for ${currentBook.subject} books yet. Coming soon!`);
+        }
       }
     } catch (err) {
-      console.warn('Failed to load from Supabase, using local data:', err);
-      // Fallback to local data
-      setPages(storyContent);
-      setTotalPages(storyContent.length);
-      setError('Using offline story data. Connect to database for full features.');
+      console.warn('Failed to load from Supabase:', err);
+      // Fallback to local data only for story books
+      if (currentBook.subject === 'STORY') {
+        setPages(storyContent);
+        setTotalPages(storyContent.length);
+        setError('Using offline story data. Connect to database for full features.');
+      } else {
+        setPages([]);
+        setTotalPages(0);
+        setError(`Failed to load ${currentBook.subject} content. Please check your connection.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +248,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   };
 
   const addNewPage = async () => {
+    if (!currentBook) return;
+
     try {
       const newPageNumber = totalPages + 1;
       const newPageData = {
@@ -177,6 +259,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
         image_url: "https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
         video_url: "https://videos.pexels.com/video-files/3045163/3045163-uhd_2560_1440_25fps.mp4",
         background_url: "https://images.pexels.com/photos/1287075/pexels-photo-1287075.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+        book_id: currentBook.id,
         quiz_data: {
           multipleChoice: {
             question: "What is this new adventure about?",
@@ -202,9 +285,11 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   };
 
   const deletePage = async (pageNumber: number) => {
+    if (!currentBook) return;
+
     try {
       const supabaseService = SupabaseService.getInstance();
-      await supabaseService.deleteStoryPage(pageNumber);
+      await supabaseService.deleteStoryPage(pageNumber, currentBook.id);
       
       // If we deleted the current page and it was the last page, go to previous page
       if (pageNumber === currentPage + 1 && currentPage >= totalPages - 1) {
@@ -390,6 +475,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   };
 
   const updatePageContent = async (content: Partial<PageContent>) => {
+    if (!currentBook) return;
+
     try {
       const updatedContent = { ...pageContent, ...content };
       
@@ -406,7 +493,8 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
         image_url: updatedContent.image,
         video_url: updatedContent.video,
         background_url: updatedContent.background,
-        quiz_data: updatedContent.quiz
+        quiz_data: updatedContent.quiz,
+        book_id: currentBook.id
       });
 
       // Refresh the story data to ensure consistency
@@ -447,6 +535,7 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
   }, []);
 
   const value: BookContextType = {
+    currentBook,
     currentPage,
     totalPages,
     pageContent,
@@ -476,7 +565,10 @@ export const BookProvider: React.FC<BookProviderProps> = ({ children, onStoryCom
     readText,
     quizAnswers,
     addQuizAnswer,
-    resetQuizAnswers
+    resetQuizAnswers,
+    setCurrentBook,
+    loadBookSettings,
+    saveBookSettings
   };
 
   return (
