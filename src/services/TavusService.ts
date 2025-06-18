@@ -1,5 +1,3 @@
-import DailyIframe from '@daily-co/daily-js';
-
 export interface TavusConversation {
   conversation_id: string;
   conversation_name: string;
@@ -163,6 +161,7 @@ Current Story Context:
 - Story Text: "${pageContent.text}"
 
 Your Role:
+- speak very slowly
 - Help explain the story in simple, child-friendly language
 - Answer questions about characters, events, and vocabulary
 - Encourage reading and comprehension
@@ -173,9 +172,11 @@ Be interactive and ask the child questions about what they think will happen nex
   }
 
   static createCustomGreeting(pageContent: any, currentPage: number): string {
-    const character = pageContent.title?.includes('Hoppy') ? 'Hoppy' : 
-                    pageContent.title?.includes('Flutter') ? 'Flutter' : 'our story friend';
+    const character = pageContent.title?.includes('Luna') ? 'Luna' : 
+                    pageContent.title?.includes('Flower') ? 'Flower' : 'Garden';
     
-    return `Hi there! I'm your story companion and I'm so excited to chat with you about this adventure! We're on page ${currentPage + 1} reading about ${character}. What do you think about what's happening in the story so far?`;
+    return `Hello, I'm your teacher and I'm here to tell you a story, We're on page ${currentPage + 1} reading about ${character}. Are you ready?`;
   }
 }
+
+
