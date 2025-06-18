@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X } from 'lucide-react';
+import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield } from 'lucide-react';
 import { BookService } from '../services/BookService';
+import { AuthService, User } from '../services/AuthService';
 import { Book as BookType, SUBJECT_COLORS, SUBJECT_ICONS } from '../types/Book';
+import AuthModal from './AuthModal';
 
 interface LibraryPageProps {
   onSelectBook: (book: BookType) => void;
@@ -32,6 +34,9 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const [showAddBook, setShowAddBook] = useState(false);
   const [editingBook, setEditingBook] = useState<BookType | null>(null);
   const [deletingBook, setDeletingBook] = useState<BookType | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
@@ -46,9 +51,37 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     target_age_max: 12
   });
 
+  const authService = AuthService.getInstance();
+
+  // Check authentication status on mount
+  useEffect(() => {
+    checkAuthStatus();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = authService.onAuthStateChange((user) => {
+      setCurrentUser(user);
+      setIsCheckingAuth(false);
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
+
   useEffect(() => {
     loadBooks();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     filterBooks();
@@ -122,12 +155,20 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   };
 
   const handleAddBook = () => {
+    if (!currentUser) {
+      setShowAuthModal(true);
+      return;
+    }
     resetForm();
     setEditingBook(null);
     setShowAddBook(true);
   };
 
   const handleEditBook = (book: BookType) => {
+    if (!currentUser) {
+      setShowAuthModal(true);
+      return;
+    }
     setFormData({
       title: book.title,
       subject: book.subject,
@@ -145,6 +186,11 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   };
 
   const handleSaveBook = async () => {
+    if (!currentUser) {
+      setError('Authentication required to save books');
+      return;
+    }
+
     try {
       const bookService = BookService.getInstance();
       
@@ -166,6 +212,11 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   };
 
   const handleDeleteBook = async (book: BookType) => {
+    if (!currentUser) {
+      setError('Authentication required to delete books');
+      return;
+    }
+
     try {
       const bookService = BookService.getInstance();
       await bookService.deleteBook(book.id);
@@ -175,6 +226,31 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       setError(err instanceof Error ? err.message : 'Failed to delete book');
     }
   };
+
+  const handleSignOut = async () => {
+    try {
+      await authService.signOut();
+      setCurrentUser(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    setShowAuthModal(false);
+  };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -226,13 +302,48 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleAddBook}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors transform hover:scale-105"
-            >
-              <Plus size={20} />
-              <span>Add Book</span>
-            </button>
+            
+            <div className="flex items-center gap-3">
+              {/* Auth Status */}
+              {currentUser ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg">
+                    <Shield size={16} />
+                    <span className="text-sm font-medium">Admin: {currentUser.email}</span>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                >
+                  <LogIn size={20} />
+                  <span>Admin Login</span>
+                </button>
+              )}
+
+              {/* Add Book Button */}
+              <button
+                onClick={handleAddBook}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors transform hover:scale-105 ${
+                  currentUser 
+                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!currentUser}
+                title={!currentUser ? 'Admin login required' : 'Add new book'}
+              >
+                <Plus size={20} />
+                <span>Add Book</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -313,31 +424,33 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                   {book.difficulty_level}
                 </div>
                 
-                {/* Action buttons overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditBook(book);
-                      }}
-                      className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors transform hover:scale-110"
-                      title="Edit book"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeletingBook(book);
-                      }}
-                      className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors transform hover:scale-110"
-                      title="Delete book"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                {/* Action buttons overlay - only show for authenticated users */}
+                {currentUser && (
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditBook(book);
+                        }}
+                        className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors transform hover:scale-110"
+                        title="Edit book"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingBook(book);
+                        }}
+                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors transform hover:scale-110"
+                        title="Delete book"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Book Info */}
@@ -394,8 +507,16 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
         )}
       </div>
 
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
+
       {/* Add/Edit Book Modal */}
-      {showAddBook && (
+      {showAddBook && currentUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
