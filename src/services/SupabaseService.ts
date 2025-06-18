@@ -133,6 +133,7 @@ export class SupabaseService {
         updated_at: new Date().toISOString()
       };
 
+      // Use the correct constraint name that matches the database schema
       const { data, error } = await this.supabase
         .from('story_pages')
         .upsert(upsertData, { 
