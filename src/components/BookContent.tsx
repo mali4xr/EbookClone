@@ -198,7 +198,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
           
           <div className="w-full md:w-1/2 relative">
             {/* Video Circle */}
-            <div className="absolute top-4 right-4 z-10">
+            <div className="absolute  right-20 z-10">
               <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white shadow-xl animate__animated animate__slideInRight">
                 <video 
                   src={pageContent.video} 
@@ -228,7 +228,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
         </div>
 
         {/* Tavus Conversation Video - Bottom Left */}
-        <div className="absolute bottom-4 left-4 z-20">
+        <div className="absolute bottom-4 right-2  z-20">
           <TavusConversationVideo 
             pageContent={pageContent} 
             currentPage={currentPage}
@@ -237,7 +237,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
         </div>
 
         {/* Read Button */}
-        <div className="absolute bottom-4 right-4">
+        <div className="absolute bottom-4 left-4">
           <Controls />
         </div>
       </div>
