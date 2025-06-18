@@ -312,7 +312,7 @@ const BookContent = ({ onStoryComplete }: BookContentProps) => {
 
         {/* Read Button */}
         <div className="absolute bottom-4 left-4">
-          <Controls />
+          <Contrpols />
         </div>
       </div>
       
