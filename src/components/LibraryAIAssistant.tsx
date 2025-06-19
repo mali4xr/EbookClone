@@ -40,6 +40,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const [toolCallHistory, setToolCallHistory] = useState<string[]>([]);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [personaCreated, setPersonaCreated] = useState(false);
+  const [naturalResponseCount, setNaturalResponseCount] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const callObjectRef = useRef<any>(null);
@@ -111,14 +112,14 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     if (personaCreated) return;
     
     try {
-      setConnectionStatus('Creating AI persona with tools...');
-      console.log('🤖 Creating library persona with enhanced tool calling...');
+      setConnectionStatus('Creating natural AI persona...');
+      console.log('🤖 Creating enhanced natural library persona...');
       
       const persona = await TavusService.createLibraryPersona();
-      console.log('✅ Persona created:', persona);
+      console.log('✅ Natural persona created:', persona);
       
       setPersonaCreated(true);
-      setConnectionStatus('Persona created! Now creating conversation...');
+      setConnectionStatus('Natural persona created! Now creating conversation...');
       
       // Store the persona ID for future use
       if (persona.persona_id) {
@@ -127,7 +128,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       
       return persona;
     } catch (error) {
-      console.error('❌ Failed to create persona:', error);
+      console.error('❌ Failed to create natural persona:', error);
       setConnectionStatus('Failed to create AI persona');
       throw error;
     }
@@ -141,24 +142,24 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
     setIsConnecting(true);
     setError(null);
-    setConnectionStatus('Initializing AI assistant...');
+    setConnectionStatus('Initializing natural AI assistant...');
 
     try {
-      // Step 1: Create persona if needed (this ensures tools are properly configured)
+      // Step 1: Create natural persona if needed
       if (!TavusService.getLibraryPersonaId() && !personaCreated) {
         await createPersonaFirst();
       }
 
-      // Step 2: Create conversation
-      setConnectionStatus('Creating conversation...');
-      console.log('🎬 Creating Tavus library conversation...');
+      // Step 2: Create conversation with natural responses
+      setConnectionStatus('Creating natural conversation...');
+      console.log('🎬 Creating Tavus natural library conversation...');
       const newConversation = await TavusService.createLibraryConversation();
-      console.log('✅ Tavus conversation created:', newConversation);
+      console.log('✅ Natural conversation created:', newConversation);
       
       setConversation(newConversation);
       conversationIdRef.current = newConversation.conversation_id;
       
-      setConnectionStatus('Conversation created! Joining...');
+      setConnectionStatus('Natural conversation created! Joining...');
       
       // Step 3: Join the conversation
       await joinConversation(newConversation.conversation_url);
@@ -166,7 +167,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     } catch (err: any) {
       setError(err.message || 'Failed to create conversation');
       setConnectionStatus('Failed to create conversation');
-      console.error('❌ Error creating Tavus conversation:', err);
+      console.error('❌ Error creating natural conversation:', err);
     } finally {
       setIsConnecting(false);
     }
@@ -178,7 +179,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
 
     try {
-      setConnectionStatus('Joining conversation...');
+      setConnectionStatus('Joining natural conversation...');
 
       // Create Daily call object
       callObjectRef.current = window.Daily.createCallObject();
@@ -198,7 +199,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       await callObjectRef.current.setLocalVideo(false);
       
       setIsConnected(true);
-      setConnectionStatus('Connected - waiting for assistant...');
+      setConnectionStatus('Connected - waiting for natural assistant...');
 
     } catch (error) {
       console.error('Failed to join conversation:', error);
@@ -211,7 +212,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const setupEventListeners = () => {
     if (!callObjectRef.current) return;
 
-    console.log('🎧 Setting up ENHANCED event listeners for Tavus tool calls...');
+    console.log('🎧 Setting up NATURAL event listeners for Tavus...');
 
     // Standard Daily.co events
     callObjectRef.current.on('participant-joined', (event: any) => {
@@ -225,8 +226,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     });
 
     callObjectRef.current.on('joined-meeting', (event: any) => {
-      console.log('Successfully joined conversation');
-      setConnectionStatus('Connected - waiting for assistant...');
+      console.log('Successfully joined natural conversation');
+      setConnectionStatus('Connected - waiting for natural assistant...');
     });
 
     callObjectRef.current.on('participant-left', (event: any) => {
@@ -250,17 +251,11 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       setReplicaConnected(false);
     });
 
-    // CRITICAL: Enhanced tool call event listeners
+    // Enhanced tool call event listeners with natural response tracking
     
     // Primary event listener for app messages (tool calls)
     callObjectRef.current.on('app-message', (event: any) => {
       console.log('📨 App message received:', event);
-      handleTavusEvent(event);
-    });
-
-    // Listen for receive-settings events (alternative event type)
-    callObjectRef.current.on('receive-settings', (event: any) => {
-      console.log('⚙️ Receive settings event:', event);
       handleTavusEvent(event);
     });
 
@@ -272,13 +267,13 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       }
     });
 
-    // Listen for data channel messages directly
+    // Listen for conversation utterances to track natural responses
     callObjectRef.current.on('receive-data', (event: any) => {
       console.log('📡 Data channel message:', event);
       handleTavusEvent(event);
     });
 
-    // Listen for ANY event that might contain tool calls
+    // Enhanced wildcard listener for debugging
     callObjectRef.current.on('*', (eventName: string, event: any) => {
       // Log all events to see what we're getting
       if (showDebugInfo) {
@@ -299,6 +294,26 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
   const handleTavusEvent = (event: any) => {
     console.log('🔍 Processing Tavus event:', JSON.stringify(event, null, 2));
+    
+    // Track natural conversation responses
+    if (event.data && event.data.event_type === 'conversation.utterance' && 
+        event.data.properties && event.data.properties.role === 'replica') {
+      const replicaResponse = event.data.properties.speech;
+      console.log('🤖 AI Response:', replicaResponse);
+      
+      // Check if the response is natural (doesn't contain function names)
+      if (!replicaResponse.includes('filter_books_by_') && 
+          !replicaResponse.includes('search_books') && 
+          !replicaResponse.includes('recommend_books') &&
+          !replicaResponse.includes('{') && 
+          !replicaResponse.includes('}')) {
+        setNaturalResponseCount(prev => prev + 1);
+        setConnectionStatus(`✅ Natural response received! (${naturalResponseCount + 1})`);
+      } else {
+        console.log('⚠️ AI spoke function name - this should not happen with natural persona');
+        setConnectionStatus('⚠️ AI mentioned function names - needs improvement');
+      }
+    }
     
     // Try multiple ways to extract tool call data from the event
     let toolCallData = null;
@@ -452,13 +467,13 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         case 'filter_books_by_subject':
           console.log('📚 Filtering by subject:', args.subject);
           onFilterChange({ selectedSubject: args.subject });
-          setConnectionStatus(`✅ Filtered by subject: ${args.subject}`);
+          setConnectionStatus(`✅ Showing ${args.subject} books`);
           break;
           
         case 'filter_books_by_difficulty':
           console.log('📊 Filtering by difficulty:', args.difficulty);
           onFilterChange({ selectedDifficulty: args.difficulty });
-          setConnectionStatus(`✅ Filtered by difficulty: ${args.difficulty}`);
+          setConnectionStatus(`✅ Showing ${args.difficulty} books`);
           break;
           
         case 'search_books':
@@ -472,14 +487,14 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           onFilterChange({ 
             ageRange: { min: args.minAge, max: args.maxAge } 
           });
-          setConnectionStatus(`✅ Filtered by age: ${args.minAge}-${args.maxAge}`);
+          setConnectionStatus(`✅ Showing books for ages ${args.minAge}-${args.maxAge}`);
           break;
           
         case 'recommend_books':
           console.log('💡 Recommending books for:', args.preferences);
           const recommendedBooks = getRecommendedBooks(args.preferences);
           onBookRecommendation(recommendedBooks);
-          setConnectionStatus(`✅ Recommended ${recommendedBooks.length} books`);
+          setConnectionStatus(`✅ Found ${recommendedBooks.length} recommendations`);
           break;
           
         default:
@@ -508,7 +523,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         if (videoPlayable && audioPlayable) {
           hasWorkingAudioVideo = true;
           setReplicaConnected(true);
-          setConnectionStatus('🤖 Library assistant ready! Try: "Show me science books"');
+          setConnectionStatus('🤖 Natural assistant ready! Try: "Show me science books"');
           setIsConnecting(false);
         }
 
@@ -618,7 +633,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
   const restartConversation = async () => {
     await cleanupConversation();
-    setPersonaCreated(false); // Force persona recreation
+    setPersonaCreated(false); // Force persona recreation with natural responses
+    setNaturalResponseCount(0);
     setTimeout(() => {
       initializeAIAssistant();
     }, 1000);
@@ -649,7 +665,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
             onClick={handleOpen}
             disabled={isConnecting}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 disabled:opacity-50 group"
-            aria-label="Open AI Library Assistant"
+            aria-label="Open Natural AI Library Assistant"
           >
             <div className="relative">
               {isConnecting ? (
@@ -677,7 +693,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                 <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
                   <div className="flex items-center gap-2">
                     <Video size={16} />
-                    <span className="text-sm font-bold">Library Assistant</span>
+                    <span className="text-sm font-bold">Natural Assistant</span>
                     {isConnected && (
                       <div className="flex items-center gap-1">
                         <div className={`w-2 h-2 rounded-full animate-pulse ${replicaConnected ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
@@ -696,7 +712,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                     <button 
                       onClick={restartConversation} 
                       className="text-white hover:text-gray-200 transition-colors p-1 rounded-full" 
-                      title="Restart conversation"
+                      title="Restart with natural responses"
                     >
                       <RefreshCw size={14} />
                     </button>
@@ -742,7 +758,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                       <div className="text-center text-white">
                         <Loader size={32} className="animate-spin mx-auto mb-3 text-purple-400" />
                         <p className="text-sm">{connectionStatus}</p>
-                        <p className="text-xs text-gray-300 mt-1">Setting up enhanced tool calling</p>
+                        <p className="text-xs text-gray-300 mt-1">Creating natural conversation experience</p>
                       </div>
                     </div>
                   ) : isConnected ? (
@@ -766,10 +782,17 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                         </div>
                       )}
 
-                      {/* Enhanced tool call feedback */}
+                      {/* Natural response feedback */}
+                      {naturalResponseCount > 0 && (
+                        <div className="absolute top-2 left-2 bg-green-600/90 text-white text-xs px-2 py-1 rounded">
+                          ✅ {naturalResponseCount} natural responses
+                        </div>
+                      )}
+
+                      {/* Tool call feedback */}
                       {lastToolCall && (
-                        <div className="absolute bottom-2 left-2 bg-green-600/90 text-white text-xs px-2 py-1 rounded max-w-xs">
-                          ✅ {lastToolCall}
+                        <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded max-w-xs">
+                          🔧 {lastToolCall}
                         </div>
                       )}
                     </>
@@ -777,13 +800,13 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                     <div className="flex items-center justify-center h-full p-4">
                       <div className="text-center text-white">
                         <Video size={32} className="text-purple-400 mx-auto mb-3" />
-                        <p className="text-sm mb-2">Start a conversation with your library assistant!</p>
-                        <p className="text-xs text-gray-300 mb-3">Enhanced with tool calling for book filtering</p>
+                        <p className="text-sm mb-2">Start a natural conversation!</p>
+                        <p className="text-xs text-gray-300 mb-3">AI will respond naturally without mentioning functions</p>
                         <button
                           onClick={initializeAIAssistant}
                           className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
                         >
-                          Start Enhanced Assistant
+                          Start Natural Assistant
                         </button>
                       </div>
                     </div>
@@ -802,30 +825,38 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
       {/* Enhanced Instructions Panel */}
       {isOpen && replicaConnected && (
-        <div className="fixed bottom-6 left-6 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-sm z-40">
-          <h4 className="font-semibold text-blue-800 mb-2">🎯 Enhanced Voice Commands</h4>
-          <ul className="text-sm text-blue-700 space-y-1">
+        <div className="fixed bottom-6 left-6 bg-green-50 border border-green-200 rounded-lg p-4 max-w-sm z-40">
+          <h4 className="font-semibold text-green-800 mb-2">🌟 Natural Voice Commands</h4>
+          <ul className="text-sm text-green-700 space-y-1">
             <li>• "Show me <strong>science</strong> books"</li>
             <li>• "Find books about <strong>animals</strong>"</li>
-            <li>• "I want <strong>beginner</strong> level books"</li>
-            <li>• "Books for <strong>8-year-olds</strong>"</li>
+            <li>• "I want <strong>easy</strong> books"</li>
+            <li>• "Books for <strong>kids</strong>"</li>
             <li>• "Recommend <strong>adventure</strong> stories"</li>
           </ul>
           
+          {/* Natural Response Counter */}
+          {naturalResponseCount > 0 && (
+            <div className="mt-3 p-2 bg-green-100 rounded text-xs">
+              <strong>✅ Natural responses: {naturalResponseCount}</strong>
+              <div className="text-green-600">AI is responding naturally!</div>
+            </div>
+          )}
+          
           {/* Tool Call History */}
           {toolCallHistory.length > 0 && (
-            <div className="mt-3 p-2 bg-green-100 rounded text-xs">
+            <div className="mt-3 p-2 bg-blue-100 rounded text-xs">
               <strong>Recent actions:</strong>
               <div className="max-h-20 overflow-y-auto">
                 {toolCallHistory.slice(-3).map((call, index) => (
-                  <div key={index} className="text-green-800">✅ {call}</div>
+                  <div key={index} className="text-blue-800">🔧 {call}</div>
                 ))}
               </div>
             </div>
           )}
           
           {/* Current Status */}
-          <div className="mt-2 text-xs text-blue-600">
+          <div className="mt-2 text-xs text-green-600">
             Status: {connectionStatus}
           </div>
 
@@ -833,9 +864,10 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           {showDebugInfo && (
             <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
               <strong>Debug Info:</strong>
-              <div>Persona Created: {personaCreated ? '✅' : '❌'}</div>
+              <div>Natural Persona: {personaCreated ? '✅' : '❌'}</div>
               <div>Connected: {isConnected ? '✅' : '❌'}</div>
               <div>Replica Ready: {replicaConnected ? '✅' : '❌'}</div>
+              <div>Natural Responses: {naturalResponseCount}</div>
               <div>Tool Calls: {toolCallHistory.length}</div>
             </div>
           )}
