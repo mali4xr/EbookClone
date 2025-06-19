@@ -36,6 +36,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const [isVolumeOn, setIsVolumeOn] = useState(true);
   const [replicaConnected, setReplicaConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('Ready to start');
+  const [lastToolCall, setLastToolCall] = useState<string>('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const callObjectRef = useRef<any>(null);
@@ -197,9 +198,20 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       setReplicaConnected(false);
     });
 
-    // Listen for AI tool calls
+    // Listen for AI tool calls - Updated to handle Tavus events properly
     callObjectRef.current.on('app-message', (event: any) => {
+      console.log('Raw app-message event:', event);
       handleAIToolCall(event);
+    });
+
+    // Also listen for track-started events which might contain tool calls
+    callObjectRef.current.on('track-started', (event: any) => {
+      console.log('Track started event:', event);
+    });
+
+    // Listen for custom events that Tavus might send
+    callObjectRef.current.on('receive-settings', (event: any) => {
+      console.log('Receive settings event:', event);
     });
   };
 
@@ -284,38 +296,101 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   };
 
   const handleAIToolCall = (event: any) => {
-    console.log('AI Tool Call Event:', event);
+    console.log('🔧 AI Tool Call Event received:', JSON.stringify(event, null, 2));
     
-    if (event.data?.message_type === 'conversation' && 
-        event.data?.event_type === 'conversation.toolcall') {
-      
-      const { function_name, arguments: args } = event.data.properties;
-      console.log('Tool called:', function_name, 'with args:', args);
-
-      switch (function_name) {
-        case 'filter_books_by_subject':
-          onFilterChange({ selectedSubject: args.subject });
-          break;
-          
-        case 'filter_books_by_difficulty':
-          onFilterChange({ selectedDifficulty: args.difficulty });
-          break;
-          
-        case 'search_books':
-          onFilterChange({ searchTerm: args.searchTerm });
-          break;
-          
-        case 'filter_books_by_age':
-          onFilterChange({ 
-            ageRange: { min: args.minAge, max: args.maxAge } 
-          });
-          break;
-          
-        case 'recommend_books':
-          const recommendedBooks = getRecommendedBooks(args.preferences);
-          onBookRecommendation(recommendedBooks);
-          break;
+    // Handle different possible event structures from Tavus
+    let toolCallData = null;
+    
+    // Check for direct tool call in event data
+    if (event.data) {
+      // Case 1: Direct tool call data
+      if (event.data.function_name && event.data.arguments) {
+        toolCallData = {
+          function_name: event.data.function_name,
+          arguments: event.data.arguments
+        };
       }
+      // Case 2: Nested in properties
+      else if (event.data.properties && event.data.properties.function_name) {
+        toolCallData = {
+          function_name: event.data.properties.function_name,
+          arguments: event.data.properties.arguments
+        };
+      }
+      // Case 3: Tool call event type
+      else if (event.data.event_type === 'conversation.toolcall' || event.data.message_type === 'conversation') {
+        if (event.data.properties) {
+          toolCallData = {
+            function_name: event.data.properties.function_name,
+            arguments: event.data.properties.arguments
+          };
+        }
+      }
+      // Case 4: Check for tool_calls array (OpenAI format)
+      else if (event.data.tool_calls && Array.isArray(event.data.tool_calls)) {
+        const toolCall = event.data.tool_calls[0];
+        if (toolCall && toolCall.function) {
+          toolCallData = {
+            function_name: toolCall.function.name,
+            arguments: typeof toolCall.function.arguments === 'string' 
+              ? JSON.parse(toolCall.function.arguments) 
+              : toolCall.function.arguments
+          };
+        }
+      }
+    }
+    
+    // Also check if the event itself has the tool call structure
+    if (!toolCallData && event.function_name) {
+      toolCallData = {
+        function_name: event.function_name,
+        arguments: event.arguments
+      };
+    }
+
+    if (toolCallData) {
+      const { function_name, arguments: args } = toolCallData;
+      console.log('🎯 Processing tool call:', function_name, 'with args:', args);
+      setLastToolCall(`${function_name}(${JSON.stringify(args)})`);
+
+      try {
+        switch (function_name) {
+          case 'filter_books_by_subject':
+            console.log('📚 Filtering by subject:', args.subject);
+            onFilterChange({ selectedSubject: args.subject });
+            break;
+            
+          case 'filter_books_by_difficulty':
+            console.log('📊 Filtering by difficulty:', args.difficulty);
+            onFilterChange({ selectedDifficulty: args.difficulty });
+            break;
+            
+          case 'search_books':
+            console.log('🔍 Searching books:', args.searchTerm);
+            onFilterChange({ searchTerm: args.searchTerm });
+            break;
+            
+          case 'filter_books_by_age':
+            console.log('👶 Filtering by age:', args.minAge, '-', args.maxAge);
+            onFilterChange({ 
+              ageRange: { min: args.minAge, max: args.maxAge } 
+            });
+            break;
+            
+          case 'recommend_books':
+            console.log('💡 Recommending books for:', args.preferences);
+            const recommendedBooks = getRecommendedBooks(args.preferences);
+            onBookRecommendation(recommendedBooks);
+            break;
+            
+          default:
+            console.log('❓ Unknown tool call:', function_name);
+        }
+      } catch (error) {
+        console.error('Error processing tool call:', error);
+      }
+    } else {
+      console.log('⚠️ No tool call data found in event');
     }
   };
 
@@ -490,6 +565,13 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                           </div>
                         </div>
                       )}
+
+                      {/* Debug info for tool calls */}
+                      {lastToolCall && (
+                        <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded max-w-xs">
+                          Last action: {lastToolCall}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full p-4">
@@ -521,13 +603,19 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       {/* Accessibility Instructions */}
       {isOpen && replicaConnected && (
         <div className="fixed bottom-6 left-6 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-sm z-40">
-          <h4 className="font-semibold text-blue-800 mb-2">🎯 Accessibility Features</h4>
+          <h4 className="font-semibold text-blue-800 mb-2">🎯 Voice Commands</h4>
           <ul className="text-sm text-blue-700 space-y-1">
-            <li>• Say "Show me science books" to filter by subject</li>
-            <li>• Ask "Find books for 8-year-olds" to filter by age</li>
-            <li>• Say "I want beginner level books" for difficulty</li>
-            <li>• Ask "Recommend adventure stories" for suggestions</li>
+            <li>• "Show me science books"</li>
+            <li>• "Find books for 8-year-olds"</li>
+            <li>• "I want beginner level books"</li>
+            <li>• "Recommend adventure stories"</li>
+            <li>• "Search for books about animals"</li>
           </ul>
+          {lastToolCall && (
+            <div className="mt-2 p-2 bg-green-100 rounded text-xs">
+              <strong>Last action:</strong> {lastToolCall}
+            </div>
+          )}
         </div>
       )}
     </>
