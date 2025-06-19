@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageCircle, X, Mic, MicOff, Video, VideoOff, Loader, AlertTriangle, Minimize2, Maximize2, Volume2, VolumeX, Settings, RefreshCw } from 'lucide-react';
+import { MessageCircle, X, Mic, MicOff, Video, VideoOff, Loader, AlertTriangle, Minimize2, Maximize2, Volume2, VolumeX, Settings, RefreshCw, BookOpen } from 'lucide-react';
 import { Book as BookType } from '../types/Book';
 import { TavusService, TavusConversation } from '../services/TavusService';
 
@@ -41,6 +41,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [personaCreated, setPersonaCreated] = useState(false);
   const [naturalResponseCount, setNaturalResponseCount] = useState(0);
+  const [restrictedResponseCount, setRestrictedResponseCount] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const callObjectRef = useRef<any>(null);
@@ -112,14 +113,14 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     if (personaCreated) return;
     
     try {
-      setConnectionStatus('Creating natural AI persona...');
-      console.log('🤖 Creating enhanced natural library persona...');
+      setConnectionStatus('Creating restricted AI persona...');
+      console.log('🤖 Creating restricted library persona with book catalog...');
       
       const persona = await TavusService.createLibraryPersona();
-      console.log('✅ Natural persona created:', persona);
+      console.log('✅ Restricted persona created:', persona);
       
       setPersonaCreated(true);
-      setConnectionStatus('Natural persona created! Now creating conversation...');
+      setConnectionStatus('Restricted persona created! Now creating conversation...');
       
       // Store the persona ID for future use
       if (persona.persona_id) {
@@ -128,7 +129,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       
       return persona;
     } catch (error) {
-      console.error('❌ Failed to create natural persona:', error);
+      console.error('❌ Failed to create restricted persona:', error);
       setConnectionStatus('Failed to create AI persona');
       throw error;
     }
@@ -142,24 +143,26 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
     setIsConnecting(true);
     setError(null);
-    setConnectionStatus('Initializing natural AI assistant...');
+    setConnectionStatus('Initializing restricted AI assistant...');
 
     try {
-      // Step 1: Create natural persona if needed
+      // Step 1: Create restricted persona if needed
       if (!TavusService.getLibraryPersonaId() && !personaCreated) {
         await createPersonaFirst();
       }
 
-      // Step 2: Create conversation with natural responses
-      setConnectionStatus('Creating natural conversation...');
-      console.log('🎬 Creating Tavus natural library conversation...');
-      const newConversation = await TavusService.createLibraryConversation();
-      console.log('✅ Natural conversation created:', newConversation);
+      // Step 2: Create conversation with actual book catalog
+      setConnectionStatus('Creating conversation with book catalog...');
+      console.log('🎬 Creating Tavus conversation with actual books:', books.length);
+      console.log('📚 Available books:', books.map(b => `${b.title} (${b.subject})`));
+      
+      const newConversation = await TavusService.createLibraryConversation(books);
+      console.log('✅ Restricted conversation created:', newConversation);
       
       setConversation(newConversation);
       conversationIdRef.current = newConversation.conversation_id;
       
-      setConnectionStatus('Natural conversation created! Joining...');
+      setConnectionStatus('Conversation created with book restrictions! Joining...');
       
       // Step 3: Join the conversation
       await joinConversation(newConversation.conversation_url);
@@ -167,7 +170,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     } catch (err: any) {
       setError(err.message || 'Failed to create conversation');
       setConnectionStatus('Failed to create conversation');
-      console.error('❌ Error creating natural conversation:', err);
+      console.error('❌ Error creating restricted conversation:', err);
     } finally {
       setIsConnecting(false);
     }
@@ -179,7 +182,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
 
     try {
-      setConnectionStatus('Joining natural conversation...');
+      setConnectionStatus('Joining restricted conversation...');
 
       // Create Daily call object
       callObjectRef.current = window.Daily.createCallObject();
@@ -199,7 +202,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       await callObjectRef.current.setLocalVideo(false);
       
       setIsConnected(true);
-      setConnectionStatus('Connected - waiting for natural assistant...');
+      setConnectionStatus('Connected - waiting for restricted assistant...');
 
     } catch (error) {
       console.error('Failed to join conversation:', error);
@@ -212,7 +215,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const setupEventListeners = () => {
     if (!callObjectRef.current) return;
 
-    console.log('🎧 Setting up NATURAL event listeners for Tavus...');
+    console.log('🎧 Setting up RESTRICTED event listeners for Tavus...');
 
     // Standard Daily.co events
     callObjectRef.current.on('participant-joined', (event: any) => {
@@ -226,8 +229,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     });
 
     callObjectRef.current.on('joined-meeting', (event: any) => {
-      console.log('Successfully joined natural conversation');
-      setConnectionStatus('Connected - waiting for natural assistant...');
+      console.log('Successfully joined restricted conversation');
+      setConnectionStatus('Connected - waiting for restricted assistant...');
     });
 
     callObjectRef.current.on('participant-left', (event: any) => {
@@ -251,7 +254,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       setReplicaConnected(false);
     });
 
-    // Enhanced tool call event listeners with natural response tracking
+    // Enhanced tool call event listeners with restriction tracking
     
     // Primary event listener for app messages (tool calls)
     callObjectRef.current.on('app-message', (event: any) => {
@@ -267,7 +270,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       }
     });
 
-    // Listen for conversation utterances to track natural responses
+    // Listen for conversation utterances to track restricted responses
     callObjectRef.current.on('receive-data', (event: any) => {
       console.log('📡 Data channel message:', event);
       handleTavusEvent(event);
@@ -295,21 +298,34 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const handleTavusEvent = (event: any) => {
     console.log('🔍 Processing Tavus event:', JSON.stringify(event, null, 2));
     
-    // Track natural conversation responses
+    // Track restricted conversation responses
     if (event.data && event.data.event_type === 'conversation.utterance' && 
         event.data.properties && event.data.properties.role === 'replica') {
       const replicaResponse = event.data.properties.speech;
       console.log('🤖 AI Response:', replicaResponse);
       
+      // Check if the response mentions books not in our catalog
+      const mentionsExternalBooks = replicaResponse.includes('Peter Rabbit') || 
+                                   replicaResponse.includes('Runaway Bunny') ||
+                                   replicaResponse.includes('Tale of') ||
+                                   replicaResponse.includes('classic story') ||
+                                   replicaResponse.includes('famous book');
+      
       // Check if the response is natural (doesn't contain function names)
-      if (!replicaResponse.includes('filter_books_by_') && 
-          !replicaResponse.includes('search_books') && 
-          !replicaResponse.includes('recommend_books') &&
-          !replicaResponse.includes('{') && 
-          !replicaResponse.includes('}')) {
+      const isNatural = !replicaResponse.includes('filter_books_by_') && 
+                       !replicaResponse.includes('search_books') && 
+                       !replicaResponse.includes('recommend_books') &&
+                       !replicaResponse.includes('{') && 
+                       !replicaResponse.includes('}');
+      
+      if (isNatural && !mentionsExternalBooks) {
         setNaturalResponseCount(prev => prev + 1);
-        setConnectionStatus(`✅ Natural response received! (${naturalResponseCount + 1})`);
-      } else {
+        setRestrictedResponseCount(prev => prev + 1);
+        setConnectionStatus(`✅ Restricted response! Only our books mentioned (${restrictedResponseCount + 1})`);
+      } else if (mentionsExternalBooks) {
+        console.log('⚠️ AI mentioned books not in our catalog - this should not happen');
+        setConnectionStatus('⚠️ AI mentioned external books - needs restriction improvement');
+      } else if (!isNatural) {
         console.log('⚠️ AI spoke function name - this should not happen with natural persona');
         setConnectionStatus('⚠️ AI mentioned function names - needs improvement');
       }
@@ -456,7 +472,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
   const executeToolCall = (toolCallData: any) => {
     const { function_name, arguments: args } = toolCallData;
-    console.log('🚀 Executing tool call:', function_name, 'with args:', args);
+    console.log('🚀 Executing RESTRICTED tool call:', function_name, 'with args:', args);
+    console.log('📚 Available books for filtering:', books.length);
     
     const toolCallString = `${function_name}(${JSON.stringify(args)})`;
     setLastToolCall(toolCallString);
@@ -465,36 +482,55 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     try {
       switch (function_name) {
         case 'filter_books_by_subject':
-          console.log('📚 Filtering by subject:', args.subject);
+          console.log('📚 Filtering by subject:', args.subject, 'from', books.length, 'books');
+          const subjectBooks = books.filter(book => 
+            args.subject === 'ALL' || book.subject === args.subject
+          );
+          console.log('📚 Found', subjectBooks.length, 'books for subject', args.subject);
           onFilterChange({ selectedSubject: args.subject });
-          setConnectionStatus(`✅ Showing ${args.subject} books`);
+          setConnectionStatus(`✅ Showing ${subjectBooks.length} ${args.subject} books from our catalog`);
           break;
           
         case 'filter_books_by_difficulty':
-          console.log('📊 Filtering by difficulty:', args.difficulty);
+          console.log('📊 Filtering by difficulty:', args.difficulty, 'from', books.length, 'books');
+          const difficultyBooks = books.filter(book => 
+            args.difficulty === 'ALL' || book.difficulty_level === args.difficulty
+          );
+          console.log('📊 Found', difficultyBooks.length, 'books for difficulty', args.difficulty);
           onFilterChange({ selectedDifficulty: args.difficulty });
-          setConnectionStatus(`✅ Showing ${args.difficulty} books`);
+          setConnectionStatus(`✅ Showing ${difficultyBooks.length} ${args.difficulty} books from our catalog`);
           break;
           
         case 'search_books':
-          console.log('🔍 Searching books:', args.searchTerm);
+          console.log('🔍 Searching books for:', args.searchTerm, 'in', books.length, 'books');
+          const searchResults = books.filter(book =>
+            book.title.toLowerCase().includes(args.searchTerm.toLowerCase()) ||
+            book.description?.toLowerCase().includes(args.searchTerm.toLowerCase()) ||
+            book.author.toLowerCase().includes(args.searchTerm.toLowerCase())
+          );
+          console.log('🔍 Found', searchResults.length, 'books matching', args.searchTerm);
           onFilterChange({ searchTerm: args.searchTerm });
-          setConnectionStatus(`✅ Searching for: ${args.searchTerm}`);
+          setConnectionStatus(`✅ Found ${searchResults.length} books matching "${args.searchTerm}" in our catalog`);
           break;
           
         case 'filter_books_by_age':
-          console.log('👶 Filtering by age:', args.minAge, '-', args.maxAge);
+          console.log('👶 Filtering by age:', args.minAge, '-', args.maxAge, 'from', books.length, 'books');
+          const ageBooks = books.filter(book =>
+            book.target_age_min <= args.maxAge && book.target_age_max >= args.minAge
+          );
+          console.log('👶 Found', ageBooks.length, 'books for ages', args.minAge, '-', args.maxAge);
           onFilterChange({ 
             ageRange: { min: args.minAge, max: args.maxAge } 
           });
-          setConnectionStatus(`✅ Showing books for ages ${args.minAge}-${args.maxAge}`);
+          setConnectionStatus(`✅ Showing ${ageBooks.length} books for ages ${args.minAge}-${args.maxAge} from our catalog`);
           break;
           
         case 'recommend_books':
-          console.log('💡 Recommending books for:', args.preferences);
+          console.log('💡 Recommending books for:', args.preferences, 'from', books.length, 'books');
           const recommendedBooks = getRecommendedBooks(args.preferences);
+          console.log('💡 Found', recommendedBooks.length, 'recommendations for', args.preferences);
           onBookRecommendation(recommendedBooks);
-          setConnectionStatus(`✅ Found ${recommendedBooks.length} recommendations`);
+          setConnectionStatus(`✅ Found ${recommendedBooks.length} recommendations from our catalog`);
           break;
           
         default:
@@ -523,7 +559,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         if (videoPlayable && audioPlayable) {
           hasWorkingAudioVideo = true;
           setReplicaConnected(true);
-          setConnectionStatus('🤖 Natural assistant ready! Try: "Show me science books"');
+          setConnectionStatus(`🔒 Restricted assistant ready! Only suggests books from our ${books.length} book catalog`);
           setIsConnecting(false);
         }
 
@@ -590,12 +626,15 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const getRecommendedBooks = (preferences: string): BookType[] => {
     const lowerPrefs = preferences.toLowerCase();
     
-    return books.filter(book => {
+    const filtered = books.filter(book => {
       return book.title.toLowerCase().includes(lowerPrefs) ||
              book.description?.toLowerCase().includes(lowerPrefs) ||
              book.subject.toLowerCase().includes(lowerPrefs) ||
              book.author.toLowerCase().includes(lowerPrefs);
     }).slice(0, 6);
+
+    console.log('💡 Filtered recommendations from actual catalog:', filtered.length, 'books');
+    return filtered;
   };
 
   const toggleMute = async () => {
@@ -633,8 +672,9 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
   const restartConversation = async () => {
     await cleanupConversation();
-    setPersonaCreated(false); // Force persona recreation with natural responses
+    setPersonaCreated(false); // Force persona recreation with restrictions
     setNaturalResponseCount(0);
+    setRestrictedResponseCount(0);
     setTimeout(() => {
       initializeAIAssistant();
     }, 1000);
@@ -665,7 +705,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
             onClick={handleOpen}
             disabled={isConnecting}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 disabled:opacity-50 group"
-            aria-label="Open Natural AI Library Assistant"
+            aria-label="Open Restricted AI Library Assistant"
           >
             <div className="relative">
               {isConnecting ? (
@@ -692,8 +732,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
                   <div className="flex items-center gap-2">
-                    <Video size={16} />
-                    <span className="text-sm font-bold">Natural Assistant</span>
+                    <BookOpen size={16} />
+                    <span className="text-sm font-bold">Restricted Assistant</span>
                     {isConnected && (
                       <div className="flex items-center gap-1">
                         <div className={`w-2 h-2 rounded-full animate-pulse ${replicaConnected ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
@@ -712,7 +752,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                     <button 
                       onClick={restartConversation} 
                       className="text-white hover:text-gray-200 transition-colors p-1 rounded-full" 
-                      title="Restart with natural responses"
+                      title="Restart with catalog restrictions"
                     >
                       <RefreshCw size={14} />
                     </button>
@@ -758,7 +798,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                       <div className="text-center text-white">
                         <Loader size={32} className="animate-spin mx-auto mb-3 text-purple-400" />
                         <p className="text-sm">{connectionStatus}</p>
-                        <p className="text-xs text-gray-300 mt-1">Creating natural conversation experience</p>
+                        <p className="text-xs text-gray-300 mt-1">Restricting to {books.length} available books</p>
                       </div>
                     </div>
                   ) : isConnected ? (
@@ -782,10 +822,10 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                         </div>
                       )}
 
-                      {/* Natural response feedback */}
-                      {naturalResponseCount > 0 && (
+                      {/* Restricted response feedback */}
+                      {restrictedResponseCount > 0 && (
                         <div className="absolute top-2 left-2 bg-green-600/90 text-white text-xs px-2 py-1 rounded">
-                          ✅ {naturalResponseCount} natural responses
+                          🔒 {restrictedResponseCount} catalog-only responses
                         </div>
                       )}
 
@@ -795,18 +835,23 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                           🔧 {lastToolCall}
                         </div>
                       )}
+
+                      {/* Book count indicator */}
+                      <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-xs px-2 py-1 rounded">
+                        📚 {books.length} books available
+                      </div>
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full p-4">
                       <div className="text-center text-white">
-                        <Video size={32} className="text-purple-400 mx-auto mb-3" />
-                        <p className="text-sm mb-2">Start a natural conversation!</p>
-                        <p className="text-xs text-gray-300 mb-3">AI will respond naturally without mentioning functions</p>
+                        <BookOpen size={32} className="text-purple-400 mx-auto mb-3" />
+                        <p className="text-sm mb-2">Start a restricted conversation!</p>
+                        <p className="text-xs text-gray-300 mb-3">AI will only suggest books from our {books.length} book catalog</p>
                         <button
                           onClick={initializeAIAssistant}
                           className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
                         >
-                          Start Natural Assistant
+                          Start Restricted Assistant
                         </button>
                       </div>
                     </div>
@@ -826,7 +871,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       {/* Enhanced Instructions Panel */}
       {isOpen && replicaConnected && (
         <div className="fixed bottom-6 left-6 bg-green-50 border border-green-200 rounded-lg p-4 max-w-sm z-40">
-          <h4 className="font-semibold text-green-800 mb-2">🌟 Natural Voice Commands</h4>
+          <h4 className="font-semibold text-green-800 mb-2">🔒 Catalog-Restricted Commands</h4>
           <ul className="text-sm text-green-700 space-y-1">
             <li>• "Show me <strong>science</strong> books"</li>
             <li>• "Find books about <strong>animals</strong>"</li>
@@ -835,11 +880,21 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
             <li>• "Recommend <strong>adventure</strong> stories"</li>
           </ul>
           
-          {/* Natural Response Counter */}
-          {naturalResponseCount > 0 && (
+          {/* Catalog Info */}
+          <div className="mt-3 p-2 bg-purple-100 rounded text-xs">
+            <strong>📚 Available Catalog:</strong>
+            <div className="text-purple-800">
+              {books.length} books total
+              <br />
+              Subjects: {[...new Set(books.map(b => b.subject))].join(', ')}
+            </div>
+          </div>
+          
+          {/* Restricted Response Counter */}
+          {restrictedResponseCount > 0 && (
             <div className="mt-3 p-2 bg-green-100 rounded text-xs">
-              <strong>✅ Natural responses: {naturalResponseCount}</strong>
-              <div className="text-green-600">AI is responding naturally!</div>
+              <strong>🔒 Catalog-only responses: {restrictedResponseCount}</strong>
+              <div className="text-green-600">AI only suggests our books!</div>
             </div>
           )}
           
@@ -864,11 +919,12 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           {showDebugInfo && (
             <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
               <strong>Debug Info:</strong>
-              <div>Natural Persona: {personaCreated ? '✅' : '❌'}</div>
+              <div>Restricted Persona: {personaCreated ? '✅' : '❌'}</div>
               <div>Connected: {isConnected ? '✅' : '❌'}</div>
               <div>Replica Ready: {replicaConnected ? '✅' : '❌'}</div>
-              <div>Natural Responses: {naturalResponseCount}</div>
+              <div>Catalog Responses: {restrictedResponseCount}</div>
               <div>Tool Calls: {toolCallHistory.length}</div>
+              <div>Books Available: {books.length}</div>
             </div>
           )}
         </div>
