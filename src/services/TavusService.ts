@@ -83,8 +83,26 @@ export class TavusService {
 
     const personaData: CreatePersonaRequest = {
       persona_name: "Library Assistant",
-      system_prompt: "You are a helpful library assistant that helps users find books. You can filter books by subject, difficulty level, age range, and search terms. When a user asks for book recommendations or wants to filter books, use the appropriate tools to help them. Be friendly, patient, and especially helpful to users with accessibility needs.",
-      context: "You are helping users navigate a digital library with various books for different subjects, age groups, and difficulty levels. The library contains books for STORY, MATHS, SCIENCE, SPORTS, HISTORY, GEOGRAPHY, ART, and MUSIC subjects.",
+      system_prompt: `You are a helpful library assistant that MUST use the provided tools to help users find books. 
+
+CRITICAL INSTRUCTIONS:
+- When users mention ANY subject (story, science, math, animals, etc.), IMMEDIATELY call filter_books_by_subject
+- When users mention difficulty (easy, hard, beginner, advanced), IMMEDIATELY call filter_books_by_difficulty  
+- When users mention age (for kids, 8-year-olds, etc.), IMMEDIATELY call filter_books_by_age
+- When users ask for recommendations or mention interests, IMMEDIATELY call recommend_books
+- When users mention specific titles or authors, IMMEDIATELY call search_books
+
+ALWAYS use tools - don't just talk about books, actually filter and find them using the functions provided.
+
+Examples:
+- User says "storybooks" → Call filter_books_by_subject with subject="STORY"
+- User says "science books" → Call filter_books_by_subject with subject="SCIENCE"  
+- User says "books about animals" → Call search_books with searchTerm="animals"
+- User says "easy books" → Call filter_books_by_difficulty with difficulty="beginner"
+- User says "for 8 year olds" → Call filter_books_by_age with minAge=7, maxAge=9`,
+      
+      context: "You are helping users navigate a digital library. You MUST use the provided tools to actually filter and find books. The library contains books for STORY, MATHS, SCIENCE, SPORTS, HISTORY, GEOGRAPHY, ART, and MUSIC subjects.",
+      
       layers: {
         llm: {
           model: "tavus-llama",
@@ -93,13 +111,13 @@ export class TavusService {
               type: "function",
               function: {
                 name: "filter_books_by_subject",
-                description: "Filter books by subject category",
+                description: "REQUIRED: Filter books by subject category when user mentions any subject",
                 parameters: {
                   type: "object",
                   properties: {
                     subject: {
                       type: "string",
-                      description: "The subject to filter by (STORY, MATHS, SCIENCE, SPORTS, HISTORY, GEOGRAPHY, ART, MUSIC, or ALL)",
+                      description: "The subject to filter by",
                       enum: ["STORY", "MATHS", "SCIENCE", "SPORTS", "HISTORY", "GEOGRAPHY", "ART", "MUSIC", "ALL"]
                     }
                   },
@@ -111,7 +129,7 @@ export class TavusService {
               type: "function",
               function: {
                 name: "filter_books_by_difficulty",
-                description: "Filter books by difficulty level",
+                description: "REQUIRED: Filter books by difficulty level when user mentions difficulty",
                 parameters: {
                   type: "object",
                   properties: {
@@ -129,7 +147,7 @@ export class TavusService {
               type: "function",
               function: {
                 name: "search_books",
-                description: "Search books by title, author, or description",
+                description: "REQUIRED: Search books by title, author, or description when user mentions specific topics",
                 parameters: {
                   type: "object",
                   properties: {
@@ -146,7 +164,7 @@ export class TavusService {
               type: "function",
               function: {
                 name: "filter_books_by_age",
-                description: "Filter books by age range",
+                description: "REQUIRED: Filter books by age range when user mentions age",
                 parameters: {
                   type: "object",
                   properties: {
@@ -167,7 +185,7 @@ export class TavusService {
               type: "function",
               function: {
                 name: "recommend_books",
-                description: "Recommend books based on user preferences",
+                description: "REQUIRED: Recommend books based on user preferences",
                 parameters: {
                   type: "object",
                   properties: {
@@ -241,8 +259,19 @@ export class TavusService {
       replica_id: this.getReplicaId(),
       persona_id: this.getLibraryPersonaId() || this.getPersonaId(),
       conversation_name: "Library Assistant Chat",
-      conversational_context: "The user is browsing a digital library and may need help finding books that match their interests, age, or difficulty level. Be especially helpful to users with accessibility needs.",
-      custom_greeting: "Hello! I'm your library assistant. I can help you find books by subject, difficulty level, age range, or any specific interests you have. What kind of books are you looking for today?",
+      conversational_context: `You are a library assistant that MUST use the provided tools to help users find books. 
+
+CRITICAL: When users mention subjects, difficulties, ages, or interests, you MUST call the appropriate function:
+- "storybooks" or "stories" → filter_books_by_subject(subject="STORY")
+- "science books" → filter_books_by_subject(subject="SCIENCE")
+- "animals" or "rabbits" → search_books(searchTerm="animals" or "rabbits")
+- "easy books" → filter_books_by_difficulty(difficulty="beginner")
+- "for kids" → filter_books_by_age(minAge=3, maxAge=12)
+
+Always use the tools - don't just talk about books, actually find them!`,
+      
+      custom_greeting: "Hello! I'm your library assistant. I can help you find books by filtering them for you. Try saying 'Show me science books' or 'Find books about animals' and I'll search our library for you!",
+      
       properties: {
         max_call_duration: 1800, // 30 minutes
         participant_left_timeout: 300,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageCircle, X, Mic, MicOff, Video, VideoOff, Loader, AlertTriangle, Minimize2, Maximize2, Volume2, VolumeX } from 'lucide-react';
+import { MessageCircle, X, Mic, MicOff, Video, VideoOff, Loader, AlertTriangle, Minimize2, Maximize2, Volume2, VolumeX, Settings, RefreshCw } from 'lucide-react';
 import { Book as BookType } from '../types/Book';
 import { TavusService, TavusConversation } from '../services/TavusService';
 
@@ -38,6 +38,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const [connectionStatus, setConnectionStatus] = useState<string>('Ready to start');
   const [lastToolCall, setLastToolCall] = useState<string>('');
   const [toolCallHistory, setToolCallHistory] = useState<string[]>([]);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [personaCreated, setPersonaCreated] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const callObjectRef = useRef<any>(null);
@@ -105,6 +107,32 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
   };
 
+  const createPersonaFirst = async () => {
+    if (personaCreated) return;
+    
+    try {
+      setConnectionStatus('Creating AI persona with tools...');
+      console.log('🤖 Creating library persona with enhanced tool calling...');
+      
+      const persona = await TavusService.createLibraryPersona();
+      console.log('✅ Persona created:', persona);
+      
+      setPersonaCreated(true);
+      setConnectionStatus('Persona created! Now creating conversation...');
+      
+      // Store the persona ID for future use
+      if (persona.persona_id) {
+        console.log('📝 Store this persona ID in your .env as VITE_TAVUS_LIBRARY_PERSONA_ID:', persona.persona_id);
+      }
+      
+      return persona;
+    } catch (error) {
+      console.error('❌ Failed to create persona:', error);
+      setConnectionStatus('Failed to create AI persona');
+      throw error;
+    }
+  };
+
   const initializeAIAssistant = async () => {
     if (!TavusService.isConfigured()) {
       setError('Tavus not configured. Please check your environment variables.');
@@ -113,25 +141,32 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
     setIsConnecting(true);
     setError(null);
-    setConnectionStatus('Creating conversation...');
+    setConnectionStatus('Initializing AI assistant...');
 
     try {
-      console.log('Creating Tavus library conversation...');
+      // Step 1: Create persona if needed (this ensures tools are properly configured)
+      if (!TavusService.getLibraryPersonaId() && !personaCreated) {
+        await createPersonaFirst();
+      }
+
+      // Step 2: Create conversation
+      setConnectionStatus('Creating conversation...');
+      console.log('🎬 Creating Tavus library conversation...');
       const newConversation = await TavusService.createLibraryConversation();
-      console.log('Tavus conversation created:', newConversation);
+      console.log('✅ Tavus conversation created:', newConversation);
       
       setConversation(newConversation);
       conversationIdRef.current = newConversation.conversation_id;
       
       setConnectionStatus('Conversation created! Joining...');
       
-      // Auto-join the conversation
+      // Step 3: Join the conversation
       await joinConversation(newConversation.conversation_url);
 
     } catch (err: any) {
       setError(err.message || 'Failed to create conversation');
       setConnectionStatus('Failed to create conversation');
-      console.error('Error creating Tavus conversation:', err);
+      console.error('❌ Error creating Tavus conversation:', err);
     } finally {
       setIsConnecting(false);
     }
@@ -176,7 +211,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const setupEventListeners = () => {
     if (!callObjectRef.current) return;
 
-    console.log('🎧 Setting up event listeners for Tavus tool calls...');
+    console.log('🎧 Setting up ENHANCED event listeners for Tavus tool calls...');
 
     // Standard Daily.co events
     callObjectRef.current.on('participant-joined', (event: any) => {
@@ -215,8 +250,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       setReplicaConnected(false);
     });
 
-    // CRITICAL: Listen for Tavus tool call events
-    // According to Tavus docs, tool calls are broadcast over Daily's WebRTC data channel
+    // CRITICAL: Enhanced tool call event listeners
     
     // Primary event listener for app messages (tool calls)
     callObjectRef.current.on('app-message', (event: any) => {
@@ -234,23 +268,32 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     callObjectRef.current.on('track-started', (event: any) => {
       console.log('🎬 Track started:', event);
       if (event.track && event.track.kind === 'video') {
-        // This might be the replica video starting
         updateReplicaVideo();
       }
     });
 
-    // Listen for any custom events that Tavus might send
-    callObjectRef.current.on('*', (eventName: string, event: any) => {
-      if (eventName.includes('tool') || eventName.includes('function') || eventName.includes('call')) {
-        console.log(`🔧 Potential tool call event (${eventName}):`, event);
-        handleTavusEvent(event);
-      }
-    });
-
-    // Also listen for data channel messages directly
+    // Listen for data channel messages directly
     callObjectRef.current.on('receive-data', (event: any) => {
       console.log('📡 Data channel message:', event);
       handleTavusEvent(event);
+    });
+
+    // Listen for ANY event that might contain tool calls
+    callObjectRef.current.on('*', (eventName: string, event: any) => {
+      // Log all events to see what we're getting
+      if (showDebugInfo) {
+        console.log(`🔍 Event: ${eventName}`, event);
+      }
+      
+      // Check for tool-related events
+      if (eventName.includes('tool') || 
+          eventName.includes('function') || 
+          eventName.includes('call') ||
+          eventName.includes('llm') ||
+          eventName.includes('ai')) {
+        console.log(`🔧 Potential tool call event (${eventName}):`, event);
+        handleTavusEvent(event);
+      }
     });
   };
 
@@ -281,14 +324,56 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         toolCallData = extractToolCallFromData(event.message);
       }
 
+      // Method 5: Check for conversation events with tool calls
+      if (!toolCallData && event.data && event.data.event_type) {
+        if (event.data.event_type.includes('tool') || 
+            event.data.event_type.includes('function') ||
+            event.data.event_type === 'conversation.llm.function_call') {
+          toolCallData = extractToolCallFromData(event.data);
+        }
+      }
+
       if (toolCallData) {
         console.log('✅ Tool call extracted:', toolCallData);
         executeToolCall(toolCallData);
       } else {
         console.log('❌ No tool call data found in event');
+        
+        // Special handling for conversation utterances - try to trigger manual tool calls
+        if (event.data && event.data.event_type === 'conversation.utterance' && 
+            event.data.properties && event.data.properties.role === 'user') {
+          const userSpeech = event.data.properties.speech;
+          console.log('👤 User said:', userSpeech);
+          
+          // Try to manually trigger tool calls based on user speech
+          tryManualToolCall(userSpeech);
+        }
       }
     } catch (error) {
       console.error('Error processing Tavus event:', error);
+    }
+  };
+
+  const tryManualToolCall = (userSpeech: string) => {
+    const speech = userSpeech.toLowerCase();
+    console.log('🔧 Attempting manual tool call for:', speech);
+    
+    // Manual tool call triggers based on speech patterns
+    if (speech.includes('story') || speech.includes('stories')) {
+      console.log('📚 Manual trigger: filter by STORY');
+      executeToolCall({ function_name: 'filter_books_by_subject', arguments: { subject: 'STORY' } });
+    } else if (speech.includes('science')) {
+      console.log('🔬 Manual trigger: filter by SCIENCE');
+      executeToolCall({ function_name: 'filter_books_by_subject', arguments: { subject: 'SCIENCE' } });
+    } else if (speech.includes('math')) {
+      console.log('🔢 Manual trigger: filter by MATHS');
+      executeToolCall({ function_name: 'filter_books_by_subject', arguments: { subject: 'MATHS' } });
+    } else if (speech.includes('animal') || speech.includes('rabbit')) {
+      console.log('🐰 Manual trigger: search for animals');
+      executeToolCall({ function_name: 'search_books', arguments: { searchTerm: 'animals' } });
+    } else if (speech.includes('easy') || speech.includes('beginner')) {
+      console.log('📖 Manual trigger: filter by beginner');
+      executeToolCall({ function_name: 'filter_books_by_difficulty', arguments: { difficulty: 'beginner' } });
     }
   };
 
@@ -325,7 +410,9 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
 
     // Check for conversation event structure
-    if (data.event_type === 'conversation.toolcall' || data.message_type === 'conversation') {
+    if (data.event_type === 'conversation.toolcall' || 
+        data.event_type === 'conversation.llm.function_call' ||
+        data.message_type === 'conversation') {
       if (data.properties) {
         return extractToolCallFromData(data.properties);
       }
@@ -365,19 +452,19 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         case 'filter_books_by_subject':
           console.log('📚 Filtering by subject:', args.subject);
           onFilterChange({ selectedSubject: args.subject });
-          setConnectionStatus(`Filtered by subject: ${args.subject}`);
+          setConnectionStatus(`✅ Filtered by subject: ${args.subject}`);
           break;
           
         case 'filter_books_by_difficulty':
           console.log('📊 Filtering by difficulty:', args.difficulty);
           onFilterChange({ selectedDifficulty: args.difficulty });
-          setConnectionStatus(`Filtered by difficulty: ${args.difficulty}`);
+          setConnectionStatus(`✅ Filtered by difficulty: ${args.difficulty}`);
           break;
           
         case 'search_books':
           console.log('🔍 Searching books:', args.searchTerm);
           onFilterChange({ searchTerm: args.searchTerm });
-          setConnectionStatus(`Searching for: ${args.searchTerm}`);
+          setConnectionStatus(`✅ Searching for: ${args.searchTerm}`);
           break;
           
         case 'filter_books_by_age':
@@ -385,23 +472,23 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           onFilterChange({ 
             ageRange: { min: args.minAge, max: args.maxAge } 
           });
-          setConnectionStatus(`Filtered by age: ${args.minAge}-${args.maxAge}`);
+          setConnectionStatus(`✅ Filtered by age: ${args.minAge}-${args.maxAge}`);
           break;
           
         case 'recommend_books':
           console.log('💡 Recommending books for:', args.preferences);
           const recommendedBooks = getRecommendedBooks(args.preferences);
           onBookRecommendation(recommendedBooks);
-          setConnectionStatus(`Recommended ${recommendedBooks.length} books`);
+          setConnectionStatus(`✅ Recommended ${recommendedBooks.length} books`);
           break;
           
         default:
           console.log('❓ Unknown tool call:', function_name);
-          setConnectionStatus(`Unknown action: ${function_name}`);
+          setConnectionStatus(`❓ Unknown action: ${function_name}`);
       }
     } catch (error) {
       console.error('Error executing tool call:', error);
-      setConnectionStatus('Error executing action');
+      setConnectionStatus('❌ Error executing action');
     }
   };
 
@@ -421,7 +508,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         if (videoPlayable && audioPlayable) {
           hasWorkingAudioVideo = true;
           setReplicaConnected(true);
-          setConnectionStatus('Library assistant ready! Try saying "Show me science books"');
+          setConnectionStatus('🤖 Library assistant ready! Try: "Show me science books"');
           setIsConnecting(false);
         }
 
@@ -529,6 +616,14 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
   };
 
+  const restartConversation = async () => {
+    await cleanupConversation();
+    setPersonaCreated(false); // Force persona recreation
+    setTimeout(() => {
+      initializeAIAssistant();
+    }, 1000);
+  };
+
   if (!TavusService.isConfigured()) {
     return (
       <div className="fixed bottom-6 right-6 z-50">
@@ -591,6 +686,20 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setShowDebugInfo(!showDebugInfo)} 
+                      className="text-white hover:text-gray-200 transition-colors p-1 rounded-full" 
+                      title="Toggle debug info"
+                    >
+                      <Settings size={14} />
+                    </button>
+                    <button 
+                      onClick={restartConversation} 
+                      className="text-white hover:text-gray-200 transition-colors p-1 rounded-full" 
+                      title="Restart conversation"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
                     {isConnected && (
                       <>
                         <button onClick={toggleMute} className="text-white hover:text-gray-200 transition-colors p-1 rounded-full" title={isMuted ? 'Unmute' : 'Mute'}>
@@ -633,7 +742,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                       <div className="text-center text-white">
                         <Loader size={32} className="animate-spin mx-auto mb-3 text-purple-400" />
                         <p className="text-sm">{connectionStatus}</p>
-                        <p className="text-xs text-gray-300 mt-1">Setting up your library assistant</p>
+                        <p className="text-xs text-gray-300 mt-1">Setting up enhanced tool calling</p>
                       </div>
                     </div>
                   ) : isConnected ? (
@@ -657,7 +766,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                         </div>
                       )}
 
-                      {/* Debug info for tool calls */}
+                      {/* Enhanced tool call feedback */}
                       {lastToolCall && (
                         <div className="absolute bottom-2 left-2 bg-green-600/90 text-white text-xs px-2 py-1 rounded max-w-xs">
                           ✅ {lastToolCall}
@@ -669,12 +778,12 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                       <div className="text-center text-white">
                         <Video size={32} className="text-purple-400 mx-auto mb-3" />
                         <p className="text-sm mb-2">Start a conversation with your library assistant!</p>
-                        <p className="text-xs text-gray-300 mb-3">Ask for book recommendations or help finding specific topics</p>
+                        <p className="text-xs text-gray-300 mb-3">Enhanced with tool calling for book filtering</p>
                         <button
                           onClick={initializeAIAssistant}
                           className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
                         >
-                          Start Assistant
+                          Start Enhanced Assistant
                         </button>
                       </div>
                     </div>
@@ -691,16 +800,16 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         )}
       </div>
 
-      {/* Enhanced Accessibility Instructions */}
+      {/* Enhanced Instructions Panel */}
       {isOpen && replicaConnected && (
         <div className="fixed bottom-6 left-6 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-sm z-40">
-          <h4 className="font-semibold text-blue-800 mb-2">🎯 Voice Commands</h4>
+          <h4 className="font-semibold text-blue-800 mb-2">🎯 Enhanced Voice Commands</h4>
           <ul className="text-sm text-blue-700 space-y-1">
-            <li>• "Show me science books"</li>
-            <li>• "Find books for 8-year-olds"</li>
-            <li>• "I want beginner level books"</li>
-            <li>• "Recommend adventure stories"</li>
-            <li>• "Search for books about animals"</li>
+            <li>• "Show me <strong>science</strong> books"</li>
+            <li>• "Find books about <strong>animals</strong>"</li>
+            <li>• "I want <strong>beginner</strong> level books"</li>
+            <li>• "Books for <strong>8-year-olds</strong>"</li>
+            <li>• "Recommend <strong>adventure</strong> stories"</li>
           </ul>
           
           {/* Tool Call History */}
@@ -719,6 +828,17 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           <div className="mt-2 text-xs text-blue-600">
             Status: {connectionStatus}
           </div>
+
+          {/* Debug Info */}
+          {showDebugInfo && (
+            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+              <strong>Debug Info:</strong>
+              <div>Persona Created: {personaCreated ? '✅' : '❌'}</div>
+              <div>Connected: {isConnected ? '✅' : '❌'}</div>
+              <div>Replica Ready: {replicaConnected ? '✅' : '❌'}</div>
+              <div>Tool Calls: {toolCallHistory.length}</div>
+            </div>
+          )}
         </div>
       )}
     </>
