@@ -37,6 +37,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const [replicaConnected, setReplicaConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('Ready to start');
   const [lastToolCall, setLastToolCall] = useState<string>('');
+  const [toolCallHistory, setToolCallHistory] = useState<string[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const callObjectRef = useRef<any>(null);
@@ -44,13 +45,26 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
   // Load Daily.co script
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@daily-co/daily-js';
-    script.async = true;
-    document.body.appendChild(script);
+    const loadDailyScript = () => {
+      return new Promise((resolve, reject) => {
+        if (window.Daily) {
+          resolve(window.Daily);
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@daily-co/daily-js';
+        script.async = true;
+        script.onload = () => resolve(window.Daily);
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    };
+
+    loadDailyScript().catch(console.error);
 
     return () => {
-      document.body.removeChild(script);
+      // Cleanup is handled in the main cleanup function
     };
   }, []);
 
@@ -134,7 +148,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       // Create Daily call object
       callObjectRef.current = window.Daily.createCallObject();
 
-      // Set up event listeners
+      // Set up event listeners BEFORE joining
       setupEventListeners();
 
       // Join with user camera OFF and audio ON
@@ -162,6 +176,9 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const setupEventListeners = () => {
     if (!callObjectRef.current) return;
 
+    console.log('🎧 Setting up event listeners for Tavus tool calls...');
+
+    // Standard Daily.co events
     callObjectRef.current.on('participant-joined', (event: any) => {
       console.log('Participant joined:', event);
       updateReplicaVideo();
@@ -198,21 +215,194 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       setReplicaConnected(false);
     });
 
-    // Listen for AI tool calls - Updated to handle Tavus events properly
+    // CRITICAL: Listen for Tavus tool call events
+    // According to Tavus docs, tool calls are broadcast over Daily's WebRTC data channel
+    
+    // Primary event listener for app messages (tool calls)
     callObjectRef.current.on('app-message', (event: any) => {
-      console.log('Raw app-message event:', event);
-      handleAIToolCall(event);
+      console.log('📨 App message received:', event);
+      handleTavusEvent(event);
     });
 
-    // Also listen for track-started events which might contain tool calls
-    callObjectRef.current.on('track-started', (event: any) => {
-      console.log('Track started event:', event);
-    });
-
-    // Listen for custom events that Tavus might send
+    // Listen for receive-settings events (alternative event type)
     callObjectRef.current.on('receive-settings', (event: any) => {
-      console.log('Receive settings event:', event);
+      console.log('⚙️ Receive settings event:', event);
+      handleTavusEvent(event);
     });
+
+    // Listen for track-started events which might contain metadata
+    callObjectRef.current.on('track-started', (event: any) => {
+      console.log('🎬 Track started:', event);
+      if (event.track && event.track.kind === 'video') {
+        // This might be the replica video starting
+        updateReplicaVideo();
+      }
+    });
+
+    // Listen for any custom events that Tavus might send
+    callObjectRef.current.on('*', (eventName: string, event: any) => {
+      if (eventName.includes('tool') || eventName.includes('function') || eventName.includes('call')) {
+        console.log(`🔧 Potential tool call event (${eventName}):`, event);
+        handleTavusEvent(event);
+      }
+    });
+
+    // Also listen for data channel messages directly
+    callObjectRef.current.on('receive-data', (event: any) => {
+      console.log('📡 Data channel message:', event);
+      handleTavusEvent(event);
+    });
+  };
+
+  const handleTavusEvent = (event: any) => {
+    console.log('🔍 Processing Tavus event:', JSON.stringify(event, null, 2));
+    
+    // Try multiple ways to extract tool call data from the event
+    let toolCallData = null;
+    
+    try {
+      // Method 1: Direct event data
+      if (event.data) {
+        toolCallData = extractToolCallFromData(event.data);
+      }
+      
+      // Method 2: Event itself might be the tool call
+      if (!toolCallData) {
+        toolCallData = extractToolCallFromData(event);
+      }
+      
+      // Method 3: Check for nested structures
+      if (!toolCallData && event.payload) {
+        toolCallData = extractToolCallFromData(event.payload);
+      }
+      
+      // Method 4: Check for message content
+      if (!toolCallData && event.message) {
+        toolCallData = extractToolCallFromData(event.message);
+      }
+
+      if (toolCallData) {
+        console.log('✅ Tool call extracted:', toolCallData);
+        executeToolCall(toolCallData);
+      } else {
+        console.log('❌ No tool call data found in event');
+      }
+    } catch (error) {
+      console.error('Error processing Tavus event:', error);
+    }
+  };
+
+  const extractToolCallFromData = (data: any): any => {
+    if (!data) return null;
+
+    // Check for direct function call structure
+    if (data.function_name && data.arguments) {
+      return {
+        function_name: data.function_name,
+        arguments: data.arguments
+      };
+    }
+
+    // Check for properties nested structure
+    if (data.properties && data.properties.function_name) {
+      return {
+        function_name: data.properties.function_name,
+        arguments: data.properties.arguments
+      };
+    }
+
+    // Check for OpenAI-style tool_calls array
+    if (data.tool_calls && Array.isArray(data.tool_calls) && data.tool_calls.length > 0) {
+      const toolCall = data.tool_calls[0];
+      if (toolCall.function) {
+        return {
+          function_name: toolCall.function.name,
+          arguments: typeof toolCall.function.arguments === 'string' 
+            ? JSON.parse(toolCall.function.arguments) 
+            : toolCall.function.arguments
+        };
+      }
+    }
+
+    // Check for conversation event structure
+    if (data.event_type === 'conversation.toolcall' || data.message_type === 'conversation') {
+      if (data.properties) {
+        return extractToolCallFromData(data.properties);
+      }
+    }
+
+    // Check for function call in choices (GPT-style response)
+    if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+      const choice = data.choices[0];
+      if (choice.message && choice.message.tool_calls) {
+        return extractToolCallFromData({ tool_calls: choice.message.tool_calls });
+      }
+    }
+
+    // Check for direct function structure
+    if (data.function && data.function.name) {
+      return {
+        function_name: data.function.name,
+        arguments: typeof data.function.arguments === 'string' 
+          ? JSON.parse(data.function.arguments) 
+          : data.function.arguments
+      };
+    }
+
+    return null;
+  };
+
+  const executeToolCall = (toolCallData: any) => {
+    const { function_name, arguments: args } = toolCallData;
+    console.log('🚀 Executing tool call:', function_name, 'with args:', args);
+    
+    const toolCallString = `${function_name}(${JSON.stringify(args)})`;
+    setLastToolCall(toolCallString);
+    setToolCallHistory(prev => [...prev.slice(-4), toolCallString]); // Keep last 5 calls
+
+    try {
+      switch (function_name) {
+        case 'filter_books_by_subject':
+          console.log('📚 Filtering by subject:', args.subject);
+          onFilterChange({ selectedSubject: args.subject });
+          setConnectionStatus(`Filtered by subject: ${args.subject}`);
+          break;
+          
+        case 'filter_books_by_difficulty':
+          console.log('📊 Filtering by difficulty:', args.difficulty);
+          onFilterChange({ selectedDifficulty: args.difficulty });
+          setConnectionStatus(`Filtered by difficulty: ${args.difficulty}`);
+          break;
+          
+        case 'search_books':
+          console.log('🔍 Searching books:', args.searchTerm);
+          onFilterChange({ searchTerm: args.searchTerm });
+          setConnectionStatus(`Searching for: ${args.searchTerm}`);
+          break;
+          
+        case 'filter_books_by_age':
+          console.log('👶 Filtering by age:', args.minAge, '-', args.maxAge);
+          onFilterChange({ 
+            ageRange: { min: args.minAge, max: args.maxAge } 
+          });
+          setConnectionStatus(`Filtered by age: ${args.minAge}-${args.maxAge}`);
+          break;
+          
+        case 'recommend_books':
+          console.log('💡 Recommending books for:', args.preferences);
+          const recommendedBooks = getRecommendedBooks(args.preferences);
+          onBookRecommendation(recommendedBooks);
+          setConnectionStatus(`Recommended ${recommendedBooks.length} books`);
+          break;
+          
+        default:
+          console.log('❓ Unknown tool call:', function_name);
+          setConnectionStatus(`Unknown action: ${function_name}`);
+      }
+    } catch (error) {
+      console.error('Error executing tool call:', error);
+      setConnectionStatus('Error executing action');
+    }
   };
 
   const updateReplicaVideo = () => {
@@ -231,7 +421,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         if (videoPlayable && audioPlayable) {
           hasWorkingAudioVideo = true;
           setReplicaConnected(true);
-          setConnectionStatus('Library assistant connected!');
+          setConnectionStatus('Library assistant ready! Try saying "Show me science books"');
           setIsConnecting(false);
         }
 
@@ -295,105 +485,6 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
   };
 
-  const handleAIToolCall = (event: any) => {
-    console.log('🔧 AI Tool Call Event received:', JSON.stringify(event, null, 2));
-    
-    // Handle different possible event structures from Tavus
-    let toolCallData = null;
-    
-    // Check for direct tool call in event data
-    if (event.data) {
-      // Case 1: Direct tool call data
-      if (event.data.function_name && event.data.arguments) {
-        toolCallData = {
-          function_name: event.data.function_name,
-          arguments: event.data.arguments
-        };
-      }
-      // Case 2: Nested in properties
-      else if (event.data.properties && event.data.properties.function_name) {
-        toolCallData = {
-          function_name: event.data.properties.function_name,
-          arguments: event.data.properties.arguments
-        };
-      }
-      // Case 3: Tool call event type
-      else if (event.data.event_type === 'conversation.toolcall' || event.data.message_type === 'conversation') {
-        if (event.data.properties) {
-          toolCallData = {
-            function_name: event.data.properties.function_name,
-            arguments: event.data.properties.arguments
-          };
-        }
-      }
-      // Case 4: Check for tool_calls array (OpenAI format)
-      else if (event.data.tool_calls && Array.isArray(event.data.tool_calls)) {
-        const toolCall = event.data.tool_calls[0];
-        if (toolCall && toolCall.function) {
-          toolCallData = {
-            function_name: toolCall.function.name,
-            arguments: typeof toolCall.function.arguments === 'string' 
-              ? JSON.parse(toolCall.function.arguments) 
-              : toolCall.function.arguments
-          };
-        }
-      }
-    }
-    
-    // Also check if the event itself has the tool call structure
-    if (!toolCallData && event.function_name) {
-      toolCallData = {
-        function_name: event.function_name,
-        arguments: event.arguments
-      };
-    }
-
-    if (toolCallData) {
-      const { function_name, arguments: args } = toolCallData;
-      console.log('🎯 Processing tool call:', function_name, 'with args:', args);
-      setLastToolCall(`${function_name}(${JSON.stringify(args)})`);
-
-      try {
-        switch (function_name) {
-          case 'filter_books_by_subject':
-            console.log('📚 Filtering by subject:', args.subject);
-            onFilterChange({ selectedSubject: args.subject });
-            break;
-            
-          case 'filter_books_by_difficulty':
-            console.log('📊 Filtering by difficulty:', args.difficulty);
-            onFilterChange({ selectedDifficulty: args.difficulty });
-            break;
-            
-          case 'search_books':
-            console.log('🔍 Searching books:', args.searchTerm);
-            onFilterChange({ searchTerm: args.searchTerm });
-            break;
-            
-          case 'filter_books_by_age':
-            console.log('👶 Filtering by age:', args.minAge, '-', args.maxAge);
-            onFilterChange({ 
-              ageRange: { min: args.minAge, max: args.maxAge } 
-            });
-            break;
-            
-          case 'recommend_books':
-            console.log('💡 Recommending books for:', args.preferences);
-            const recommendedBooks = getRecommendedBooks(args.preferences);
-            onBookRecommendation(recommendedBooks);
-            break;
-            
-          default:
-            console.log('❓ Unknown tool call:', function_name);
-        }
-      } catch (error) {
-        console.error('Error processing tool call:', error);
-      }
-    } else {
-      console.log('⚠️ No tool call data found in event');
-    }
-  };
-
   const getRecommendedBooks = (preferences: string): BookType[] => {
     const lowerPrefs = preferences.toLowerCase();
     
@@ -446,7 +537,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
             <AlertTriangle size={16} className="text-orange-600" />
             <div>
               <p className="text-orange-700 text-xs font-medium">AI Assistant not configured</p>
-              <p className="text-orange-600 text-xs">Add Tavus environment variables</p>
+              <p className="text-orange-600 text-xs">Add VITE_TAVUS_API_KEY and VITE_TAVUS_REPLICA_ID to .env</p>
             </div>
           </div>
         </div>
@@ -568,8 +659,8 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
                       {/* Debug info for tool calls */}
                       {lastToolCall && (
-                        <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded max-w-xs">
-                          Last action: {lastToolCall}
+                        <div className="absolute bottom-2 left-2 bg-green-600/90 text-white text-xs px-2 py-1 rounded max-w-xs">
+                          ✅ {lastToolCall}
                         </div>
                       )}
                     </>
@@ -600,7 +691,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         )}
       </div>
 
-      {/* Accessibility Instructions */}
+      {/* Enhanced Accessibility Instructions */}
       {isOpen && replicaConnected && (
         <div className="fixed bottom-6 left-6 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-sm z-40">
           <h4 className="font-semibold text-blue-800 mb-2">🎯 Voice Commands</h4>
@@ -611,11 +702,23 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
             <li>• "Recommend adventure stories"</li>
             <li>• "Search for books about animals"</li>
           </ul>
-          {lastToolCall && (
-            <div className="mt-2 p-2 bg-green-100 rounded text-xs">
-              <strong>Last action:</strong> {lastToolCall}
+          
+          {/* Tool Call History */}
+          {toolCallHistory.length > 0 && (
+            <div className="mt-3 p-2 bg-green-100 rounded text-xs">
+              <strong>Recent actions:</strong>
+              <div className="max-h-20 overflow-y-auto">
+                {toolCallHistory.slice(-3).map((call, index) => (
+                  <div key={index} className="text-green-800">✅ {call}</div>
+                ))}
+              </div>
             </div>
           )}
+          
+          {/* Current Status */}
+          <div className="mt-2 text-xs text-blue-600">
+            Status: {connectionStatus}
+          </div>
         </div>
       )}
     </>
