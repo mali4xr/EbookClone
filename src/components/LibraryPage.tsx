@@ -152,6 +152,20 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     }
   };
 
+  const getSubjectBorderColor = (subject: string) => {
+    switch (subject) {
+      case 'STORY': return 'border-purple-400';
+      case 'MATHS': return 'border-blue-400';
+      case 'SCIENCE': return 'border-green-400';
+      case 'SPORTS': return 'border-orange-400';
+      case 'HISTORY': return 'border-amber-400';
+      case 'GEOGRAPHY': return 'border-teal-400';
+      case 'ART': return 'border-pink-400';
+      case 'MUSIC': return 'border-indigo-400';
+      default: return 'border-gray-400';
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -439,7 +453,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 <img
                   src={book.thumbnail_url}
                   alt={book.title}
-                  className="w-full h-full object-cover cursor-pointer"
+                  className={`w-full h-full object-cover cursor-pointer border-4 ${getSubjectBorderColor(book.subject)} transition-all duration-300 hover:border-opacity-80`}
                   onClick={() => onSelectBook(book)}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
