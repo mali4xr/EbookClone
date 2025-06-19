@@ -113,7 +113,7 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
         conversational_context: TavusService.createStoryContext(pageContent, currentPage, totalPages),
         custom_greeting: TavusService.createCustomGreeting(pageContent, currentPage),
         properties: {
-          max_call_duration: 120, // 1 hour
+          max_call_duration: 120, // 2 minutes
           participant_left_timeout: 60,
           participant_absent_timeout: 60,
           enable_recording: false,
