@@ -44,19 +44,12 @@ const TavusConversationVideo = ({ pageContent, currentPage, totalPages }: TavusC
     };
   }, []);
 
-  // Clean up conversation when component unmounts or page changes
+  // Clean up conversation when component unmounts
   useEffect(() => {
     return () => {
       cleanupConversation();
     };
   }, []);
-
-  // End previous conversation when page changes
-  useEffect(() => {
-    if (conversation || isConnected) {
-      cleanupConversation();
-    }
-  }, [currentPage]);
 
   const cleanupConversation = async () => {
     try {
