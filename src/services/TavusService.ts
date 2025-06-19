@@ -29,6 +29,29 @@ export interface CreateConversationRequest {
   };
 }
 
+export interface CreatePersonaRequest {
+  persona_name: string;
+  system_prompt: string;
+  context: string;
+  layers: {
+    llm: {
+      model: string;
+      tools: Array<{
+        type: string;
+        function: {
+          name: string;
+          description: string;
+          parameters: {
+            type: string;
+            properties: Record<string, any>;
+            required: string[];
+          };
+        };
+      }>;
+    };
+  };
+}
+
 export class TavusService {
   private static readonly BASE_URL = 'https://tavusapi.com/v2';
   
@@ -44,8 +67,144 @@ export class TavusService {
     return import.meta.env.VITE_TAVUS_PERSONA_ID || '';
   }
 
+  static getLibraryPersonaId(): string {
+    return import.meta.env.VITE_TAVUS_LIBRARY_PERSONA_ID || '';
+  }
+
   static isConfigured(): boolean {
     return !!(this.getApiKey() && this.getReplicaId());
+  }
+
+  static async createLibraryPersona(): Promise<any> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('Tavus API key not configured');
+    }
+
+    const personaData: CreatePersonaRequest = {
+      persona_name: "Library Assistant",
+      system_prompt: "You are a helpful library assistant that helps users find books. You can filter books by subject, difficulty level, age range, and search terms. When a user asks for book recommendations or wants to filter books, use the appropriate tools to help them. Be friendly, patient, and especially helpful to users with accessibility needs.",
+      context: "You are helping users navigate a digital library with various books for different subjects, age groups, and difficulty levels. The library contains books for STORY, MATHS, SCIENCE, SPORTS, HISTORY, GEOGRAPHY, ART, and MUSIC subjects.",
+      layers: {
+        llm: {
+          model: "tavus-llama",
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "filter_books_by_subject",
+                description: "Filter books by subject category",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    subject: {
+                      type: "string",
+                      description: "The subject to filter by (STORY, MATHS, SCIENCE, SPORTS, HISTORY, GEOGRAPHY, ART, MUSIC, or ALL)",
+                      enum: ["STORY", "MATHS", "SCIENCE", "SPORTS", "HISTORY", "GEOGRAPHY", "ART", "MUSIC", "ALL"]
+                    }
+                  },
+                  required: ["subject"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "filter_books_by_difficulty",
+                description: "Filter books by difficulty level",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    difficulty: {
+                      type: "string",
+                      description: "The difficulty level to filter by",
+                      enum: ["beginner", "intermediate", "advanced", "ALL"]
+                    }
+                  },
+                  required: ["difficulty"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "search_books",
+                description: "Search books by title, author, or description",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    searchTerm: {
+                      type: "string",
+                      description: "The search term to look for in book titles, authors, or descriptions"
+                    }
+                  },
+                  required: ["searchTerm"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "filter_books_by_age",
+                description: "Filter books by age range",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    minAge: {
+                      type: "number",
+                      description: "Minimum age for the books"
+                    },
+                    maxAge: {
+                      type: "number",
+                      description: "Maximum age for the books"
+                    }
+                  },
+                  required: ["minAge", "maxAge"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "recommend_books",
+                description: "Recommend books based on user preferences",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    preferences: {
+                      type: "string",
+                      description: "User's preferences or interests"
+                    }
+                  },
+                  required: ["preferences"]
+                }
+              }
+            }
+          ]
+        }
+      }
+    };
+
+    try {
+      const response = await fetch(`${this.BASE_URL}/personas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey
+        },
+        body: JSON.stringify(personaData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Tavus API error: ${errorData.message || response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating library persona:', error);
+      throw error;
+    }
   }
 
   static async createConversation(request: CreateConversationRequest): Promise<TavusConversation> {
@@ -75,6 +234,27 @@ export class TavusService {
       console.error('Error creating Tavus conversation:', error);
       throw error;
     }
+  }
+
+  static async createLibraryConversation(): Promise<TavusConversation> {
+    const conversationRequest: CreateConversationRequest = {
+      replica_id: this.getReplicaId(),
+      persona_id: this.getLibraryPersonaId() || this.getPersonaId(),
+      conversation_name: "Library Assistant Chat",
+      conversational_context: "The user is browsing a digital library and may need help finding books that match their interests, age, or difficulty level. Be especially helpful to users with accessibility needs.",
+      custom_greeting: "Hello! I'm your library assistant. I can help you find books by subject, difficulty level, age range, or any specific interests you have. What kind of books are you looking for today?",
+      properties: {
+        max_call_duration: 1800, // 30 minutes
+        participant_left_timeout: 300,
+        participant_absent_timeout: 60,
+        enable_recording: false,
+        enable_closed_captions: true,
+        apply_greenscreen: false,
+        language: 'english'
+      }
+    };
+
+    return this.createConversation(conversationRequest);
   }
 
   static async getConversation(conversationId: string): Promise<TavusConversation> {
@@ -178,5 +358,3 @@ Be interactive and ask the child questions about what they think will happen nex
     return `Hello, I'm your teacher and I'm here to tell you a story, We're on page ${currentPage + 1} reading about ${character}. Are you ready?`;
   }
 }
-
-

@@ -4,6 +4,7 @@ import { BookService } from '../services/BookService';
 import { AuthService, User } from '../services/AuthService';
 import { Book as BookType, SUBJECT_COLORS, SUBJECT_ICONS } from '../types/Book';
 import AuthModal from './AuthModal';
+import LibraryAIAssistant from './LibraryAIAssistant';
 
 interface LibraryPageProps {
   onSelectBook: (book: BookType) => void;
@@ -38,6 +39,8 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [authConfigError, setAuthConfigError] = useState<string | null>(null);
+  const [recommendedBooks, setRecommendedBooks] = useState<BookType[]>([]);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
@@ -274,6 +277,32 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     setShowAuthModal(false);
+  };
+
+  // AI Assistant handlers
+  const handleAIFilterChange = (filters: {
+    searchTerm?: string;
+    selectedSubject?: string;
+    selectedDifficulty?: string;
+    ageRange?: { min: number; max: number };
+  }) => {
+    if (filters.searchTerm !== undefined) {
+      setSearchTerm(filters.searchTerm);
+    }
+    if (filters.selectedSubject !== undefined) {
+      setSelectedSubject(filters.selectedSubject);
+    }
+    if (filters.selectedDifficulty !== undefined) {
+      setSelectedDifficulty(filters.selectedDifficulty);
+    }
+    // Handle age range filtering if needed
+    console.log('AI Filter applied:', filters);
+  };
+
+  const handleBookRecommendation = (books: BookType[]) => {
+    setRecommendedBooks(books);
+    setShowRecommendations(true);
+    console.log('AI Recommendations:', books);
   };
 
   if (isCheckingAuth) {
@@ -550,12 +579,71 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
         )}
       </div>
 
+      {/* AI Assistant */}
+      <LibraryAIAssistant
+        books={books}
+        onFilterChange={handleAIFilterChange}
+        onBookRecommendation={handleBookRecommendation}
+      />
+
       {/* Auth Modal */}
       {showAuthModal && !authConfigError && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
         />
+      )}
+
+      {/* Recommendations Modal */}
+      {showRecommendations && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-800">🤖 AI Recommendations</h2>
+              <button 
+                onClick={() => setShowRecommendations(false)}
+                className="p-1 rounded-full hover:bg-gray-100"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recommendedBooks.map((book) => (
+                  <div
+                    key={book.id}
+                    className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors border-2 border-transparent hover:border-purple-300"
+                    onClick={() => {
+                      onSelectBook(book);
+                      setShowRecommendations(false);
+                    }}
+                  >
+                    <img
+                      src={book.thumbnail_url}
+                      alt={book.title}
+                      className={`w-full h-32 object-cover rounded mb-2 border-2 ${getSubjectBorderColor(book.subject)}`}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://via.placeholder.com/400x300?text=Book+Cover';
+                      }}
+                    />
+                    <h3 className="font-semibold text-sm mb-1">{book.title}</h3>
+                    <p className="text-xs text-gray-600">by {book.author}</p>
+                    <div className={`inline-block px-2 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r ${SUBJECT_COLORS[book.subject]} mt-2`}>
+                      {SUBJECT_ICONS[book.subject]} {book.subject}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {recommendedBooks.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No recommendations found. Try asking the AI assistant for specific topics!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add/Edit Book Modal */}
