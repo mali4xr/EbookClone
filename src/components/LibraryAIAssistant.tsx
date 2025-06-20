@@ -109,30 +109,15 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
   };
 
-  const createPersonaFirst = async () => {
-    if (personaCreated) return;
+  // No longer needed as we use existing persona from env
+  const checkLibraryPersona = () => {
+    const personaId = TavusService.getPersonaId();
+    // const defaultPersonaId = TavusService.getPersonaId();
     
-    try {
-      setConnectionStatus('Creating restricted AI persona...');
-      console.log('🤖 Creating restricted library persona with book catalog...');
-      
-      const persona = await TavusService.createLibraryPersona();
-      console.log('✅ Restricted persona created:', persona);
-      
-      setPersonaCreated(true);
-      setConnectionStatus('Restricted persona created! Now creating conversation...');
-      
-      // Store the persona ID for future use
-      if (persona.persona_id) {
-        console.log('📝 Store this persona ID in your .env as VITE_TAVUS_LIBRARY_PERSONA_ID:', persona.persona_id);
-      }
-      
-      return persona;
-    } catch (error) {
-      console.error('❌ Failed to create restricted persona:', error);
-      setConnectionStatus('Failed to create AI persona');
-      throw error;
+    if (!personaId ) {
+      throw new Error('No persona ID configured. Please set either VITE_TAVUS_LIBRARY_PERSONA_ID or VITE_TAVUS_PERSONA_ID in your .env');
     }
+    return true;
   };
 
   const initializeAIAssistant = async () => {
@@ -141,15 +126,18 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       return;
     }
 
+    // Set up conversation timers
+    const CONVERSATION_DURATION = 60000; // 1 minute
+    const WRAP_UP_TIME = 45000; // 45 seconds - earlier warning
+    const FINAL_WARNING_TIME = 55000; // 55 seconds - final warning
+
     setIsConnecting(true);
     setError(null);
-    setConnectionStatus('Initializing restricted AI assistant...');
+    setConnectionStatus('Initializing AI assistant...');
 
     try {
-      // Step 1: Create restricted persona if needed
-      if (!TavusService.getLibraryPersonaId() && !personaCreated) {
-        await createPersonaFirst();
-      }
+      // Step 1: Verify library persona exists
+      checkLibraryPersona();
 
       // Step 2: Create conversation with actual book catalog
       setConnectionStatus('Creating conversation with book catalog...');
@@ -157,7 +145,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       console.log('📚 Available books:', books.map(b => `${b.title} (${b.subject})`));
       
       const newConversation = await TavusService.createLibraryConversation(books);
-      console.log('✅ Restricted conversation created:', newConversation);
+      console.log('✅ conversation created:', newConversation);
       
       setConversation(newConversation);
       conversationIdRef.current = newConversation.conversation_id;
@@ -167,10 +155,73 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       // Step 3: Join the conversation
       await joinConversation(newConversation.conversation_url);
 
+      // First wrap-up attempt at 45 seconds
+      setTimeout(() => {
+        if (callObjectRef.current && conversationIdRef.current) {
+          console.log('🕐 Attempting to send first wrap-up instruction...');
+          console.log('📞 Call object exists:', !!callObjectRef.current);
+          console.log('🆔 Conversation ID:', conversationIdRef.current);
+          
+          const wrapUpInstruction = {
+            message_type: "conversation",
+            event_type: "conversation.respond",
+            conversation_id: conversationIdRef.current,
+            properties: {
+              text: "We have about 15 seconds left. Please start wrapping up your response."
+            }
+          };
+          
+          try {
+            const result = callObjectRef.current.sendAppMessage(wrapUpInstruction, '*');
+            console.log('✅ First wrap-up instruction sent successfully:', result);
+            // setConnectionStatus('⏰ 15 seconds remaining - wrapping up...');
+          } catch (error) {
+            console.error('❌ Failed to send first wrap-up instruction:', error);
+          }
+        } else {
+          console.log('❌ Cannot send wrap-up - missing call object or conversation ID');
+        }
+      }, WRAP_UP_TIME);
+
+      // Final warning at 55 seconds
+      setTimeout(() => {
+        if (callObjectRef.current && conversationIdRef.current) {
+          console.log('🕐 Attempting to send final warning...');
+          
+          const finalWarning = {
+            message_type: "conversation",
+            event_type: "conversation.respond",
+            conversation_id: conversationIdRef.current,
+            properties: {
+              text: "URGENT: You have 5 seconds left. Please end your response immediately with a polite goodbye."
+            }
+          };
+          
+          try {
+            const result = callObjectRef.current.sendAppMessage(finalWarning, '*');
+            console.log('✅ Final warning sent successfully:', result);
+            // setConnectionStatus('⏰ 5 seconds - ending conversation...');
+          } catch (error) {
+            console.error('❌ Failed to send final warning:', error);
+          }
+        }
+      },
+      //  FINAL_WARNING_TIME
+      );
+
+      // Hard termination at 60 seconds
+      setTimeout(() => {
+        if (conversationIdRef.current) {
+          console.log('⏰ Time limit reached - terminating conversation');
+          cleanupConversation();
+          setConnectionStatus('Conversation ended due to time limit');
+        }
+      }, CONVERSATION_DURATION);
+
     } catch (err: any) {
       setError(err.message || 'Failed to create conversation');
       setConnectionStatus('Failed to create conversation');
-      console.error('❌ Error creating restricted conversation:', err);
+      console.error('❌ Error creating conversation:', err);
     } finally {
       setIsConnecting(false);
     }
@@ -182,7 +233,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     }
 
     try {
-      setConnectionStatus('Joining restricted conversation...');
+      setConnectionStatus('Joining conversation...');
 
       // Create Daily call object
       callObjectRef.current = window.Daily.createCallObject();
@@ -202,7 +253,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       await callObjectRef.current.setLocalVideo(false);
       
       setIsConnected(true);
-      setConnectionStatus('Connected - waiting for restricted assistant...');
+      setConnectionStatus('Connected - waiting for Library  assistant...');
 
     } catch (error) {
       console.error('Failed to join conversation:', error);
@@ -298,6 +349,11 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const handleTavusEvent = (event: any) => {
     console.log('🔍 Processing Tavus event:', JSON.stringify(event, null, 2));
     
+    // Check for wrap-up related events
+    if (event.data && event.data.event_type === 'conversation.respond') {
+      console.log('📝 AI received wrap-up instruction');
+    }
+    
     // Track restricted conversation responses
     if (event.data && event.data.event_type === 'conversation.utterance' && 
         event.data.properties && event.data.properties.role === 'replica') {
@@ -321,7 +377,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       if (isNatural && !mentionsExternalBooks) {
         setNaturalResponseCount(prev => prev + 1);
         setRestrictedResponseCount(prev => prev + 1);
-        setConnectionStatus(`✅ Restricted response! Only our books mentioned (${restrictedResponseCount + 1})`);
+        // setConnectionStatus(`✅ Only our books mentioned (${restrictedResponseCount + 1})`);
       } else if (mentionsExternalBooks) {
         console.log('⚠️ AI mentioned books not in our catalog - this should not happen');
         setConnectionStatus('⚠️ AI mentioned external books - needs restriction improvement');
@@ -498,7 +554,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           );
           console.log('📊 Found', difficultyBooks.length, 'books for difficulty', args.difficulty);
           onFilterChange({ selectedDifficulty: args.difficulty });
-          setConnectionStatus(`✅ Showing ${difficultyBooks.length} ${args.difficulty} books from our catalog`);
+          setConnectionStatus(`✅ Showing ${difficultyBooks.length} ${args.difficulty} books`);
           break;
           
         case 'search_books':
@@ -510,7 +566,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           );
           console.log('🔍 Found', searchResults.length, 'books matching', args.searchTerm);
           onFilterChange({ searchTerm: args.searchTerm });
-          setConnectionStatus(`✅ Found ${searchResults.length} books matching "${args.searchTerm}" in our catalog`);
+          setConnectionStatus(`✅ Found ${searchResults.length} "${args.searchTerm}" books`);
           break;
           
         case 'filter_books_by_age':
@@ -522,7 +578,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           onFilterChange({ 
             ageRange: { min: args.minAge, max: args.maxAge } 
           });
-          setConnectionStatus(`✅ Showing ${ageBooks.length} books for ages ${args.minAge}-${args.maxAge} from our catalog`);
+          setConnectionStatus(`✅ Showing ${ageBooks.length} books for ages ${args.minAge}-${args.maxAge} `);
           break;
           
         case 'recommend_books':
@@ -530,7 +586,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           const recommendedBooks = getRecommendedBooks(args.preferences);
           console.log('💡 Found', recommendedBooks.length, 'recommendations for', args.preferences);
           onBookRecommendation(recommendedBooks);
-          setConnectionStatus(`✅ Found ${recommendedBooks.length} recommendations from our catalog`);
+          setConnectionStatus(`✅ Found ${recommendedBooks.length} recommendations`);
           break;
           
         default:
@@ -559,7 +615,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
         if (videoPlayable && audioPlayable) {
           hasWorkingAudioVideo = true;
           setReplicaConnected(true);
-          setConnectionStatus(`🔒 Restricted assistant ready! Only suggests books from our ${books.length} book catalog`);
+          setConnectionStatus(`🔒 Library assistant ready! we have ${books.length} books in our catalog`);
           setIsConnecting(false);
         }
 
@@ -705,7 +761,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
             onClick={handleOpen}
             disabled={isConnecting}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 disabled:opacity-50 group"
-            aria-label="Open Restricted AI Library Assistant"
+            aria-label="Open Library Assistant"
           >
             <div className="relative">
               {isConnecting ? (
@@ -733,7 +789,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                 <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
                   <div className="flex items-center gap-2">
                     <BookOpen size={16} />
-                    <span className="text-sm font-bold">Restricted Assistant</span>
+                    <span className="text-sm font-bold">Library Assistant</span>
                     {isConnected && (
                       <div className="flex items-center gap-1">
                         <div className={`w-2 h-2 rounded-full animate-pulse ${replicaConnected ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
@@ -822,36 +878,37 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
                         </div>
                       )}
 
-                      {/* Restricted response feedback */}
-                      {restrictedResponseCount > 0 && (
+                      {/* response feedback */}
+                      {/* {restrictedResponseCount > 0 && (
                         <div className="absolute top-2 left-2 bg-green-600/90 text-white text-xs px-2 py-1 rounded">
                           🔒 {restrictedResponseCount} catalog-only responses
                         </div>
-                      )}
+                      )} */}
 
                       {/* Tool call feedback */}
-                      {lastToolCall && (
+                      {/* {lastToolCall && (
                         <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded max-w-xs">
                           🔧 {lastToolCall}
                         </div>
-                      )}
+                      )} */}
 
                       {/* Book count indicator */}
-                      <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-xs px-2 py-1 rounded">
+                      {/* <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-xs px-2 py-1 rounded">
                         📚 {books.length} books available
-                      </div>
+                      </div> */}
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full p-4">
                       <div className="text-center text-white">
                         <BookOpen size={32} className="text-purple-400 mx-auto mb-3" />
-                        <p className="text-sm mb-2">Start a restricted conversation!</p>
-                        <p className="text-xs text-gray-300 mb-3">AI will only suggest books from our {books.length} book catalog</p>
+                        <p className="text-sm mb-2">Start conversation with interactive Library Assistant</p>
+                        {/* <p className="text-xs text-gray-300 mb-3">AI will only suggest books from our {books.length} book catalog</p> */}
+                        
                         <button
                           onClick={initializeAIAssistant}
                           className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 transition-colors"
                         >
-                          Start Restricted Assistant
+                          Start  Assistant
                         </button>
                       </div>
                     </div>

@@ -54,7 +54,7 @@ export interface CreatePersonaRequest {
 
 export class TavusService {
   private static readonly BASE_URL = 'https://tavusapi.com/v2';
-  
+
   static getApiKey(): string {
     return import.meta.env.VITE_TAVUS_API_KEY || '';
   }
@@ -67,185 +67,15 @@ export class TavusService {
     return import.meta.env.VITE_TAVUS_PERSONA_ID || '';
   }
 
-  static getLibraryPersonaId(): string {
-    return import.meta.env.VITE_TAVUS_LIBRARY_PERSONA_ID || '';
-  }
+  // static getLibraryPersonaId(): string {
+  //   return import.meta.env.VITE_TAVUS_LIBRARY_PERSONA_ID || '';
+  // }
 
   static isConfigured(): boolean {
     return !!(this.getApiKey() && this.getReplicaId());
   }
 
-  static async createLibraryPersona(): Promise<any> {
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error('Tavus API key not configured');
-    }
-
-    const personaData: CreatePersonaRequest = {
-      persona_name: "Restricted Library Assistant",
-      system_prompt: `You are a helpful library assistant who can ONLY recommend books that actually exist in this specific digital library. 
-
-CRITICAL RESTRICTIONS:
-1. NEVER mention books that are not in the current library catalog
-2. NEVER suggest "The Tale of Peter Rabbit", "The Runaway Bunny", or any other books unless they are actually available
-3. ONLY refer to books that exist in the provided book list
-4. If no books match a request, say "We don't have that type of book right now, but here's what we do have..."
-5. NEVER make up book titles, authors, or descriptions
-
-RESPONSE RULES:
-1. NEVER say function names like "filter_books_by_subject" or show JSON
-2. NEVER mention "calling functions" or "executing tools"
-3. Always respond naturally as if you're personally helping them
-4. When you use a tool, immediately give a natural response about the ACTUAL results found
-
-WHEN TO USE TOOLS:
-- User mentions subjects (story, science, math, etc.) → Use filter_books_by_subject
-- User mentions difficulty (easy, hard, beginner) → Use filter_books_by_difficulty  
-- User mentions age → Use filter_books_by_age
-- User asks for recommendations → Use recommend_books
-- User mentions specific topics → Use search_books
-
-NATURAL RESPONSE EXAMPLES:
-❌ BAD: "I'll call filter_books_by_subject with subject SCIENCE"
-✅ GOOD: "Let me check what science books we have available..." [then mention only actual books found]
-
-❌ BAD: "We have 'The Tale of Peter Rabbit'" (if it's not actually in the library)
-✅ GOOD: "I found [X number] of books about [topic]. Here are the ones we actually have..."
-
-❌ BAD: "filter_books_by_subject({"subject":"STORY"})"
-✅ GOOD: "Great! I found some wonderful storybooks in our collection!"
-
-CONVERSATION FLOW:
-1. Listen to what the user wants
-2. Use the appropriate tool silently to check what's ACTUALLY available
-3. Respond naturally about ONLY the books that were found
-4. If nothing matches, suggest alternatives from what IS available
-
-IMPORTANT: You can only recommend books that actually exist in this library's database. Never invent or suggest books that aren't in the current catalog.`,
-      
-      context: "You are a helpful library assistant in a digital library. You have access to a specific catalog of books and can ONLY recommend books that actually exist in this library. When users ask for books, use your tools to filter and find them from the actual available collection, but always respond naturally without mentioning the technical aspects. Never suggest books that don't exist in the current library database.",
-      
-      layers: {
-        llm: {
-          model: "tavus-llama",
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "filter_books_by_subject",
-                description: "Filter books by subject category from the ACTUAL library catalog. Only returns books that exist in the database. Use this when users mention any subject like science, math, stories, etc. After calling this, respond naturally about the ACTUAL books found.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    subject: {
-                      type: "string",
-                      description: "The subject to filter by from available books",
-                      enum: ["STORY", "MATHS", "SCIENCE", "SPORTS", "HISTORY", "GEOGRAPHY", "ART", "MUSIC", "ALL"]
-                    }
-                  },
-                  required: ["subject"]
-                }
-              }
-            },
-            {
-              type: "function",
-              function: {
-                name: "filter_books_by_difficulty",
-                description: "Filter books by difficulty level from the ACTUAL library catalog. Only returns books that exist. Use when users mention easy, hard, beginner, advanced, etc. Respond naturally about the ACTUAL difficulty levels found.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    difficulty: {
-                      type: "string",
-                      description: "The difficulty level to filter by from available books",
-                      enum: ["beginner", "intermediate", "advanced", "ALL"]
-                    }
-                  },
-                  required: ["difficulty"]
-                }
-              }
-            },
-            {
-              type: "function",
-              function: {
-                name: "search_books",
-                description: "Search books by title, author, or description from the ACTUAL library catalog. Only returns books that exist. Use when users mention specific topics, animals, characters, etc. Respond naturally about what was ACTUALLY found.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    searchTerm: {
-                      type: "string",
-                      description: "The search term to look for in ACTUAL book titles, authors, or descriptions"
-                    }
-                  },
-                  required: ["searchTerm"]
-                }
-              }
-            },
-            {
-              type: "function",
-              function: {
-                name: "filter_books_by_age",
-                description: "Filter books by age range from the ACTUAL library catalog. Only returns books that exist. Use when users mention ages like 'for kids', '8-year-olds', etc. Respond naturally about ACTUAL age-appropriate books found.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    minAge: {
-                      type: "number",
-                      description: "Minimum age for the books from available catalog"
-                    },
-                    maxAge: {
-                      type: "number",
-                      description: "Maximum age for the books from available catalog"
-                    }
-                  },
-                  required: ["minAge", "maxAge"]
-                }
-              }
-            },
-            {
-              type: "function",
-              function: {
-                name: "recommend_books",
-                description: "Recommend books based on user preferences from the ACTUAL library catalog. Only returns books that exist. Use when users ask for recommendations or mention interests. Respond naturally about the ACTUAL recommendations found.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    preferences: {
-                      type: "string",
-                      description: "User's preferences or interests to match against ACTUAL available books"
-                    }
-                  },
-                  required: ["preferences"]
-                }
-              }
-            }
-          ]
-        }
-      }
-    };
-
-    try {
-      const response = await fetch(`${this.BASE_URL}/personas`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey
-        },
-        body: JSON.stringify(personaData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Tavus API error: ${errorData.message || response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error creating library persona:', error);
-      throw error;
-    }
-  }
+  // Persona creation is now handled externally and persona ID is stored in env
 
   static async createConversation(request: CreateConversationRequest): Promise<TavusConversation> {
     const apiKey = this.getApiKey();
@@ -277,7 +107,7 @@ IMPORTANT: You can only recommend books that actually exist in this library's da
   }
 
   static createLibraryConversationContext(availableBooks: any[]): string {
-    const bookList = availableBooks.map(book => 
+    const bookList = availableBooks.map(book =>
       `- "${book.title}" by ${book.author} (${book.subject}, ${book.difficulty_level}, ages ${book.target_age_min}-${book.target_age_max})`
     ).join('\n');
 
@@ -290,7 +120,21 @@ IMPORTANT: You can only recommend books that actually exist in this library's da
       .map(([subject, count]) => `${subject}: ${count} books`)
       .join(', ');
 
-    return `You are a warm, friendly library assistant. You can ONLY recommend books from this specific library catalog.
+    return `You are a warm, friendly library assistant helping users find books from our catalog of ${availableBooks.length} books.
+
+TIME AWARENESS:
+This conversation will last exactly 1 minute. You must:
+- At 45 seconds: Begin naturally transitioning toward closure while still being helpful
+- At 50 seconds: Start your final recommendation or summary
+- At 55 seconds: Give a warm, natural closing like "I hope you find something wonderful to read! Feel free to come back anytime for more book recommendations."
+
+CRITICAL RULES:
+1. NEVER abruptly cut off mid-sentence
+2. Always complete your current thought before transitioning to closure
+3. Make the ending feel natural, not forced , mention you need to attend to another call
+4. If asked a question near the end, give a brief but complete answer before closing
+
+
 
 AVAILABLE BOOKS IN OUR LIBRARY:
 ${bookList}
@@ -305,6 +149,7 @@ CRITICAL RULES:
 3. If a user asks for something we don't have, say "We don't have that specific book, but here's what we do have..." and suggest from the available list
 4. Use tools to filter the ACTUAL available books
 5. Always respond naturally without mentioning function names
+6. When asked to wrap up, finish your current response quickly and politely
 
 Example conversations:
 User: "I want animal books"
@@ -319,16 +164,16 @@ Always be helpful and suggest alternatives from what we actually have!`;
   static async createLibraryConversation(availableBooks: any[] = []): Promise<TavusConversation> {
     const conversationRequest: CreateConversationRequest = {
       replica_id: this.getReplicaId(),
-      persona_id: this.getLibraryPersonaId() || this.getPersonaId(),
-      conversation_name: "Restricted Library Assistant Chat",
+      persona_id: this.getPersonaId(),
+      conversation_name: "Library Assistant Chat",
       conversational_context: this.createLibraryConversationContext(availableBooks),
-      
-      custom_greeting: `Hello! I'm your friendly library assistant. I can help you find books from our collection of ${availableBooks.length} books. What kind of books are you interested in today?`,
-      
+
+      custom_greeting: `Hello! I'm your interactive library assistant. I can help you find books from our collection of ${availableBooks.length} books. What kind of books are you interested in today?`,
+
       properties: {
-        max_call_duration: 1800, // 30 minutes
-        participant_left_timeout: 300,
-        participant_absent_timeout: 60,
+        max_call_duration: 120, // 2 minutes
+        participant_left_timeout: 10,
+        participant_absent_timeout: 10,
         enable_recording: false,
         enable_closed_captions: true,
         apply_greenscreen: false,
@@ -434,9 +279,9 @@ Be interactive and ask the child questions about what they think will happen nex
   }
 
   static createCustomGreeting(pageContent: any, currentPage: number): string {
-    const character = pageContent.title?.includes('Luna') ? 'Luna' : 
-                    pageContent.title?.includes('Flower') ? 'Flower' : 'Garden';
-    
+    const character = pageContent.title?.includes('Luna') ? 'Luna' :
+      pageContent.title?.includes('Flower') ? 'Flower' : 'Garden';
+
     return `Hello, I'm your teacher and I'm here to tell you a story, We're on page ${currentPage + 1} reading about ${character}. Are you ready?`;
   }
 }
