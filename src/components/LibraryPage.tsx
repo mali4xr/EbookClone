@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield, AlertCircle } from 'lucide-react';
+import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield, AlertCircle, RotateCcw } from 'lucide-react';
 import { BookService } from '../services/BookService';
 import { AuthService, User } from '../services/AuthService';
 import { Book as BookType, SUBJECT_COLORS, SUBJECT_ICONS } from '../types/Book';
@@ -139,6 +139,16 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     }
 
     setFilteredBooks(filtered);
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setSelectedSubject('ALL');
+    setSelectedDifficulty('ALL');
+  };
+
+  const hasActiveFilters = () => {
+    return searchTerm !== '' || selectedSubject !== 'ALL' || selectedDifficulty !== 'ALL';
   };
 
   const getUniqueSubjects = () => {
@@ -423,7 +433,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div className="relative">
               <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -467,7 +477,69 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 <option value="advanced">Advanced</option>
               </select>
             </div>
+
+            {/* Clear Filters Button */}
+            <div className="flex items-center">
+              <button
+                onClick={clearAllFilters}
+                disabled={!hasActiveFilters()}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  hasActiveFilters()
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                }`}
+                title={hasActiveFilters() ? 'Clear all filters' : 'No active filters'}
+              >
+                <RotateCcw size={16} />
+                <span className="font-medium">Clear Filters</span>
+              </button>
+            </div>
           </div>
+
+          {/* Active Filters Display */}
+          {hasActiveFilters() && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Active filters:</span>
+                
+                {searchTerm && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    Search: "{searchTerm}"
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+                
+                {selectedSubject !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                    Subject: {SUBJECT_ICONS[selectedSubject as keyof typeof SUBJECT_ICONS]} {selectedSubject}
+                    <button
+                      onClick={() => setSelectedSubject('ALL')}
+                      className="ml-1 hover:bg-purple-200 rounded-full p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+                
+                {selectedDifficulty !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                    Level: {selectedDifficulty}
+                    <button
+                      onClick={() => setSelectedDifficulty('ALL')}
+                      className="ml-1 hover:bg-green-200 rounded-full p-0.5"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Books Grid */}
@@ -574,7 +646,21 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
           <div className="text-center py-12">
             <Book size={64} className="text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-600 mb-2">No books found</h3>
-            <p className="text-gray-500">Try adjusting your search or filters</p>
+            <p className="text-gray-500 mb-4">
+              {hasActiveFilters() 
+                ? 'Try adjusting your search or filters' 
+                : 'No books available in the library'
+              }
+            </p>
+            {hasActiveFilters() && (
+              <button
+                onClick={clearAllFilters}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <RotateCcw size={16} />
+                Clear All Filters
+              </button>
+            )}
           </div>
         )}
       </div>
