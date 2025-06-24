@@ -566,7 +566,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
             {/* Recognized Image Label */}
         {recognizedImage && (
-          <div className="text-center mb-6 animate__animated animate__fadeIn">
+          <div className="text-center mb-2 animate__animated animate__fadeIn">
             <div className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg max-w-2xl mx-auto transform hover:scale-105 transition-transform duration-200">
               <div className="flex items-center justify-center gap-2">
                 <Wand2 size={24} className="text-yellow-200" />
