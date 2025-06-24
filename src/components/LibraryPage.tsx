@@ -5,6 +5,7 @@ import { AuthService, User } from '../services/AuthService';
 import { Book as BookType, SUBJECT_COLORS, SUBJECT_ICONS } from '../types/Book';
 import AuthModal from './AuthModal';
 import LibraryAIAssistant from './LibraryAIAssistant';
+import AIDrawingBook from './AIDrawingBook';
 
 interface LibraryPageProps {
   onSelectBook: (book: BookType) => void;
@@ -41,6 +42,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const [authConfigError, setAuthConfigError] = useState<string | null>(null);
   const [recommendedBooks, setRecommendedBooks] = useState<BookType[]>([]);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [showAIDrawingBook, setShowAIDrawingBook] = useState(false);
 
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
@@ -289,6 +291,15 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     setShowAuthModal(false);
   };
 
+  const handleBookSelect = (book: BookType) => {
+    // Check if this is the Creative Art Adventures book
+    if (book.title === 'Creative Art Adventures' && book.subject === 'ART') {
+      setShowAIDrawingBook(true);
+    } else {
+      onSelectBook(book);
+    }
+  };
+
   // AI Assistant handlers
   const handleAIFilterChange = (filters: {
     searchTerm?: string;
@@ -314,6 +325,11 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     setShowRecommendations(true);
     console.log('AI Recommendations:', books);
   };
+
+  // Show AI Drawing Book if selected
+  if (showAIDrawingBook) {
+    return <AIDrawingBook onBack={() => setShowAIDrawingBook(false)} />;
+  }
 
   if (isCheckingAuth) {
     return (
@@ -555,7 +571,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                   src={book.thumbnail_url}
                   alt={book.title}
                   className={`w-full h-full object-cover cursor-pointer border-4 ${getSubjectBorderColor(book.subject)} transition-all duration-300 hover:border-opacity-80`}
-                  onClick={() => onSelectBook(book)}
+                  onClick={() => handleBookSelect(book)}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.src = 'https://via.placeholder.com/400x300?text=Book+Cover';
@@ -567,6 +583,13 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(book.difficulty_level)}`}>
                   {book.difficulty_level}
                 </div>
+                
+                {/* Special indicator for AI Drawing Book */}
+                {book.title === 'Creative Art Adventures' && book.subject === 'ART' && (
+                  <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs font-bold">
+                    🎨 AI Drawing
+                  </div>
+                )}
                 
                 {/* Action buttons overlay - only show for authenticated users */}
                 {currentUser && !authConfigError && (
@@ -599,7 +622,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
 
               {/* Book Info */}
               <div className="p-4">
-                <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 cursor-pointer" onClick={() => onSelectBook(book)}>
+                <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 cursor-pointer" onClick={() => handleBookSelect(book)}>
                   {book.title}
                 </h3>
                 <p className="text-sm text-gray-600 mb-2">
@@ -631,10 +654,10 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
               {/* Action Button */}
               <div className="px-4 pb-4">
                 <button 
-                  onClick={() => onSelectBook(book)}
+                  onClick={() => handleBookSelect(book)}
                   className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-300 transform hover:scale-105 bg-gradient-to-r ${SUBJECT_COLORS[book.subject]}`}
                 >
-                  Start Reading
+                  {book.title === 'Creative Art Adventures' && book.subject === 'ART' ? 'Start Drawing' : 'Start Reading'}
                 </button>
               </div>
             </div>
@@ -701,7 +724,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                     key={book.id}
                     className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors border-2 border-transparent hover:border-purple-300"
                     onClick={() => {
-                      onSelectBook(book);
+                      handleBookSelect(book);
                       setShowRecommendations(false);
                     }}
                   >
