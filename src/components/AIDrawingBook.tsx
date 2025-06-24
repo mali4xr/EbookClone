@@ -393,7 +393,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
       // Step 2: Generate coloring book style image using Pollinations.ai
       // Requesting a black and white outline drawing explicitly
-      const imageGenerationPrompt = `A black and white line water tight drawing of: ${sketchDescription}.for children's coloring book with thickblines and no internal colors, on a plain white background.`;
+      const imageGenerationPrompt = `A black and white line watertight drawing of: ${sketchDescription}.for children's coloring book with thickblines and no internal colors, on a plain white background.`;
 
       // Call Pollinations.ai (returns a Blob directly)
       const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
