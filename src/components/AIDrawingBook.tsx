@@ -462,7 +462,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         const imageUrl = URL.createObjectURL(imageBlob);
 
         // Show alert with the image URL sent to Pollinations
-        alert(`Pollinations image prompt:\n${imageGenerationPrompt}`);
+        // alert(`Pollinations image prompt:\n${imageGenerationPrompt}`);
 
         const img = new window.Image();
         img.onload = async () => {
