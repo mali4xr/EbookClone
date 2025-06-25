@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Palette, Sparkles, RotateCcw, BookOpen, Wand2, Camera, Loader } from 'lucide-react';
 import { GeminiService as GeminiServiceAPI } from '../services/GeminiService';
@@ -42,6 +41,12 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [showStorySection, setShowStorySection] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // --- History State ---
+  const [history, setHistory] = useState<
+    { sketch: string; generated: string; recognizedImage: string; prompt: string; story: string }[]
+  >([]); // <-- Fix: was '}(})', should be '([])'
+  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number | null>(null);
 
   // --- Canvas Utility Functions ---
 
@@ -313,7 +318,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     } else if (model === 'pollinations') {
       // Pollinations.ai uses a GET request for simple prompts
       // The payload will just be the prompt string
-      endpoint = `${POLLINATIONS_API_ENDPOINT}${encodeURIComponent(payload)}`;
+      // Add width, height, seed, nologo params
+      endpoint = `${POLLINATIONS_API_ENDPOINT}${encodeURIComponent(payload)}?width=600&height=800&seed=42&nologo=True`;
       method = 'GET';
       headers = {}; // No content-type for GET image request
       body = null;
@@ -372,53 +378,129 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
     setIsGenerating(true);
     setError(null);
-    setShowStorySection(false); // Hide story section when regenerating
+    setShowStorySection(false);
 
     try {
-      // Step 1: Get description of the sketch using Gemini (visual input)
       const base64ImageData = getSketchCanvasAsBase64();
-      const descriptionPrompt = "Describe this simple sketch in a few keywords for an AI image generator. Focus on the main subject. For example, 'a smiling sun', 'a house with a tree', 'a cat chasing a ball'.";
-      const descriptionPayload = {
-        contents: [{
-          parts: [
-            { text: descriptionPrompt },
-            { inlineData: { mimeType: "image/png", data: base64ImageData } }
-          ]
-        }]
-      };
 
-      const descriptionResult = await callAI(descriptionPayload, 'gemini');
-      const sketchDescription = descriptionResult.candidates[0].content.parts[0].text.trim();
-      setRecognizedImage(sketchDescription);
+      // Helper to convert blob to base64
+      const blobToBase64 = (blob: Blob): Promise<string> =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
 
-      // Step 2: Generate coloring book style image using Pollinations.ai
-      // Requesting a black and white outline drawing explicitly
-      const imageGenerationPrompt = `A black connected line drawing of: ${sketchDescription}.for children's coloring book with thickblines and no internal colors, on a plain white background.`;
+      // Check if this is a reused drawing (selected from history)
+      let historyIdx = selectedHistoryIndex;
+      let isReuse = false;
+      if (
+        historyIdx !== null &&
+        history[historyIdx] &&
+        history[historyIdx].sketch === base64ImageData
+      ) {
+        isReuse = true;
+      }
 
-      // Call Pollinations.ai (returns a Blob directly)
-      const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
-      const imageUrl = URL.createObjectURL(imageBlob);
+      if (isReuse) {
+        // Reuse: use previous prompt/description
+        const sketchDescription = history[historyIdx!].recognizedImage;
+        const imageGenerationPrompt = `A pencil drawing of: ${sketchDescription}.for children's coloring book with no internal colors, on a plain white background.`;
+        const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
+        const imageUrl = URL.createObjectURL(imageBlob);
 
-      // Load the generated image onto the coloring canvas
-      const img = new Image();
-      img.onload = () => {
-        const coloringCanvas = coloringCanvasRef.current;
-        if (!coloringCanvas) return;
-        const ctx = coloringCanvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height); // Clear existing content
-          ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height); // Draw new image
-          setHasGeneratedContent(true); // Mark that we have content
-        }
-        URL.revokeObjectURL(imageUrl); // Clean up the object URL
-        setShowStorySection(true); // Show story section after image is generated
-      };
-      img.onerror = () => {
-        setError('Failed to load generated image for coloring.');
-        URL.revokeObjectURL(imageUrl); // Clean up on error too
-      };
-      img.src = imageUrl;
+        // Show alert with the image URL sent to Pollinations
+        // alert(`Pollinations image prompt:\n${imageGenerationPrompt}`);
 
+        const img = new window.Image();
+        img.onload = async () => {
+          const coloringCanvas = coloringCanvasRef.current;
+          if (!coloringCanvas) return;
+          const ctx = coloringCanvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+            // Draw image at (0,0) and scale to fit canvas
+            ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
+            setHasGeneratedContent(true);
+          }
+          // Update generated image in history
+          const generatedBase64 = await blobToBase64(imageBlob);
+          setHistory(prev =>
+            prev.map((item, i) =>
+              i === historyIdx
+                ? { ...item, generated: generatedBase64 }
+                : item
+            )
+          );
+          setShowStorySection(true);
+          URL.revokeObjectURL(imageUrl);
+        };
+        img.onerror = () => {
+          setError('Failed to load generated image for coloring.');
+          URL.revokeObjectURL(imageUrl);
+        };
+        img.src = imageUrl;
+      } else {
+        // New drawing: call Gemini for description, then Pollinations, then add to history
+        const descriptionPrompt = "Describe this simple sketch in a few detailed keywords related to the subject for an AI image generator. Focus on the main subject and one key feature. For example, 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'.do not use any introduction like Here are some keywords for an AI image generator, just give the keywords directly. do not mention any colors in the sketch.";
+        const descriptionPayload = {
+          contents: [{
+            parts: [
+              { text: descriptionPrompt },
+              { inlineData: { mimeType: "image/png", data: base64ImageData } }
+            ]
+          }]
+        };
+
+        const descriptionResult = await callAI(descriptionPayload, 'gemini');
+        const sketchDescription = descriptionResult.candidates[0].content.parts[0].text.trim();
+        setRecognizedImage(sketchDescription);
+
+        const imageGenerationPrompt = `A black connected line drawing of: ${sketchDescription}.for children's coloring book with no internal colors, on a plain white background.`;
+        const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
+        const imageUrl = URL.createObjectURL(imageBlob);
+
+        // Show alert with the image URL sent to Pollinations
+        alert(`Pollinations image prompt:\n${imageGenerationPrompt}`);
+
+        const img = new window.Image();
+        img.onload = async () => {
+          const coloringCanvas = coloringCanvasRef.current;
+          if (!coloringCanvas) return;
+          const ctx = coloringCanvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+            // Draw image at (0,0) and scale to fit canvas
+            ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
+            setHasGeneratedContent(true);
+          }
+          // Save to history as new
+          const generatedBase64 = await blobToBase64(imageBlob);
+          setHistory(prev => {
+            const newHistory = [
+              ...prev,
+              {
+                sketch: base64ImageData,
+                generated: generatedBase64,
+                recognizedImage: sketchDescription,
+                prompt: currentPrompt,
+                story: ''
+              }
+            ];
+            // Limit to last 10 items
+            return newHistory.length > 10 ? newHistory.slice(newHistory.length - 10) : newHistory;
+          });
+          setSelectedHistoryIndex(history.length >= 10 ? 9 : history.length);
+          setShowStorySection(true);
+          URL.revokeObjectURL(imageUrl);
+        };
+        img.onerror = () => {
+          setError('Failed to load generated image for coloring.');
+          URL.revokeObjectURL(imageUrl);
+        };
+        img.src = imageUrl;
+      }
     } catch (err: any) {
       console.error('Error generating image:', err);
       setError(err.message || 'Oops! Something went wrong while creating the drawing.');
@@ -523,7 +605,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
         {/* Recognized Image Label */}
         {recognizedImage && (
-          <div className="text-center mb-6 animate__animated animate__fadeIn">
+          <div className="text-center mb-2 animate__animated animate__fadeIn">
             <div className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg max-w-2xl mx-auto transform hover:scale-105 transition-transform duration-200">
               <div className="flex items-center justify-center gap-2">
                 <Wand2 size={24} className="text-yellow-200" />
@@ -538,6 +620,102 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           <div className="text-center mb-6 animate__animated animate__fadeIn">
             <div className="bg-red-100 border-2 border-red-300 text-red-800 rounded-lg p-4 text-lg shadow-md max-w-2xl mx-auto">
               {error}
+            </div>
+          </div>
+        )}
+
+        {/* History Thumbnails */}
+        {history.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-semibold text-gray-700">Your Drawings:</span>
+            </div>
+            <div className="flex overflow-x-auto gap-6 py-2 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
+              {history.map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center">
+                  <div
+                    className={`relative flex-shrink-0 rounded-full border-4 cursor-pointer transition-transform duration-150
+                      ${selectedHistoryIndex === idx ? 'border-sky-500 scale-110' : 'border-gray-200 hover:border-purple-400 hover:scale-105'}
+                    `}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      minWidth: 64,
+                      minHeight: 64,
+                      background: '#f9fafb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={() => {
+                      setSelectedHistoryIndex(idx);
+                      setRecognizedImage(item.recognizedImage);
+                      setCurrentPrompt(item.prompt);
+                      setStory(item.story || '');
+                      setHasGeneratedContent(true);
+
+                      // Draw sketch to sketchCanvas
+                      const sketchImg = new window.Image();
+                      sketchImg.onload = () => {
+                        const canvas = sketchCanvasRef.current;
+                        if (canvas) {
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(sketchImg, 0, 0, canvas.width, canvas.height);
+                          }
+                        }
+                      };
+                      sketchImg.src = 'data:image/png;base64,' + item.sketch;
+
+                      // Draw generated to coloringCanvas
+                      const genImg = new window.Image();
+                      genImg.onload = () => {
+                        const canvas = coloringCanvasRef.current;
+                        if (canvas) {
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(genImg, 0, 0, canvas.width, canvas.height);
+                          }
+                        }
+                      };
+                      genImg.src = 'data:image/png;base64,' + item.generated;
+                    }}
+                    title={item.recognizedImage || 'Drawing'}
+                  >
+                    <img
+                      src={'data:image/png;base64,' + item.sketch}
+                      alt="sketch"
+                      className="w-full h-full object-contain rounded-full"
+                    />
+                    <button
+                      className="absolute top-0 right-0 bg-white rounded-full p-1 shadow hover:bg-red-100"
+                      style={{ transform: 'translate(40%,-40%)' }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setHistory(prev => prev.filter((_, i) => i !== idx));
+                        if (selectedHistoryIndex === idx) {
+                          handleClearAll();
+                          setSelectedHistoryIndex(null);
+                        } else if (selectedHistoryIndex !== null && idx < selectedHistoryIndex) {
+                          setSelectedHistoryIndex(selectedHistoryIndex - 1);
+                        }
+                      }}
+                      aria-label="Delete"
+                    >
+                      <svg width="16" height="16" fill="none" stroke="red" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                  {/* Numbered circle below thumbnail */}
+                  <div
+                    className="mt-2 w-6 h-6 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-sm"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
+                  >
+                    {idx + 1}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -600,6 +778,27 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 onTouchStart={handleColoringClick}
               ></canvas>
 
+              {/* Color Indicator Circle (bottom right) */}
+              {hasGeneratedContent && (
+                <div
+                  className="absolute"
+                  style={{
+                    right: 24,
+                    bottom: 24,
+                    zIndex: 10,
+                  }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-full border-4 border-white shadow-lg flex items-center justify-center transition-colors duration-200"
+                    style={{
+                      backgroundColor: selectedColor,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}
+                    title={`Current color: ${selectedColor}`}
+                  />
+                </div>
+              )}
+
               {/* Placeholder text when no image is generated and not loading */}
               {!isGenerating && !hasGeneratedContent && (
                 <div className="text-center text-gray-500 p-8">
@@ -648,8 +847,11 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
           <button
             onClick={enhanceDrawing}
-            disabled={isGenerating}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            disabled={isGenerating || history.length >= 10}
+            className={`bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+              ${history.length >= 10 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={history.length >= 10 ? "Maximum of 10 drawings reached. Delete a thumbnail to create more." : undefined}
           >
             {isGenerating ? (
               <span className="flex items-center gap-2">
@@ -674,7 +876,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             </span>
           </button>
         </div>
-
+        
         {/* Story Section */}
         {showStorySection && (
           <section className="mt-8 w-full max-w-4xl mx-auto animate__animated animate__fadeInUp">
@@ -708,6 +910,102 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               </div>
             )}
           </section>
+        )}
+
+        {/* History Thumbnails */}
+        {history.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-semibold text-gray-700">Your Drawings:</span>
+            </div>
+            <div className="flex overflow-x-auto gap-6 py-2 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
+              {history.map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center">
+                  <div
+                    className={`relative flex-shrink-0 rounded-full border-4 cursor-pointer transition-transform duration-150
+                      ${selectedHistoryIndex === idx ? 'border-sky-500 scale-110' : 'border-gray-200 hover:border-purple-400 hover:scale-105'}
+                    `}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      minWidth: 64,
+                      minHeight: 64,
+                      background: '#f9fafb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onClick={() => {
+                      setSelectedHistoryIndex(idx);
+                      setRecognizedImage(item.recognizedImage);
+                      setCurrentPrompt(item.prompt);
+                      setStory(item.story || '');
+                      setHasGeneratedContent(true);
+
+                      // Draw sketch to sketchCanvas
+                      const sketchImg = new window.Image();
+                      sketchImg.onload = () => {
+                        const canvas = sketchCanvasRef.current;
+                        if (canvas) {
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(sketchImg, 0, 0, canvas.width, canvas.height);
+                          }
+                        }
+                      };
+                      sketchImg.src = 'data:image/png;base64,' + item.sketch;
+
+                      // Draw generated to coloringCanvas
+                      const genImg = new window.Image();
+                      genImg.onload = () => {
+                        const canvas = coloringCanvasRef.current;
+                        if (canvas) {
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(genImg, 0, 0, canvas.width, canvas.height);
+                          }
+                        }
+                      };
+                      genImg.src = 'data:image/png;base64,' + item.generated;
+                    }}
+                    title={item.recognizedImage || 'Drawing'}
+                  >
+                    <img
+                      src={'data:image/png;base64,' + item.sketch}
+                      alt="sketch"
+                      className="w-full h-full object-contain rounded-full"
+                    />
+                    <button
+                      className="absolute top-0 right-0 bg-white rounded-full p-1 shadow hover:bg-red-100"
+                      style={{ transform: 'translate(40%,-40%)' }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setHistory(prev => prev.filter((_, i) => i !== idx));
+                        if (selectedHistoryIndex === idx) {
+                          handleClearAll();
+                          setSelectedHistoryIndex(null);
+                        } else if (selectedHistoryIndex !== null && idx < selectedHistoryIndex) {
+                          setSelectedHistoryIndex(selectedHistoryIndex - 1);
+                        }
+                      }}
+                      aria-label="Delete"
+                    >
+                      <svg width="16" height="16" fill="none" stroke="red" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                  {/* Numbered circle below thumbnail */}
+                  <div
+                    className="mt-2 w-6 h-6 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-sm"
+                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
+                  >
+                    {idx + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
