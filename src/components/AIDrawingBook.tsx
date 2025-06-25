@@ -457,7 +457,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         const sketchDescription = descriptionResult.candidates[0].content.parts[0].text.trim();
         setRecognizedImage(sketchDescription);
 
-        const imageGenerationPrompt = `A black connected line drawing of: ${sketchDescription}.for children's coloring book with no internal colors, on a plain white background.`;
+        const imageGenerationPrompt = `A black connected line drawing of: ${sketchDescription} for children's coloring book with no internal colors, on a plain white background.`;
         const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
         const imageUrl = URL.createObjectURL(imageBlob);
 
