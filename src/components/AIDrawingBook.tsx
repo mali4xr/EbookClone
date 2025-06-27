@@ -9,6 +9,7 @@ interface AIDrawingBookProps {
 
 const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const webcamRef = useRef<HTMLVideoElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -20,6 +21,9 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const [showStorySection, setShowStorySection] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<'photo' | 'drawing'>('photo');
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [recognizedContent, setRecognizedContent] = useState<string>('');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -110,6 +114,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setCurrentPrompt('');
     setShowStorySection(false);
     setError(null);
+    setCapturedPhoto(null);
+    setRecognizedContent('');
   };
 
   const isCanvasEmpty = (): boolean => {
@@ -121,6 +127,102 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     return imageData.data.every(pixel => pixel === 0);
+  };
+
+  const getCanvasAsBase64 = (): string => {
+    const canvas = canvasRef.current;
+    if (!canvas) return '';
+
+    // Create a temporary canvas with white background
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    if (tempCtx) {
+      // Fill with white background
+      tempCtx.fillStyle = '#FFFFFF';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Draw the original canvas on top
+      tempCtx.drawImage(canvas, 0, 0);
+    }
+    
+    return tempCanvas.toDataURL('image/png').split(',')[1];
+  };
+
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: 320, 
+          height: 240,
+          facingMode: 'environment' // Use back camera if available
+        } 
+      });
+      
+      if (webcamRef.current) {
+        webcamRef.current.srcObject = stream;
+        setIsWebcamActive(true);
+      }
+    } catch (error) {
+      console.error('Error accessing webcam:', error);
+      setError('Could not access camera. Please check permissions.');
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamRef.current && webcamRef.current.srcObject) {
+      const stream = webcamRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      webcamRef.current.srcObject = null;
+      setIsWebcamActive(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!webcamRef.current) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = webcamRef.current.videoWidth;
+    canvas.height = webcamRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      ctx.drawImage(webcamRef.current, 0, 0);
+      const photoDataUrl = canvas.toDataURL('image/png');
+      setCapturedPhoto(photoDataUrl);
+      stopWebcam();
+    }
+  };
+
+  const recognizeImage = async (imageData: string): Promise<string> => {
+    try {
+      const prompt = "Look at this image and describe what you see in simple terms. Focus on the main objects, shapes, animals, or things that could be turned into a coloring book page. Be descriptive but concise.";
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiService.getApiKey()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: "image/png", data: imageData } }
+            ]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      return result.candidates[0].content.parts[0].text.trim();
+    } catch (error) {
+      console.error('Error recognizing image:', error);
+      throw error;
+    }
   };
 
   const getDrawingIdea = async () => {
@@ -189,8 +291,13 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   };
 
   const enhanceDrawing = async () => {
-    if (isCanvasEmpty()) {
+    if (inputMode === 'drawing' && isCanvasEmpty()) {
       setError('Please draw something on the canvas first!');
+      return;
+    }
+
+    if (inputMode === 'photo' && !capturedPhoto) {
+      setError('Please capture a photo first!');
       return;
     }
 
@@ -198,43 +305,46 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setError(null);
     
     try {
-      // Create a descriptive prompt based on the drawing idea or a generic one
-      let prompt = currentPrompt || "A colorful child's drawing with bright colors and playful style";
+      let imageData: string;
+      let recognizedDescription: string;
+
+      if (inputMode === 'drawing') {
+        imageData = getCanvasAsBase64();
+      } else {
+        imageData = capturedPhoto!.split(',')[1]; // Remove data:image/png;base64, prefix
+      }
+
+      // Step 1: Use Gemini to recognize what's in the image
+      console.log('Recognizing image content with Gemini...');
+      recognizedDescription = await recognizeImage(imageData);
+      setRecognizedContent(recognizedDescription);
       
-      // Clean up the prompt for URL encoding
-      prompt = prompt.replace(/[^\w\s]/gi, ' ').trim();
+      console.log('Gemini recognized:', recognizedDescription);
+
+      // Step 2: Create a coloring book prompt based on the recognition
+      const coloringBookPrompt = `${recognizedDescription}, black and white line art, coloring book style, simple outlines, no shading, clean lines, suitable for children to color, white background`;
       
-      // Add style instructions to make it more child-like
-      const enhancedPrompt = `${prompt}, child's crayon drawing style, bright colors, simple shapes, playful and naive art style, white background`;
-      
-      // Generate a random seed for variation
+      // Step 3: Generate coloring book image using Pollinations AI
       const seed = Math.floor(Math.random() * 1000000);
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(coloringBookPrompt)}?width=512&height=512&seed=${seed}&model=flux`;
       
-      // Create the Pollinations AI URL
-      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&model=flux`;
-      
-      console.log('Generating image with Pollinations AI:', pollinationsUrl);
+      console.log('Generating coloring book with Pollinations AI:', pollinationsUrl);
       
       // Set the generated image directly from the URL
       setGeneratedImage(pollinationsUrl);
       setShowStorySection(true);
       
-      // Trigger confetti when image is generated
-      setTimeout(() => {
-        triggerConfetti();
-      }, 1000); // Give a bit more time for the image to load
-      
     } catch (error) {
       console.error('Error generating image:', error);
-      setError('Oops! Something went wrong while creating the drawing.');
+      setError('Oops! Something went wrong while creating the coloring book page.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const generateStory = async () => {
-    if (!generatedImage && isCanvasEmpty()) {
-      setError('Please draw something first!');
+    if (!recognizedContent && !currentPrompt) {
+      setError('Please create an image first!');
       return;
     }
 
@@ -242,10 +352,10 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setError(null);
     
     try {
-      // Use the current prompt or create a story based on the drawing
-      const storyPrompt = currentPrompt 
-        ? `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about: ${currentPrompt}. Make it magical and fun!`
-        : "Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about their creative drawing. Make it magical and encouraging!";
+      // Use the recognized content or current prompt for story generation
+      const storyPrompt = recognizedContent 
+        ? `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about: ${recognizedContent}. Make it magical and fun!`
+        : `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about: ${currentPrompt}. Make it magical and encouraging!`;
       
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiService.getApiKey()}`, {
         method: 'POST',
@@ -271,8 +381,37 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   };
 
   const toggleInputMode = () => {
-    setInputMode(prev => prev === 'photo' ? 'drawing' : 'photo');
+    const newMode = inputMode === 'photo' ? 'drawing' : 'photo';
+    setInputMode(newMode);
+    
+    // Clean up when switching modes
+    if (newMode === 'drawing') {
+      stopWebcam();
+      setCapturedPhoto(null);
+    } else {
+      clearCanvas();
+    }
+    
+    setGeneratedImage(null);
+    setRecognizedContent('');
+    setError(null);
   };
+
+  // Start webcam when switching to photo mode
+  useEffect(() => {
+    if (inputMode === 'photo' && !capturedPhoto) {
+      startWebcam();
+    } else if (inputMode === 'drawing') {
+      stopWebcam();
+    }
+  }, [inputMode]);
+
+  // Cleanup webcam on unmount
+  useEffect(() => {
+    return () => {
+      stopWebcam();
+    };
+  }, []);
 
   if (!GeminiService.getApiKey()) {
     return (
@@ -310,8 +449,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               <span className="text-purple-600 font-semibold">Back to Library</span>
             </button>
             <div className="text-center flex-1">
-              <h1 className="text-4xl md:text-5xl font-bold text-sky-600">Sketch-A-Magic AI</h1>
-              <p className="text-lg text-orange-500 mt-2">Draw, get ideas, and create stories with AI!</p>
+              <h1 className="text-4xl md:text-5xl font-bold text-sky-600">AI Coloring Book Creator</h1>
+              <p className="text-lg text-orange-500 mt-2">Draw or take a photo, and AI creates a coloring book!</p>
             </div>
             <div className="w-32"></div> {/* Spacer for centering */}
           </div>
@@ -351,6 +490,19 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           </div>
         )}
 
+        {/* Recognized Content Display */}
+        {recognizedContent && (
+          <div className="text-center mb-6 animate__animated animate__fadeIn">
+            <div className="bg-green-100 border-2 border-green-300 text-green-800 rounded-lg p-4 text-lg shadow-md max-w-2xl mx-auto">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Wand2 size={20} className="text-green-600" />
+                <span className="font-semibold">AI Recognized:</span>
+              </div>
+              {recognizedContent}
+            </div>
+          </div>
+        )}
+
         {/* Error Display */}
         {error && (
           <div className="text-center mb-6 animate__animated animate__fadeIn">
@@ -362,7 +514,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
         {/* Main Content */}
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 bg-white p-6 rounded-3xl shadow-lg border-4 border-dashed border-blue-300">
-          {/* Drawing Canvas Section */}
+          {/* Drawing/Photo Canvas Section */}
           <div className="flex flex-col items-center relative">
             {/* Mode Toggle Button - Upper Left */}
             <button
@@ -392,25 +544,49 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             </h2>
             
             <div className="w-full aspect-square bg-white rounded-2xl shadow-inner border-2 border-gray-200 overflow-hidden relative">
-              <canvas
-                ref={canvasRef}
-                className={`w-full h-full rounded-2xl ${inputMode === 'drawing' ? 'cursor-crosshair' : 'cursor-default'}`}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-              />
-              
-              {inputMode === 'photo' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 rounded-2xl">
-                  <div className="text-center">
-                    <Camera size={48} className="mx-auto mb-4 text-gray-400" />
-                    <p className="text-gray-600">Photo mode coming soon!</p>
-                    <p className="text-sm text-gray-500 mt-2">Switch to Drawing Mode to start creating</p>
-                  </div>
+              {inputMode === 'drawing' ? (
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-full rounded-2xl cursor-crosshair"
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                />
+              ) : (
+                <div className="w-full h-full relative">
+                  {capturedPhoto ? (
+                    <img
+                      src={capturedPhoto}
+                      alt="Captured"
+                      className="w-full h-full object-cover rounded-2xl"
+                    />
+                  ) : isWebcamActive ? (
+                    <>
+                      <video
+                        ref={webcamRef}
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-cover rounded-2xl"
+                      />
+                      <button
+                        onClick={capturePhoto}
+                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full shadow-md"
+                      >
+                        📸 Capture
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-100 rounded-2xl">
+                      <div className="text-center">
+                        <Camera size={48} className="mx-auto mb-4 text-gray-400" />
+                        <p className="text-gray-600">Starting camera...</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -431,21 +607,21 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           <div className="flex flex-col items-center relative">
             <h2 className="text-2xl font-bold mb-4 text-gray-700 flex items-center gap-2">
               <Wand2 size={24} className="text-pink-600" />
-              2. See The Magic
+              2. Coloring Book Page
             </h2>
             
             <div className="relative w-full aspect-square bg-gray-100 rounded-2xl shadow-inner border-2 border-gray-200 flex items-center justify-center overflow-hidden">
               {isGenerating && (
                 <div className="absolute z-10 flex flex-col items-center">
                   <Loader size={48} className="animate-spin text-pink-500 mb-4" />
-                  <p className="text-gray-600 font-semibold">Creating magic...</p>
+                  <p className="text-gray-600 font-semibold">Creating coloring book...</p>
                 </div>
               )}
               
               {generatedImage ? (
                 <img
                   src={generatedImage}
-                  alt="AI enhanced drawing"
+                  alt="AI generated coloring book page"
                   className="w-full h-full object-contain animate__animated animate__fadeIn"
                   key={generatedImage}
                   onLoad={() => {
@@ -460,7 +636,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               ) : (
                 <div className="text-center text-gray-500 p-8">
                   <Sparkles size={48} className="mx-auto mb-4 text-gray-400" />
-                  <p className="text-lg">Your magical drawing will appear here!</p>
+                  <p className="text-lg">Your coloring book page will appear here!</p>
                 </div>
               )}
             </div>
@@ -479,7 +655,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               ) : (
                 <span className="flex items-center gap-2">
                   <Wand2 size={16} />
-                  Create Magic
+                  Create Coloring Book
                 </span>
               )}
             </button>
