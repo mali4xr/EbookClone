@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Palette, Sparkles, RotateCcw, BookOpen, Wand2, Camera, Loader } from 'lucide-react';
 import { GeminiService as GeminiServiceAPI } from '../services/GeminiService';
+
 // Assuming GeminiService handles API key retrieval.
 // For this standalone example, I will define a placeholder for GeminiService.
 // In a real project, ensure you have this service properly set up.
@@ -41,12 +42,28 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [showStorySection, setShowStorySection] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isReadingStory, setIsReadingStory] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // --- History State ---
   const [history, setHistory] = useState<
     { sketch: string; generated: string; recognizedImage: string; prompt: string; story: string }[]
   >([]); // <-- Fix: was '}(})', should be '([])'
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number | null>(null);
+
+  // --- Webcam Stream State ---
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
+  const webcamVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // --- Gemini Safety Settings ---
+  const geminiSafetySettings = [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_LOW_AND_ABOVE" },
+  ];
 
   // --- Canvas Utility Functions ---
 
@@ -73,6 +90,15 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
   }, []);
+
+  // Helper function to resize the coloring canvas to match its displayed size
+  const resizeColoringCanvas = () => {
+    const canvas = coloringCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  };
 
   // Sets up canvas dimensions for the coloring canvas
   useEffect(() => {
@@ -314,7 +340,13 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     let body: BodyInit | null = JSON.stringify(payload);
 
     if (model === 'gemini') {
+      // Inject safety settings for Gemini
+      const payloadWithSafety = {
+        ...payload,
+        safetySettings: geminiSafetySettings,
+      };
       endpoint = `${GEMINI_API_ENDPOINT}?key=${apiKey}`;
+      body = JSON.stringify(payloadWithSafety);
     } else if (model === 'pollinations') {
       // Pollinations.ai uses a GET request for simple prompts
       // The payload will just be the prompt string
@@ -351,6 +383,41 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     return response.json();
   };
 
+  // --- Gemini Token Counting Helper ---
+  const logGeminiTokenInfo = (label: string, tokenInfo: any, usageMetadata?: any) => {
+    // usageMetadata is from generateContent, tokenInfo is from countTokens
+    const promptTokens = usageMetadata?.promptTokenCount ?? tokenInfo?.promptTokenCount ?? '-';
+    const candidateTokens = usageMetadata?.candidatesTokenCount ?? usageMetadata?.candidatesTokensCount ?? tokenInfo?.candidatesTokenCount ?? '-';
+    const totalTokens = usageMetadata?.totalTokenCount ?? tokenInfo?.totalTokens ?? '-';
+    console.log(
+      `[${label}] Gemini Token Usage:\n` +
+      `  prompt tokens: ${promptTokens}\n` +
+      `  candidate tokens: ${candidateTokens}\n` +
+      `  total: ${totalTokens}`
+    );
+  };
+
+  const countGeminiTokens = async (payload: any) => {
+    try {
+      const apiKey = await GeminiServiceAPI.getApiKey();
+      if (!apiKey) throw new Error('API key is not configured.');
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:countTokens?key=${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Token count error');
+      }
+      return await response.json();
+    } catch (err) {
+      console.error('Token count error:', err);
+      return null;
+    }
+  };
+
   const getDrawingIdea = async () => {
     setIsGettingIdea(true);
     setError(null);
@@ -359,7 +426,13 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
       const prompt = "Give me a simple, fun, and creative drawing idea for a child. Be concise, one sentence only. For example: 'A friendly robot drinking a milkshake' or 'A snail with a birthday cake for a shell'.";
       const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
 
+      // Token count before sending
+      const tokenInfo = await countGeminiTokens(payload);
+      logGeminiTokenInfo('Get Idea (countTokens)', tokenInfo);
+
       const result = await callAI(payload, 'gemini');
+      logGeminiTokenInfo('Get Idea (generateContent)', null, result.usageMetadata);
+
       const idea = result.candidates[0].content.parts[0].text;
       setCurrentPrompt(idea.trim());
     } catch (err: any) {
@@ -368,6 +441,36 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     } finally {
       setIsGettingIdea(false);
     }
+  };
+
+  // Utility: Resize a base64 PNG image to 380x380 and return new base64 string
+  const resizeBase64Image = async (base64: string, size = 380): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('No canvas context');
+        ctx.fillStyle = '#FFF';
+        ctx.fillRect(0, 0, size, size);
+        // Draw image centered and scaled to fit
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (img.width > img.height) {
+          sx = (img.width - img.height) / 2;
+          sw = sh = img.height;
+        } else if (img.height > img.width) {
+          sy = (img.height - img.width) / 2;
+          sw = sh = img.width;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+        const resizedBase64 = canvas.toDataURL('image/png').split(',')[1];
+        resolve(resizedBase64);
+      };
+      img.onerror = reject;
+      img.src = 'data:image/png;base64,' + base64;
+    });
   };
 
   const enhanceDrawing = async () => {
@@ -381,7 +484,9 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setShowStorySection(false);
 
     try {
-      const base64ImageData = getSketchCanvasAsBase64();
+      let base64ImageData = getSketchCanvasAsBase64();
+      // --- Resize to 380x380 before sending to Gemini ---
+      base64ImageData = await resizeBase64Image(base64ImageData, 380);
 
       // Helper to convert blob to base64
       const blobToBase64 = (blob: Blob): Promise<string> =>
@@ -406,7 +511,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
       if (isReuse) {
         // Reuse: use previous prompt/description
         const sketchDescription = history[historyIdx!].recognizedImage;
-        const imageGenerationPrompt = `A pencil drawing of: ${sketchDescription}.for children's coloring book with no internal colors, on a plain white background.`;
+        const imageGenerationPrompt = `${sketchDescription},coloring book style, line art, no fill, no sexual content , child friendly, black lines, white background`;
         const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
         const imageUrl = URL.createObjectURL(imageBlob);
 
@@ -415,15 +520,18 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
         const img = new window.Image();
         img.onload = async () => {
-          const coloringCanvas = coloringCanvasRef.current;
-          if (!coloringCanvas) return;
-          const ctx = coloringCanvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
-            // Draw image at (0,0) and scale to fit canvas
-            ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
-            setHasGeneratedContent(true);
-          }
+          setHasGeneratedContent(true); // 1. Make canvas visible
+          // Wait for the canvas to be visible in the DOM
+          setTimeout(() => {
+            const coloringCanvas = coloringCanvasRef.current;
+            if (!coloringCanvas) return;
+            resizeColoringCanvas(); // 2. Ensure correct size
+            const ctx = coloringCanvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+              ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
+            }
+          }, 0);
           // Update generated image in history
           const generatedBase64 = await blobToBase64(imageBlob);
           setHistory(prev =>
@@ -443,7 +551,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         img.src = imageUrl;
       } else {
         // New drawing: call Gemini for description, then Pollinations, then add to history
-        const descriptionPrompt = "Describe this simple sketch in a few detailed keywords related to the subject for an AI image generator. Focus on the main subject and one key feature. For example, 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'.do not use any introduction like Here are some keywords for an AI image generator, just give the keywords directly. do not mention any colors in the sketch.";
+        const descriptionPrompt = "Keywords only:subject. No colors. No intoductions, child sensitive, child safe. E.g. smiling sun, house with tree, cat chasing ball";
         const descriptionPayload = {
           contents: [{
             parts: [
@@ -453,11 +561,20 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           }]
         };
 
+        // Token count for recognized drawing
+        const tokenInfo = await countGeminiTokens(descriptionPayload);
+        logGeminiTokenInfo('Recognized Drawing (countTokens)', tokenInfo);
+
         const descriptionResult = await callAI(descriptionPayload, 'gemini');
+        logGeminiTokenInfo('Recognized Drawing (generateContent)', null, descriptionResult.usageMetadata);
+
         const sketchDescription = descriptionResult.candidates[0].content.parts[0].text.trim();
         setRecognizedImage(sketchDescription);
 
+        // Generate coloring book image
         const imageGenerationPrompt = `A black connected line drawing of: ${sketchDescription} for children's coloring book with no internal colors, on a plain white background.`;
+        // No token count for pollinations (image) API
+
         const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
         const imageUrl = URL.createObjectURL(imageBlob);
 
@@ -466,15 +583,18 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
         const img = new window.Image();
         img.onload = async () => {
-          const coloringCanvas = coloringCanvasRef.current;
-          if (!coloringCanvas) return;
-          const ctx = coloringCanvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
-            // Draw image at (0,0) and scale to fit canvas
-            ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
-            setHasGeneratedContent(true);
-          }
+          setHasGeneratedContent(true); // 1. Make canvas visible
+          // Wait for the canvas to be visible in the DOM
+          setTimeout(() => {
+            const coloringCanvas = coloringCanvasRef.current;
+            if (!coloringCanvas) return;
+            resizeColoringCanvas(); // 2. Ensure correct size
+            const ctx = coloringCanvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+              ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
+            }
+          }, 0);
           // Save to history as new
           const generatedBase64 = await blobToBase64(imageBlob);
           setHistory(prev => {
@@ -510,8 +630,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   };
 
   const generateStory = async () => {
-    if (isSketchCanvasEmpty()) {
-      setError('Please draw something first!');
+    if (!recognizedImage) {
+      setError('Please generate a drawing first!');
       return;
     }
 
@@ -519,21 +639,20 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setError(null);
 
     try {
-      // Use the original sketch for story generation as it's the user's direct input
-      const base64ImageData = getSketchCanvasAsBase64();
-
-      const prompt = "Look at this child's sketch. Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about what is happening in the drawing. Speak as if you are telling the story to the child who drew it.";
+      // Use the recognized image label as the story context
+      const prompt = `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about this: "${recognizedImage}"`;
 
       const payload = {
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: "image/png", data: base64ImageData } }
-          ]
-        }]
+        contents: [{ parts: [{ text: prompt }] }]
       };
 
+      // Token count for story
+      const tokenInfo = await countGeminiTokens(payload);
+      logGeminiTokenInfo('Create Story (countTokens)', tokenInfo);
+
       const result = await callAI(payload, 'gemini');
+      logGeminiTokenInfo('Create Story (generateContent)', null, result.usageMetadata);
+
       const storyText = result.candidates[0].content.parts[0].text;
       setStory(storyText.trim());
     } catch (err: any) {
@@ -544,6 +663,88 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
       setIsGeneratingStory(false);
     }
   };
+
+  // --- Audio: Read Story Handler ---
+  const handleReadStory = async () => {
+    if (!story) return;
+    setIsReadingStory(true);
+    try {
+      const encodedStory = encodeURIComponent(story);
+      // Log the story being sent to the TTS service
+      console.log('[Read Story] Text sent to TTS:', story);
+
+      // You can change the voice: alloy, echo, fable, onyx, nova, shimmer
+      const voice = "alloy";
+      const url = `https://text.pollinations.ai/'tell a 4 year old kid story about '${encodedStory}?model=openai-audio&voice=${voice}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to generate audio.");
+      const blob = await response.blob();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+
+      // --- Play background music at a lower volume ---
+      const bgMusicUrl = "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
+      const bgAudio = new Audio(bgMusicUrl);
+      bgAudio.loop = true;
+      bgAudio.volume = 0.1; // Lower volume (0.0 - 1.0)
+      bgAudio.play().catch(() => {});
+
+      audioRef.current = audio;
+      audio.play();
+
+      audio.onended = () => {
+        setTimeout(() => {
+          bgAudio.pause();
+          bgAudio.currentTime = 0;
+        }, 2000); // Stop background music 2 seconds after story ends
+        setIsReadingStory(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        setIsReadingStory(false);
+        setError("Could not play the story audio.");
+        bgAudio.pause();
+        bgAudio.currentTime = 0;
+        URL.revokeObjectURL(audioUrl);
+      };
+    } catch (err) {
+      setError("Could not generate audio for the story.");
+      setIsReadingStory(false);
+    }
+  };
+
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // --- Webcam Stream Management ---
+  useEffect(() => {
+    if (showWebcam) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          setWebcamStream(stream);
+          if (webcamVideoRef.current) {
+            webcamVideoRef.current.srcObject = stream;
+          }
+        })
+        .catch(() => setError('Could not access webcam.'));
+    } else if (webcamStream) {
+      webcamStream.getTracks().forEach(track => track.stop());
+      setWebcamStream(null);
+    }
+    // eslint-disable-next-line
+  }, [showWebcam]);
 
   // --- API Key Check UI ---
   if (!GeminiServiceAPI.getApiKey()) {
@@ -603,17 +804,6 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Recognized Image Label */}
-        {recognizedImage && (
-          <div className="text-center mb-2 animate__animated animate__fadeIn">
-            <div className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg max-w-2xl mx-auto transform hover:scale-105 transition-transform duration-200">
-              <div className="flex items-center justify-center gap-2">
-                <Wand2 size={24} className="text-yellow-200" />
-                <span>Magic Eye sees: {recognizedImage}</span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Error Display */}
         {error && (
@@ -673,6 +863,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                       genImg.onload = () => {
                         const canvas = coloringCanvasRef.current;
                         if (canvas) {
+                          resizeColoringCanvas(); // <-- Add this line
                           const ctx = canvas.getContext('2d');
                           if (ctx) {
                             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -744,8 +935,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
             {/* Recognized Image Label */}
         {recognizedImage && (
-          <div className="text-center mb-2 animate__animated animate__fadeIn">
-            <div className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg max-w-2xl mx-auto transform hover:scale-105 transition-transform duration-200">
+          <div className="text-center animate__animated animate__fadeIn">
+            <div className="mt-2 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg max-w-2xl mx-auto transform hover:scale-105 transition-transform duration-200">
               <div className="flex items-center justify-center gap-2">
                 <Wand2 size={24} className="text-yellow-200" />
                 <span>Magic Eye sees: {recognizedImage}</span>
@@ -760,7 +951,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           <div className="flex flex-col items-center">
             <h2 className="text-2xl font-bold mb-4 text-gray-700 flex items-center gap-2">
               <Wand2 size={24} className="text-pink-600" />
-              2. See & Color The Magic
+              2. See & Color the Secret Drawing
             </h2>
             <div className="relative w-full aspect-square bg-gray-100 rounded-2xl shadow-inner border-2 border-gray-200 flex items-center justify-center overflow-hidden">
               {isGenerating && (
@@ -866,6 +1057,17 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             )}
           </button>
 
+          {/* Webcam Button */}
+          <button
+            onClick={() => setShowWebcam(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out"
+          >
+            <span className="flex items-center gap-2">
+              <Camera size={20} />
+              Take Photo
+            </span>
+          </button>
+
           <button
             onClick={handleClearAll}
             className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out"
@@ -876,7 +1078,153 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             </span>
           </button>
         </div>
-        
+
+        {/* Webcam Modal */}
+        {showWebcam && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 shadow-2xl flex flex-col items-center">
+              <video
+                ref={webcamVideoRef}
+                autoPlay
+                playsInline
+                width={320}
+                height={240}
+                className="rounded-lg border mb-4"
+              />
+              <div className="flex gap-4">
+                <button
+                  onClick={async () => {
+                    // Capture image from video
+                    const video = webcamVideoRef.current;
+                    if (!video) return;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    // --- Resize to 380x380 before sending to Gemini ---
+                    const base64Image = await resizeBase64Image(dataUrl.split(',')[1], 380);
+
+                    // Immediately set the captured image into the drawing area (sketch canvas)
+                    const sketchCanvas = sketchCanvasRef.current;
+                    if (sketchCanvas) {
+                      const sketchCtx = sketchCanvas.getContext('2d');
+                      if (sketchCtx) {
+                        // Clear and draw the captured image, scaling to fit the canvas
+                        sketchCtx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+                        const img = new window.Image();
+                        img.onload = () => {
+                          sketchCtx.drawImage(
+                            img,
+                            0,
+                            0,
+                            sketchCanvas.width,
+                            sketchCanvas.height
+                          );
+                        };
+                        img.src = dataUrl;
+                      }
+                    }
+
+                    // Call Gemini for recognition
+                    setIsGenerating(true);
+                    setShowWebcam(false);
+                    setError(null);
+                    try {
+                      const descriptionPrompt = "Describe this simple photo in a few detailed keywords related to the subject for an AI image generator. Focus on the main subject and one key feature. For example, 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'. Do not use any introduction, just give the keywords directly. Do not mention any colors.";
+                      const descriptionPayload = {
+                        contents: [{
+                          parts: [
+                            { text: descriptionPrompt },
+                            { inlineData: { mimeType: "image/png", data: base64Image } }
+                          ]
+                        }]
+                      };
+
+                      // --- Gemini Token Counting Integration ---
+                      const tokenInfo = await countGeminiTokens(descriptionPayload);
+                      logGeminiTokenInfo('Recognized Photo (countTokens)', tokenInfo);
+
+                      const descriptionResult = await callAI(descriptionPayload, 'gemini');
+                      logGeminiTokenInfo('Recognized Photo (generateContent)', null, descriptionResult.usageMetadata);
+
+                      const sketchDescription = descriptionResult.candidates[0].content.parts[0].text.trim();
+                      setRecognizedImage(sketchDescription);
+
+                      // Generate coloring book image
+                      const imageGenerationPrompt = `A black connected line drawing of: ${sketchDescription} for children's coloring book with no internal colors, on a plain white background.`;
+                      // No token count for pollinations (image) API
+
+                      const imageBlob = await callAI(imageGenerationPrompt, 'pollinations');
+                      const generatedBase64 = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(imageBlob);
+                      });
+
+                      // Draw to coloring canvas
+                      setHasGeneratedContent(true);
+                      setTimeout(() => {
+                        const coloringCanvas = coloringCanvasRef.current;
+                        if (!coloringCanvas) return;
+                        resizeColoringCanvas();
+                        const ctx = coloringCanvas.getContext('2d');
+                        if (ctx) {
+                          const img = new window.Image();
+                          img.onload = () => {
+                            ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+                            ctx.drawImage(img, 0, 0, coloringCanvas.width, coloringCanvas.height);
+                          };
+                          img.src = 'data:image/png;base64,' + generatedBase64;
+                        }
+                      }, 0);
+
+                      // Add to history
+                      setHistory(prev => {
+                        const newHistory = [
+                          ...prev,
+                          {
+                            sketch: base64Image,
+                            generated: generatedBase64,
+                            recognizedImage: sketchDescription,
+                            prompt: '[Photo]',
+                            story: ''
+                          }
+                        ];
+                        return newHistory.length > 10 ? newHistory.slice(newHistory.length - 10) : newHistory;
+                      });
+                      setSelectedHistoryIndex(history.length >= 10 ? 9 : history.length);
+                      setShowStorySection(true);
+                    } catch (err: any) {
+                      setError(err.message || 'Could not process photo.');
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg"
+                >
+                  Capture & Use
+                </button>
+                <button
+                  onClick={() => {
+                    setShowWebcam(false);
+                    if (webcamStream) {
+                      webcamStream.getTracks().forEach(track => track.stop());
+                      setWebcamStream(null);
+                    }
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Story Section */}
         {showStorySection && (
           <section className="mt-8 w-full max-w-4xl mx-auto animate__animated animate__fadeInUp">
@@ -907,109 +1255,78 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                   <span className="font-bold text-orange-800">Your Story:</span>
                 </div>
                 <p className="leading-relaxed">{story}</p>
+                <button
+                  className="mt-4 px-6 py-3 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition"
+                  onClick={handleReadStory}
+                  disabled={isReadingStory}
+                >
+                  {isReadingStory ? (
+                    <span className="flex items-center gap-2">
+                      <Loader size={20} className="animate-spin" />
+                      Reading...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <BookOpen size={20} />
+                      Read Story
+                    </span>
+                  )}
+                </button>
               </div>
             )}
           </section>
-        )}
+          )}
 
-        {/* History Thumbnails */}
-        {history.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-semibold text-gray-700">Your Drawings:</span>
-            </div>
-            <div className="flex overflow-x-auto gap-6 py-2 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
-              {history.map((item, idx) => (
-                <div key={idx} className="flex flex-col items-center">
-                  <div
-                    className={`relative flex-shrink-0 rounded-full border-4 cursor-pointer transition-transform duration-150
-                      ${selectedHistoryIndex === idx ? 'border-sky-500 scale-110' : 'border-gray-200 hover:border-purple-400 hover:scale-105'}
-                    `}
-                    style={{
-                      width: 64,
-                      height: 64,
-                      minWidth: 64,
-                      minHeight: 64,
-                      background: '#f9fafb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    onClick={() => {
-                      setSelectedHistoryIndex(idx);
-                      setRecognizedImage(item.recognizedImage);
-                      setCurrentPrompt(item.prompt);
-                      setStory(item.story || '');
-                      setHasGeneratedContent(true);
-
-                      // Draw sketch to sketchCanvas
-                      const sketchImg = new window.Image();
-                      sketchImg.onload = () => {
-                        const canvas = sketchCanvasRef.current;
-                        if (canvas) {
-                          const ctx = canvas.getContext('2d');
-                          if (ctx) {
-                            ctx.clearRect(0, 0, canvas.width, canvas.height);
-                            ctx.drawImage(sketchImg, 0, 0, canvas.width, canvas.height);
-                          }
-                        }
-                      };
-                      sketchImg.src = 'data:image/png;base64,' + item.sketch;
-
-                      // Draw generated to coloringCanvas
-                      const genImg = new window.Image();
-                      genImg.onload = () => {
-                        const canvas = coloringCanvasRef.current;
-                        if (canvas) {
-                          const ctx = canvas.getContext('2d');
-                          if (ctx) {
-                            ctx.clearRect(0, 0, canvas.width, canvas.height);
-                            ctx.drawImage(genImg, 0, 0, canvas.width, canvas.height);
-                          }
-                        }
-                      };
-                      genImg.src = 'data:image/png;base64,' + item.generated;
-                    }}
-                    title={item.recognizedImage || 'Drawing'}
-                  >
-                    <img
-                      src={'data:image/png;base64,' + item.sketch}
-                      alt="sketch"
-                      className="w-full h-full object-contain rounded-full"
-                    />
-                    <button
-                      className="absolute top-0 right-0 bg-white rounded-full p-1 shadow hover:bg-red-100"
-                      style={{ transform: 'translate(40%,-40%)' }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setHistory(prev => prev.filter((_, i) => i !== idx));
-                        if (selectedHistoryIndex === idx) {
-                          handleClearAll();
-                          setSelectedHistoryIndex(null);
-                        } else if (selectedHistoryIndex !== null && idx < selectedHistoryIndex) {
-                          setSelectedHistoryIndex(selectedHistoryIndex - 1);
-                        }
-                      }}
-                      aria-label="Delete"
-                    >
-                      <svg width="16" height="16" fill="none" stroke="red" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
-                    </button>
-                  </div>
-                  {/* Numbered circle below thumbnail */}
-                  <div
-                    className="mt-2 w-6 h-6 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-sm"
-                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
-                  >
-                    {idx + 1}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        
       </div>
     </div>
   );
 };
 
 export default AIDrawingBook;
+
+// // Example usage of GoogleGenAI (ai) client for Gemini API
+// async function main() {
+//   const prompt = "Tell me about this image";
+//   const media = "./media"; // Your media folder path
+
+//   // Initialize the GoogleGenAI client with your API key
+//   const apiKey = await GeminiServiceAPI.getApiKey();
+//   if (!apiKey) {
+//     throw new Error('Gemini API key is not configured.');
+//   }
+//   const ai = new GoogleGenAI({ apiKey });
+
+//   // Upload image (this is pseudocode, adjust as needed for your SDK)
+//   const organ = await ai.files.upload({
+//     file: path.join(media, "organ.jpg"),
+//     config: { mimeType: "image/jpeg" },
+//   });
+
+//   // Count tokens BEFORE sending
+//   const countTokensResponse = await ai.models.countTokens({
+//     model: "gemini-2.0-flash",
+//     contents: [
+//       { role: "user", parts: [
+//         { text: prompt },
+//         { inlineData: { mimeType: "image/jpeg", data: organ.fileData } }
+//       ]}
+//     ],
+//   });
+//   console.log("Tokens before sending:", countTokensResponse.totalTokens);
+
+//   // Generate content
+//   const generateResponse = await ai.models.generateContent({
+//     model: "gemini-2.0-flash",
+//     contents: [
+//       { role: "user", parts: [
+//         { text: prompt },
+//         { inlineData: { mimeType: "image/jpeg", data: organ.data } }
+//       ]}
+//     ],
+//   });
+//   // Usage metadata includes tokens used for prompt and response
+//   console.log("Usage after response:", generateResponse.usageMetadata);
+// }
+
+// main();
