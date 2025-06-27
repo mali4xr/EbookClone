@@ -222,17 +222,23 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     try {
       const base64ImageData = getCanvasAsBase64();
       
-      const prompt = "Transform this simple sketch into a colorful and charming child's crayon drawing. The style should be naive and playful, with thick, wobbly lines like a kid drew it. Use a bright, happy primary color palette. The background must be solid white.";
+      const prompt = "Transform this simple sketch into a colorful and charming child's crayon drawing. The style should be naive and playful, with thick, wobbly lines like a kid drew it. Use a bright, happy primary color palette. The background must be solid white. Generate an image based on this drawing.";
       
       const payload = {
-        instances: [{
-          prompt: prompt,
-          image: { bytesBase64Encoded: base64ImageData }
-        }],
-        parameters: { sampleCount: 1 }
+        contents: [{
+          parts: [
+            { text: prompt },
+            { 
+              inlineData: { 
+                mimeType: "image/png", 
+                data: base64ImageData 
+              } 
+            }
+          ]
+        }]
       };
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GeminiService.getApiKey()}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiService.getApiKey()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -244,21 +250,28 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
       const result = await response.json();
       
-      if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
-        const imageDataUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-        setGeneratedImage(imageDataUrl);
-        setShowStorySection(true);
+      if (result.candidates && result.candidates[0]?.content?.parts) {
+        // Look for inline data in the response parts
+        const imagePart = result.candidates[0].content.parts.find((part: any) => part.inlineData);
         
-        // Trigger confetti when image is generated
-        setTimeout(() => {
-          triggerConfetti();
-        }, 500);
+        if (imagePart && imagePart.inlineData && imagePart.inlineData.data) {
+          const imageDataUrl = `data:image/png;base64,${imagePart.inlineData.data}`;
+          setGeneratedImage(imageDataUrl);
+          setShowStorySection(true);
+          
+          // Trigger confetti when image is generated
+          setTimeout(() => {
+            triggerConfetti();
+          }, 500);
+        } else {
+          throw new Error('No image was generated in the response.');
+        }
       } else {
-        throw new Error('No image was generated.');
+        throw new Error('Invalid response format from API.');
       }
     } catch (error) {
       console.error('Error generating image:', error);
-      setError('Oops! Something went wrong while creating the drawing.');
+      setError('Oops! Something went wrong while creating the drawing. The AI image generation feature may not be available with your current API key.');
     } finally {
       setIsGenerating(false);
     }
