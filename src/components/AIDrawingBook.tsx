@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Palette, Sparkles, RotateCcw, BookOpen, Wand2, Camera, Loader } from 'lucide-react';
 import { GeminiService as GeminiServiceAPI } from '../services/GeminiService';
-import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 
 // Assuming GeminiService handles API key retrieval.
