@@ -123,28 +123,6 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     return imageData.data.every(pixel => pixel === 0);
   };
 
-  const getCanvasAsBase64 = (): string => {
-    const canvas = canvasRef.current;
-    if (!canvas) return '';
-
-    // Create a temporary canvas with white background
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    if (tempCtx) {
-      // Fill with white background
-      tempCtx.fillStyle = '#FFFFFF';
-      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-      
-      // Draw the original canvas on top
-      tempCtx.drawImage(canvas, 0, 0);
-    }
-    
-    return tempCanvas.toDataURL('image/png').split(',')[1];
-  };
-
   const getDrawingIdea = async () => {
     setIsGettingIdea(true);
     setError(null);
@@ -220,65 +198,42 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setError(null);
     
     try {
-      const base64ImageData = getCanvasAsBase64();
+      // Create a descriptive prompt based on the drawing idea or a generic one
+      let prompt = currentPrompt || "A colorful child's drawing with bright colors and playful style";
       
-      const prompt = "Transform this simple sketch into a colorful and charming child's crayon drawing. The style should be naive and playful, with thick, wobbly lines like a kid drew it. Use a bright, happy primary color palette. The background must be solid white. Generate an image based on this drawing.";
+      // Clean up the prompt for URL encoding
+      prompt = prompt.replace(/[^\w\s]/gi, ' ').trim();
       
-      const payload = {
-        contents: [{
-          parts: [
-            { text: prompt },
-            { 
-              inlineData: { 
-                mimeType: "image/png", 
-                data: base64ImageData 
-              } 
-            }
-          ]
-        }]
-      };
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiService.getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      // Add style instructions to make it more child-like
+      const enhancedPrompt = `${prompt}, child's crayon drawing style, bright colors, simple shapes, playful and naive art style, white background`;
       
-      if (result.candidates && result.candidates[0]?.content?.parts) {
-        // Look for inline data in the response parts
-        const imagePart = result.candidates[0].content.parts.find((part: any) => part.inlineData);
-        
-        if (imagePart && imagePart.inlineData && imagePart.inlineData.data) {
-          const imageDataUrl = `data:image/png;base64,${imagePart.inlineData.data}`;
-          setGeneratedImage(imageDataUrl);
-          setShowStorySection(true);
-          
-          // Trigger confetti when image is generated
-          setTimeout(() => {
-            triggerConfetti();
-          }, 500);
-        } else {
-          throw new Error('No image was generated in the response.');
-        }
-      } else {
-        throw new Error('Invalid response format from API.');
-      }
+      // Generate a random seed for variation
+      const seed = Math.floor(Math.random() * 1000000);
+      
+      // Create the Pollinations AI URL
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=512&height=512&seed=${seed}&model=flux`;
+      
+      console.log('Generating image with Pollinations AI:', pollinationsUrl);
+      
+      // Set the generated image directly from the URL
+      setGeneratedImage(pollinationsUrl);
+      setShowStorySection(true);
+      
+      // Trigger confetti when image is generated
+      setTimeout(() => {
+        triggerConfetti();
+      }, 1000); // Give a bit more time for the image to load
+      
     } catch (error) {
       console.error('Error generating image:', error);
-      setError('Oops! Something went wrong while creating the drawing. The AI image generation feature may not be available with your current API key.');
+      setError('Oops! Something went wrong while creating the drawing.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const generateStory = async () => {
-    if (isCanvasEmpty()) {
+    if (!generatedImage && isCanvasEmpty()) {
       setError('Please draw something first!');
       return;
     }
@@ -287,23 +242,17 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     setError(null);
     
     try {
-      const base64ImageData = getCanvasAsBase64();
+      // Use the current prompt or create a story based on the drawing
+      const storyPrompt = currentPrompt 
+        ? `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about: ${currentPrompt}. Make it magical and fun!`
+        : "Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about their creative drawing. Make it magical and encouraging!";
       
-      const prompt = "Look at this child's sketch. Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about what is happening in the drawing. Speak as if you are telling the story to the child who drew it.";
-      
-      const payload = {
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: "image/png", data: base64ImageData } }
-          ]
-        }]
-      };
-
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiService.getApiKey()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: storyPrompt }] }]
+        })
       });
 
       if (!response.ok) {
@@ -334,7 +283,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-4">API Key Required</h2>
           <p className="text-gray-600 mb-6">
-            Please configure your Gemini API key in the environment variables to use the AI drawing features.
+            Please configure your Gemini API key in the environment variables to use the AI features.
           </p>
           <button
             onClick={onBack}
@@ -499,6 +448,14 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                   alt="AI enhanced drawing"
                   className="w-full h-full object-contain animate__animated animate__fadeIn"
                   key={generatedImage}
+                  onLoad={() => {
+                    // Trigger confetti when image actually loads
+                    if (!isGenerating) {
+                      setTimeout(() => {
+                        triggerConfetti();
+                      }, 100);
+                    }
+                  }}
                 />
               ) : (
                 <div className="text-center text-gray-500 p-8">
