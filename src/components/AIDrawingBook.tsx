@@ -155,8 +155,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: 320, 
-          height: 240,
+          width: 640, 
+          height: 480,
           facingMode: 'environment' // Use back camera if available
         } 
       });
@@ -380,37 +380,36 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     }
   };
 
-  const toggleInputMode = () => {
-    const newMode = inputMode === 'photo' ? 'drawing' : 'photo';
-    setInputMode(newMode);
-    
-    // Clean up when switching modes
-    if (newMode === 'drawing') {
-      stopWebcam();
-      setCapturedPhoto(null);
-    } else {
-      clearCanvas();
-    }
-    
+  const setPhotoMode = () => {
+    setInputMode('photo');
+    clearCanvas();
+    setGeneratedImage(null);
+    setRecognizedContent('');
+    setError(null);
+    startWebcam();
+  };
+
+  const setDrawingMode = () => {
+    setInputMode('drawing');
+    stopWebcam();
+    setCapturedPhoto(null);
     setGeneratedImage(null);
     setRecognizedContent('');
     setError(null);
   };
-
-  // Start webcam when switching to photo mode
-  useEffect(() => {
-    if (inputMode === 'photo' && !capturedPhoto) {
-      startWebcam();
-    } else if (inputMode === 'drawing') {
-      stopWebcam();
-    }
-  }, [inputMode]);
 
   // Cleanup webcam on unmount
   useEffect(() => {
     return () => {
       stopWebcam();
     };
+  }, []);
+
+  // Start webcam when component mounts (default photo mode)
+  useEffect(() => {
+    if (inputMode === 'photo') {
+      startWebcam();
+    }
   }, []);
 
   if (!GeminiService.getApiKey()) {
@@ -477,6 +476,32 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           </button>
         </div>
 
+        {/* Mode Selection Buttons */}
+        <div className="flex justify-center gap-4 mb-6">
+          <button
+            onClick={setPhotoMode}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+              inputMode === 'photo' 
+                ? 'bg-blue-500 text-white shadow-lg' 
+                : 'bg-white text-blue-500 border-2 border-blue-500 hover:bg-blue-50'
+            }`}
+          >
+            <Camera size={20} />
+            Photo Mode
+          </button>
+          <button
+            onClick={setDrawingMode}
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+              inputMode === 'drawing' 
+                ? 'bg-green-500 text-white shadow-lg' 
+                : 'bg-white text-green-500 border-2 border-green-500 hover:bg-green-50'
+            }`}
+          >
+            <Edit3 size={20} />
+            Drawing Mode
+          </button>
+        </div>
+
         {/* AI Prompt Display */}
         {currentPrompt && (
           <div className="text-center mb-6 animate__animated animate__fadeIn">
@@ -516,29 +541,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 bg-white p-6 rounded-3xl shadow-lg border-4 border-dashed border-blue-300">
           {/* Drawing/Photo Canvas Section */}
           <div className="flex flex-col items-center relative">
-            {/* Mode Toggle Button - Upper Left */}
-            <button
-              onClick={toggleInputMode}
-              className={`absolute top-0 left-0 z-10 flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                inputMode === 'photo' 
-                  ? 'bg-blue-500 text-white hover:bg-blue-600' 
-                  : 'bg-green-500 text-white hover:bg-green-600'
-              }`}
-            >
-              {inputMode === 'photo' ? (
-                <>
-                  <Camera size={16} />
-                  Photo Mode
-                </>
-              ) : (
-                <>
-                  <Edit3 size={16} />
-                  Drawing Mode
-                </>
-              )}
-            </button>
-
-            <h2 className="text-2xl font-bold mb-4 text-gray-700 flex items-center gap-2 mt-8">
+            <h2 className="text-2xl font-bold mb-4 text-gray-700 flex items-center gap-2">
               <Palette size={24} className="text-purple-600" />
               1. {inputMode === 'photo' ? 'Take Photo' : 'Draw Here'}
             </h2>
@@ -574,9 +577,12 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                       />
                       <button
                         onClick={capturePhoto}
-                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full shadow-md"
+                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
                       >
-                        📸 Capture
+                        <span className="flex items-center gap-2">
+                          <Camera size={20} />
+                          Capture Photo
+                        </span>
                       </button>
                     </>
                   ) : (
