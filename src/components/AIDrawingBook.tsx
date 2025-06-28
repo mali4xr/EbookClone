@@ -167,7 +167,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isGeneratingStory ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center">
                     <Loader size={20} className="animate-spin" />
                     Writing...
                   </span>
