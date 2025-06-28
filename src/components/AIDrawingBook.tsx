@@ -159,7 +159,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         {/* Story Section - Moved here, below history */}
         {showStorySection && (
           <section className="w-full max-w-4xl mx-auto animate__animated animate__fadeInUp">
-            <div className="text-center mb-6">
+            <div className="text-center mb-1">
               <button
                 onClick={generateStory}
                 disabled={isGeneratingStory}
