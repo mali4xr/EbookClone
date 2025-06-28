@@ -173,7 +173,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                   </span>
                 ) : (
                   <div >
-                    <BookOpen size={20} /> 
+                   
                     Create Story
                   </div>
                 )}
