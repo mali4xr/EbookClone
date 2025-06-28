@@ -629,7 +629,7 @@ export const useAIDrawingBookLogic = () => {
     try {
       const encodedStory = encodeURIComponent(story);
       const voice = "alloy";
-      const url = `https://text.pollinations.ai/'tell a 4 year old kid story about '${encodedStory}?model=openai-audio&voice=${voice}`;
+      const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to generate audio.");
       const blob = await response.blob();
