@@ -1,10 +1,181 @@
 export class GeminiService {
+  private static readonly BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash';
+  
+  private static readonly SAFETY_SETTINGS = [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_LOW_AND_ABOVE" },
+  ];
+
   static getApiKey(): string {
     return import.meta.env.VITE_GEMINI_API_KEY || '';
   }
 
   static getModel(): string {
-    return import.meta.env.VITE_GEMINI_MODEL || 'gemini-1.5-flash';
+    return import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash';
+  }
+
+  static logTokenInfo(
+    label: string,
+    tokenInfo: any,
+    usageMetadata?: any
+  ) {
+    const promptTokens =
+      usageMetadata?.promptTokenCount ?? tokenInfo?.promptTokenCount ?? "-";
+    const candidateTokens =
+      usageMetadata?.candidatesTokenCount ??
+      usageMetadata?.candidatesTokensCount ??
+      tokenInfo?.candidatesTokenCount ??
+      "-";
+    const totalTokens =
+      usageMetadata?.totalTokenCount ?? tokenInfo?.totalTokens ?? "-";
+    console.log(
+      `[${label}] Gemini Token Usage:\n` +
+        `  prompt tokens: ${promptTokens}\n` +
+        `  candidate tokens: ${candidateTokens}\n` +
+        `  total: ${totalTokens}`
+    );
+  }
+
+  static async countTokens(payload: any) {
+    try {
+      const apiKey = this.getApiKey();
+      if (!apiKey) throw new Error("API key is not configured.");
+      
+      const endpoint = `${this.BASE_URL}:countTokens?key=${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Token count error");
+      }
+      
+      return await response.json();
+    } catch (err) {
+      console.error("Token count error:", err);
+      return null;
+    }
+  }
+
+  static async generateContent(payload: any) {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('Gemini API key is not configured.');
+    }
+
+    const payloadWithSafety = {
+      ...payload,
+      safetySettings: this.SAFETY_SETTINGS,
+    };
+
+    const endpoint = `${this.BASE_URL}:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadWithSafety),
+    });
+
+    if (!response.ok) {
+      let errorMsg = `Gemini API Error (${response.status}): ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMsg = `Gemini API Error: ${errorData.error?.message || JSON.stringify(errorData)}`;
+      } catch (jsonError) {
+        console.error('Could not parse error response as JSON', jsonError);
+      }
+      throw new Error(errorMsg);
+    }
+
+    return response.json();
+  }
+
+  static async getDrawingIdea(): Promise<string> {
+    const prompt = "fun, creative drawing idea for a child.one sentence only. like: 'A friendly robot drinking a milkshake' or 'A snail with a birthday cake for a shell'.";
+    const payload = {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    };
+
+    // Token count before sending
+    const tokenInfo = await this.countTokens(payload);
+    this.logTokenInfo("Get Idea (countTokens)", tokenInfo);
+
+    const result = await this.generateContent(payload);
+    this.logTokenInfo("Get Idea (generateContent)", null, result.usageMetadata);
+
+    return result.candidates[0].content.parts[0].text.trim();
+  }
+
+  static async recognizeImage(base64ImageData: string): Promise<string> {
+    const descriptionPrompt = "Keywords only:subject. No colors. No intoductions, child sensitive, child safe. E.g. smiling sun, house with tree, cat chasing ball";
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: descriptionPrompt },
+            {
+              inlineData: { mimeType: "image/png", data: base64ImageData },
+            },
+          ],
+        },
+      ],
+    };
+
+    // Token count for recognized drawing
+    const tokenInfo = await this.countTokens(payload);
+    this.logTokenInfo("Recognized Drawing (countTokens)", tokenInfo);
+
+    const result = await this.generateContent(payload);
+    this.logTokenInfo("Recognized Drawing (generateContent)", null, result.usageMetadata);
+
+    return result.candidates[0].content.parts[0].text.trim();
+  }
+
+  static async recognizePhoto(base64ImageData: string): Promise<string> {
+    const descriptionPrompt = "Describe this simple photo in a few detailed keywords related to the subject for an AI image generator. Focus on the main subject and one key feature. For example, 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'. Do not use any introduction, just give the keywords directly. Do not mention any colors.";
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: descriptionPrompt },
+            {
+              inlineData: { mimeType: "image/png", data: base64ImageData },
+            },
+          ],
+        },
+      ],
+    };
+
+    // Token count for recognized photo
+    const tokenInfo = await this.countTokens(payload);
+    this.logTokenInfo("Recognized Photo (countTokens)", tokenInfo);
+
+    const result = await this.generateContent(payload);
+    this.logTokenInfo("Recognized Photo (generateContent)", null, result.usageMetadata);
+
+    return result.candidates[0].content.parts[0].text.trim();
+  }
+
+  static async generateStory(recognizedImage: string): Promise<string> {
+    const prompt = `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about this: "${recognizedImage}"`;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+    };
+
+    // Token count for story
+    const tokenInfo = await this.countTokens(payload);
+    this.logTokenInfo("Create Story (countTokens)", tokenInfo);
+
+    const result = await this.generateContent(payload);
+    this.logTokenInfo("Create Story (generateContent)", null, result.usageMetadata);
+
+    return result.candidates[0].content.parts[0].text.trim();
   }
 
   static async recognizeText(
