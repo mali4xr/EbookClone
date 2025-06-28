@@ -172,8 +172,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                     Writing...
                   </span>
                 ) : (
-                  <span className="flex items-center">
-
+                  
                     Tell me a Story
                   </span>
                 )}
