@@ -172,10 +172,10 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                     Writing...
                   </span>
                 ) : (
-                  <span className="flex items-center">
+                  <div >
                     <BookOpen size={20} /> 
                     Create Story
-                  </span>
+                  </div>
                 )}
               </button>
             </div>
