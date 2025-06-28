@@ -595,6 +595,15 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                   </div>
                 )}
                 
+                {/* Unavailable overlay */}
+                {!book.is_available && (
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
+                    <div className="bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full">
+                      <span className="text-gray-700 font-bold text-sm">🔒 Coming Soon</span>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Action buttons overlay - only show for authenticated users */}
                 {currentUser && !authConfigError && (
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -658,10 +667,20 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
               {/* Action Button */}
               <div className="px-4 pb-4">
                 <button 
-                  onClick={() => handleBookSelect(book)}
-                  className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-300 transform hover:scale-105 bg-gradient-to-r ${SUBJECT_COLORS[book.subject]}`}
+                  onClick={() => book.is_available ? handleBookSelect(book) : undefined}
+                  disabled={!book.is_available}
+                  className={`w-full py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
+                    book.is_available 
+                      ? `text-white transform hover:scale-105 bg-gradient-to-r ${SUBJECT_COLORS[book.subject]} hover:shadow-lg` 
+                      : 'text-gray-500 bg-gray-200 cursor-not-allowed'
+                  }`}
                 >
-                  {book.title === 'Creative Art Adventures' && book.subject === 'ART' ? 'Start Drawing' : 'Start Reading'}
+                  {!book.is_available 
+                    ? '🔒 Coming Soon' 
+                    : book.title === 'Creative Art Adventures' && book.subject === 'ART' 
+                      ? 'Start Drawing' 
+                      : 'Start Reading'
+                  }
                 </button>
               </div>
             </div>
