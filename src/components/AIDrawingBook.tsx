@@ -181,7 +181,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             </div>
 
             {story && (
-              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-6 text-lg shadow-inner animate__animated animate__fadeIn">
+              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-4 text-lg shadow-inner animate__animated animate__fadeIn">
                 
                 <div className="flex items-center gap-2"> 
                 <button
