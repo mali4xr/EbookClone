@@ -172,10 +172,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                     Writing...
                   </span>
                 ) : (
-                  <div >
-                   
-                    Create Story
-                  </div>
+                  <div > Create Story </div>
                 )}
               </button>
             </div>
