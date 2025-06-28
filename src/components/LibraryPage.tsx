@@ -142,21 +142,6 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       filtered = filtered.filter(book => book.difficulty_level === selectedDifficulty);
     }
 
-    // Sort by availability first (available books first), then by subject, then by title
-    filtered = filtered.sort((a, b) => {
-      // First priority: availability (available books first)
-      if (a.is_available !== b.is_available) {
-        return b.is_available ? 1 : -1; // Available books (true) come first
-      }
-      
-      // Second priority: subject
-      if (a.subject !== b.subject) {
-        return a.subject.localeCompare(b.subject);
-      }
-      
-      // Third priority: title
-      return a.title.localeCompare(b.title);
-    });
     setFilteredBooks(filtered);
   };
 
@@ -582,7 +567,11 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
           {filteredBooks.map((book) => (
             <div
               key={book.id}
-              className="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-xl animate__animated animate__fadeInUp group"
+              className={`bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 animate__animated animate__fadeInUp group ${
+                book.is_available 
+                  ? 'hover:scale-105 hover:shadow-xl' 
+                  : 'opacity-75'
+              }`}
             >
               {/* Book Cover */}
               <div className="relative h-48 overflow-hidden">
