@@ -42,6 +42,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
   const [personaCreated, setPersonaCreated] = useState(false);
   const [naturalResponseCount, setNaturalResponseCount] = useState(0);
   const [restrictedResponseCount, setRestrictedResponseCount] = useState(0);
+  const [shouldPulse, setShouldPulse] = useState(true);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const callObjectRef = useRef<any>(null);
@@ -70,6 +71,15 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
     return () => {
       // Cleanup is handled in the main cleanup function
     };
+  }, []);
+
+  // Stop pulsing after 10 seconds or when user interacts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldPulse(false);
+    }, 10000); // Stop pulsing after 10 seconds
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Clean up conversation when component unmounts
@@ -721,6 +731,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
 
   const handleOpen = () => {
     setIsOpen(true);
+    setShouldPulse(false); // Stop pulsing when user opens
     if (!conversation && !isConnecting && !isConnected) {
       initializeAIAssistant();
     }
@@ -760,7 +771,9 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
           <button
             onClick={handleOpen}
             disabled={isConnecting}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 disabled:opacity-50 group"
+            className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 disabled:opacity-50 group ${
+              shouldPulse ? 'animate-pulse' : ''
+            }`}
             aria-label="Open Library Assistant"
           >
             <div className="relative">
@@ -769,8 +782,15 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
               ) : (
                 <Video size={24} />
               )}
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              <div className={`absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full ${
+                shouldPulse ? 'animate-bounce' : 'animate-pulse'
+              }`}></div>
             </div>
+            
+            {/* Attention-grabbing ring animation */}
+            {shouldPulse && (
+              <div className="absolute inset-0 rounded-full border-4 border-yellow-400 animate-ping opacity-75"></div>
+            )}
           </button>
         ) : (
           <div className={`bg-white rounded-xl shadow-2xl border-4 border-purple-300 transition-all duration-300 ${
