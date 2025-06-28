@@ -256,10 +256,10 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
           {/* AI Generated Image & Coloring Section */}
           <div className="flex flex-col items-center">
-            <h2 className="text-2xl font-bold mb-4 text-gray-700 flex items-center gap-2">
+            <h3 className="text-2xl font-bold mb-4 text-gray-700 flex items-center gap-2">
               <Wand2 size={24} className="text-pink-600" />
               2. See & Color the Secret Drawing
-            </h2>
+            </h3>
             <div className="relative w-full aspect-square bg-gray-100 rounded-2xl shadow-inner border-2 border-gray-200 flex items-center justify-center overflow-hidden">
               {/* Magic Wand Animation - shows during generation */}
               <MagicWandAnimation isVisible={isGenerating} />
