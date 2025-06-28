@@ -520,19 +520,44 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
+  // FIXED: Completely rewritten handleReadStory to fix hot reload issues
   const handleReadStory = async () => {
     if (!story) return;
     
-    // Clear any existing fade interval before starting new one
+    console.log('🎬 Starting handleReadStory');
+    console.log('📸 Current storyImageBase64:', !!storyImageBase64);
+    console.log('🎨 hasGeneratedContent:', hasGeneratedContent);
+    
+    // STEP 1: Complete cleanup of any existing state
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
+      console.log('🧹 Cleared existing fade interval');
     }
     
-    // Reset story image visibility to ensure clean start
-    setShowStoryImage(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+      console.log('🔇 Stopped existing audio');
+    }
     
+    // STEP 2: Force reset animation state
+    setShowStoryImage(false);
     setIsReadingStory(true);
+    
+    // STEP 3: Ensure we have the story image from current context
+    let currentStoryImage = storyImageBase64;
+    if (!currentStoryImage && selectedHistoryIndex !== null && history[selectedHistoryIndex]) {
+      currentStoryImage = history[selectedHistoryIndex].storyImageBase64 || null;
+      console.log('📚 Retrieved story image from history:', !!currentStoryImage);
+      // Update the state to ensure consistency
+      if (currentStoryImage) {
+        setStoryImageBase64(currentStoryImage);
+      }
+    }
+    
+    console.log('🖼️ Final story image check:', !!currentStoryImage);
     
     try {
       const encodedStory = encodeURIComponent(story);
@@ -541,12 +566,6 @@ export const useAIDrawingBookLogic = () => {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to generate audio.");
       const blob = await response.blob();
-      
-      // Stop any existing audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
       
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
@@ -559,22 +578,39 @@ export const useAIDrawingBookLogic = () => {
       bgAudio.volume = 0.1;
       bgAudio.play().catch(() => {});
 
-      // Slower Fade Animation: alternate coloring and story image every 5 seconds
-      // FIXED: Always restart the animation cycle when playing audio
-      if (storyImageBase64 && hasGeneratedContent) {
-        // Start with story image visible
-        setShowStoryImage(true);
+      // STEP 4: Start animation cycle ONLY if we have both story image and generated content
+      if (currentStoryImage && hasGeneratedContent) {
+        console.log('🎭 Starting animation cycle');
         
-        // Set up the alternating cycle
-        fadeIntervalRef.current = setInterval(() => {
-          setShowStoryImage((prev) => !prev);
-        }, 5000); // 5 seconds for each image
+        // Force a small delay to ensure state is updated
+        setTimeout(() => {
+          setShowStoryImage(true);
+          console.log('👁️ Set story image visible');
+          
+          // Start the alternating cycle after initial display
+          setTimeout(() => {
+            fadeIntervalRef.current = setInterval(() => {
+              setShowStoryImage((prev) => {
+                const newValue = !prev;
+                console.log('🔄 Toggling story image visibility:', newValue);
+                return newValue;
+              });
+            }, 5000); // 5 seconds for each image
+            console.log('⏰ Started fade interval');
+          }, 5000); // Show story image for 5 seconds first
+        }, 100); // Small delay to ensure state update
+      } else {
+        console.log('❌ Animation not started - missing requirements:', {
+          hasStoryImage: !!currentStoryImage,
+          hasGeneratedContent
+        });
       }
 
       audioRef.current = audio;
       audio.play();
 
       audio.onended = () => {
+        console.log('🎵 Audio ended - cleaning up');
         setTimeout(() => {
           bgAudio.pause();
           bgAudio.currentTime = 0;
@@ -589,6 +625,7 @@ export const useAIDrawingBookLogic = () => {
       };
       
       audio.onerror = () => {
+        console.log('❌ Audio error - cleaning up');
         setIsReadingStory(false);
         setShowStoryImage(false);
         if (fadeIntervalRef.current) {
@@ -601,6 +638,7 @@ export const useAIDrawingBookLogic = () => {
         URL.revokeObjectURL(audioUrl);
       };
     } catch (err) {
+      console.log('💥 Error in handleReadStory:', err);
       setError("Could not generate audio for the story.");
       setIsReadingStory(false);
       setShowStoryImage(false);
@@ -613,12 +651,18 @@ export const useAIDrawingBookLogic = () => {
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
+    console.log('📚 Selecting history item:', idx);
     setSelectedHistoryIndex(idx);
     const item = history[idx];
     setRecognizedImage(item.recognizedImage);
     setCurrentPrompt(item.prompt);
     setStory(item.story || "");
-    setStoryImageBase64(item.storyImageBase64 || null); // FIXED: Ensure story image is set from history
+    
+    // CRITICAL: Ensure story image is properly set from history
+    const historyStoryImage = item.storyImageBase64 || null;
+    setStoryImageBase64(historyStoryImage);
+    console.log('🖼️ Set story image from history:', !!historyStoryImage);
+    
     setHasGeneratedContent(true);
 
     // Draw sketch to sketchCanvas
