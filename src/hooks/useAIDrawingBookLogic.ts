@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import confetti from 'canvas-confetti';
 import { GeminiService } from '../services/GeminiService';
 import { PollinationsService } from '../services/PollinationsService';
 import { resizeBase64Image, blobToBase64, getCanvasPos, hexToRgbA, getPixelColor, setPixelColor, colorsMatch } from '../utils/imageUtils';
@@ -54,6 +55,37 @@ export const useAIDrawingBookLogic = () => {
     "#FF0000", "#0000FF", "#00FF00", "#FFFF00", "#FF7F00",
     "#BF00BF", "#00FFFF", "#FFC0CB", "#8B4513", "#808080", "#FFFFFF"
   ];
+
+  // Confetti celebration function
+  const celebrateWithConfetti = () => {
+    // Multiple confetti bursts for extra celebration
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff']
+    });
+    
+    // Second burst with different timing
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: ['#ffd700', '#ff69b4', '#98fb98', '#87ceeb']
+      });
+    }, 300);
+    
+    // Third burst for grand finale
+    setTimeout(() => {
+      confetti({
+        particleCount: 75,
+        spread: 80,
+        origin: { y: 0.5 },
+        colors: ['#ff6347', '#40e0d0', '#ee82ee', '#90ee90']
+      });
+    }, 600);
+  };
 
   // Canvas setup effects
   useEffect(() => {
@@ -347,6 +379,10 @@ export const useAIDrawingBookLogic = () => {
         const img = new window.Image();
         img.onload = async () => {
           setHasGeneratedContent(true);
+          
+          // Trigger confetti celebration for successful generation
+          celebrateWithConfetti();
+          
           setTimeout(() => {
             const coloringCanvas = coloringCanvasRef.current;
             if (!coloringCanvas) return;
@@ -385,6 +421,10 @@ export const useAIDrawingBookLogic = () => {
         const img = new window.Image();
         img.onload = async () => {
           setHasGeneratedContent(true);
+          
+          // Trigger confetti celebration for successful generation
+          celebrateWithConfetti();
+          
           setTimeout(() => {
             const coloringCanvas = coloringCanvasRef.current;
             if (!coloringCanvas) return;
@@ -505,14 +545,14 @@ export const useAIDrawingBookLogic = () => {
       bgAudio.volume = 0.1;
       bgAudio.play().catch(() => {});
 
-      // Fade Animation: alternate coloring and story image
+      // Slower Fade Animation: alternate coloring and story image every 5 seconds
       if (storyImageBase64 && hasGeneratedContent) {
         setShowStoryImage(true);
         let showingStory = true;
         fadeIntervalRef.current = setInterval(() => {
           setShowStoryImage((prev) => !prev);
           showingStory = !showingStory;
-        }, 2000);
+        }, 5000); // Changed from 2000ms to 5000ms for slower transition
       }
 
       audioRef.current = audio;
@@ -646,6 +686,10 @@ export const useAIDrawingBookLogic = () => {
 
       // Draw to coloring canvas
       setHasGeneratedContent(true);
+      
+      // Trigger confetti celebration for photo processing
+      celebrateWithConfetti();
+      
       setTimeout(() => {
         const coloringCanvas = coloringCanvasRef.current;
         if (!coloringCanvas) return;

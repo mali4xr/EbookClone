@@ -13,6 +13,7 @@ import { useAIDrawingBookLogic } from "../hooks/useAIDrawingBookLogic";
 import ColorPalette from "./ColorPalette";
 import HistoryThumbnails from "./HistoryThumbnails";
 import WebcamModal from "./WebcamModal";
+import MagicWandAnimation from "./MagicWandAnimation";
 import "../index.css";
 
 interface AIDrawingBookProps {
@@ -155,6 +156,58 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           onDeleteHistory={handleDeleteHistory}
         />
 
+        {/* Story Section - Moved here, below history */}
+        {showStorySection && (
+          <section className="mb-8 w-full max-w-4xl mx-auto animate__animated animate__fadeInUp">
+            <div className="text-center mb-4">
+              <button
+                onClick={generateStory}
+                disabled={isGeneratingStory}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {isGeneratingStory ? (
+                  <span className="flex items-center gap-2">
+                    <Loader size={20} className="animate-spin" />
+                    Writing...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <BookOpen size={20} />
+                    Tell me a Story
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {story && (
+              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-6 text-lg shadow-inner animate__animated animate__fadeIn">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen size={24} className="text-orange-600" />
+                  <span className="font-bold text-orange-800">Your Story:</span>
+                </div>
+                <p className="leading-relaxed">{story}</p>
+                <button
+                  className="mt-4 px-6 py-3 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition"
+                  onClick={handleReadStory}
+                  disabled={isReadingStory}
+                >
+                  {isReadingStory ? (
+                    <span className="flex items-center gap-2">
+                      <Loader size={20} className="animate-spin" />
+                      Reading...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <BookOpen size={20} />
+                      Read Story
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Main Content */}
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 bg-white p-4 rounded-3xl shadow-lg border-4 border-dashed border-blue-600">
           {/* Drawing Canvas Section */}
@@ -206,10 +259,13 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               2. See & Color the Secret Drawing
             </h2>
             <div className="relative w-full aspect-square bg-gray-100 rounded-2xl shadow-inner border-2 border-gray-200 flex items-center justify-center overflow-hidden">
-              {/* Story Image Overlay */}
+              {/* Magic Wand Animation - shows during generation */}
+              <MagicWandAnimation isVisible={isGenerating} />
+
+              {/* Story Image Overlay with slower transition */}
               {storyImageBase64 && (
                 <div
-                  className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-300"
+                  className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-1000"
                   style={{
                     opacity: showStoryImage ? 1 : 0,
                     zIndex: 20,
@@ -218,7 +274,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                   <img
                     src={`data:image/png;base64,${storyImageBase64}`}
                     alt="Story Illustration"
-                    className={`w-full h-full object-contain${showStoryImage ? " fade-in-image" : ""}`}
+                    className={`w-full h-full object-contain ${showStoryImage ? "slow-fade-animation" : ""}`}
                   />
                 </div>
               )}
@@ -228,7 +284,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 ref={coloringCanvasRef}
                 className={`w-full h-full rounded-2xl ${
                   hasGeneratedContent ? "block cursor-crosshair" : "hidden"
-                } transition-opacity duration-700`}
+                } transition-opacity duration-1000`}
                 style={{
                   opacity: showStoryImage ? 0 : 1,
                   zIndex: 10,
@@ -343,58 +399,6 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           onCapture={handleWebcamCapture}
           onCancel={handleWebcamCancel}
         />
-
-        {/* Story Section */}
-        {showStorySection && (
-          <section className="mt-8 w-full max-w-4xl mx-auto animate__animated animate__fadeInUp">
-            <div className="text-center mb-4">
-              <button
-                onClick={generateStory}
-                disabled={isGeneratingStory}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {isGeneratingStory ? (
-                  <span className="flex items-center gap-2">
-                    <Loader size={20} className="animate-spin" />
-                    Writing...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <BookOpen size={20} />
-                    Tell me a Story
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {story && (
-              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-6 text-lg shadow-inner animate__animated animate__fadeIn">
-                <div className="flex items-center gap-2 mb-3">
-                  <BookOpen size={24} className="text-orange-600" />
-                  <span className="font-bold text-orange-800">Your Story:</span>
-                </div>
-                <p className="leading-relaxed">{story}</p>
-                <button
-                  className="mt-4 px-6 py-3 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition"
-                  onClick={handleReadStory}
-                  disabled={isReadingStory}
-                >
-                  {isReadingStory ? (
-                    <span className="flex items-center gap-2">
-                      <Loader size={20} className="animate-spin" />
-                      Reading...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <BookOpen size={20} />
-                      Read Story
-                    </span>
-                  )}
-                </button>
-              </div>
-            )}
-          </section>
-        )}
       </div>
     </div>
   );
