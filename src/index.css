@@ -89,3 +89,16 @@ body {
   transform: translateX(-100%);
   transition: opacity 500ms, transform 500ms;
 }
+
+.fade-in-image {
+  animation: fadeIn 4s;
+  -webkit-animation: fadeIn 4s;
+  -moz-animation: fadeIn 4s;
+  -o-animation: fadeIn 4s;
+  -ms-animation: fadeIn 4s;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}

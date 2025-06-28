@@ -9,6 +9,8 @@ import {
   Loader,
 } from "lucide-react";
 import { GeminiService as GeminiServiceAPI } from "../services/GeminiService";
+// import "../styles/AIDrawingBook.css"; // Import your CSS styles
+import "../index.css"; // Import your CSS styles
 
 // Assuming GeminiService handles API key retrieval.
 // For this standalone example, I will define a placeholder for GeminiService.
@@ -66,6 +68,10 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const [isReadingStory, setIsReadingStory] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // --- Story Image Overlay State ---
+  const [storyImageBase64, setStoryImageBase64] = useState<string | null>(null);
+  const [showStoryImage, setShowStoryImage] = useState(false);
+
   // --- History State ---
   const [history, setHistory] = useState<
     {
@@ -74,6 +80,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
       recognizedImage: string;
       prompt: string;
       story: string;
+      storyImageBase64?: string; // <-- add this
     }[]
   >([]); // <-- Fix: was '}(})', should be '([])'
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<
@@ -519,7 +526,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
     try {
       const prompt =
-        "Give me a simple, fun, and creative drawing idea for a child. Be concise, one sentence only. For example: 'A friendly robot drinking a milkshake' or 'A snail with a birthday cake for a shell'.";
+        "fun, creative drawing idea for a child.one sentence only. like: 'A friendly robot drinking a milkshake' or 'A snail with a birthday cake for a shell'.";
       const payload = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       };
@@ -586,6 +593,11 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const enhanceDrawing = async () => {
     if (isSketchCanvasEmpty()) {
       setError("Please draw something on the canvas first!");
+      // play error sound
+      const errorSound = new Audio(
+        "https://cdn.pixabay.com/download/audio/2023/05/15/audio_59378cd845.mp3?filename=a-nasty-sound-if-you-choose-the-wrong-one-149895.mp3"
+      );
+      errorSound.play();
       return;
     }
 
@@ -658,12 +670,14 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           );
           setShowStorySection(true);
           URL.revokeObjectURL(imageUrl);
+          
         };
         img.onerror = () => {
           setError("Failed to load generated image for coloring.");
           URL.revokeObjectURL(imageUrl);
         };
         img.src = imageUrl;
+        
       } else {
         // New drawing: call Gemini for description, then Pollinations, then add to history
         const descriptionPrompt =
@@ -765,6 +779,18 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   };
 
   const generateStory = async () => {
+    // 1. If selectedHistoryIndex is set and story exists in history, reuse it!
+    if (
+      selectedHistoryIndex !== null &&
+      history[selectedHistoryIndex] &&
+      history[selectedHistoryIndex].story &&
+      history[selectedHistoryIndex].story.trim() !== ""
+    ) {
+      setStory(history[selectedHistoryIndex].story);
+      setStoryImageBase64(history[selectedHistoryIndex].storyImageBase64 || null);
+      return;
+    }
+
     if (!recognizedImage) {
       setError("Please generate a drawing first!");
       return;
@@ -794,27 +820,47 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
       const storyText = result.candidates[0].content.parts[0].text;
       setStory(storyText.trim());
+
+      // --- Generate Story Image (no coloring book clause) ---
+      const storyImageBlob = await callAI("colorful child scene+no+nudit" + storyText, "pollinations");
+      const storyImageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(storyImageBlob);
+      });
+      setStoryImageBase64(storyImageBase64);
+
+      // Save story and story image to history if from history
+      if (selectedHistoryIndex !== null && history[selectedHistoryIndex]) {
+        setHistory((prev) =>
+          prev.map((item, idx) =>
+            idx === selectedHistoryIndex
+              ? { ...item, story: storyText.trim(), storyImageBase64 }
+              : item
+          )
+        );
+      }
     } catch (err: any) {
       console.error("Error generating story:", err);
       setError(
         err.message || "The storyteller seems to be napping! Please try again."
       );
       setStory(""); // Clear story on error
+      setStoryImageBase64(null);
     } finally {
       setIsGeneratingStory(false);
     }
   };
 
-  // --- Audio: Read Story Handler ---
+  // --- Audio: Read Story Handler with Fade Animation ---
+  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const handleReadStory = async () => {
     if (!story) return;
     setIsReadingStory(true);
     try {
       const encodedStory = encodeURIComponent(story);
-      // Log the story being sent to the TTS service
-      console.log("[Read Story] Text sent to TTS:", story);
-
-      // You can change the voice: alloy, echo, fable, onyx, nova, shimmer
       const voice = "alloy";
       const url = `https://text.pollinations.ai/'tell a 4 year old kid story about '${encodedStory}?model=openai-audio&voice=${voice}`;
       const response = await fetch(url);
@@ -832,8 +878,18 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
       const bgAudio = new Audio(bgMusicUrl);
       bgAudio.loop = true;
-      bgAudio.volume = 0.1; // Lower volume (0.0 - 1.0)
+      bgAudio.volume = 0.1;
       bgAudio.play().catch(() => {});
+
+      // --- Fade Animation: alternate coloring and story image ---
+      if (storyImageBase64 && hasGeneratedContent) {
+        setShowStoryImage(true);
+        let showingStory = true;
+        fadeIntervalRef.current = setInterval(() => {
+          setShowStoryImage((prev) => !prev);
+          showingStory = !showingStory;
+        }, 2000); // seconds for each image
+      }
 
       audioRef.current = audio;
       audio.play();
@@ -842,12 +898,20 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         setTimeout(() => {
           bgAudio.pause();
           bgAudio.currentTime = 0;
-        }, 2000); // Stop background music 2 seconds after story ends
+        }, 2000);
         setIsReadingStory(false);
+        setShowStoryImage(false);
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current);
+        }
         URL.revokeObjectURL(audioUrl);
       };
       audio.onerror = () => {
         setIsReadingStory(false);
+        setShowStoryImage(false);
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current);
+        }
         setError("Could not play the story audio.");
         bgAudio.pause();
         bgAudio.currentTime = 0;
@@ -856,16 +920,23 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     } catch (err) {
       setError("Could not generate audio for the story.");
       setIsReadingStory(false);
+      setShowStoryImage(false);
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+      }
     }
   };
 
-  // Clean up audio on unmount
+  // Clean up audio and fade interval on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = "";
         audioRef.current = null;
+      }
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
       }
     };
   }, []);
@@ -1029,7 +1100,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                       genImg.onload = () => {
                         const canvas = coloringCanvasRef.current;
                         if (canvas) {
-                          resizeColoringCanvas(); // <-- Add this line
+                          resizeColoringCanvas();
                           const ctx = canvas.getContext("2d");
                           if (ctx) {
                             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1044,6 +1115,9 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                         }
                       };
                       genImg.src = "data:image/png;base64," + item.generated;
+
+                      // --- Ensure story panel is visible when clicking history ---
+                      setShowStorySection(true);
                     }}
                     title={item.recognizedImage || "Drawing"}
                   >
@@ -1148,15 +1222,20 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               2. See & Color the Secret Drawing
             </h2>
             <div className="relative w-full aspect-square bg-gray-100 rounded-2xl shadow-inner border-2 border-gray-200 flex items-center justify-center overflow-hidden">
-              {isGenerating && (
-                <div className="absolute z-10 flex flex-col items-center">
-                  <Loader
-                    size={48}
-                    className="animate-spin text-pink-500 mb-4"
+              {/* --- Story Image Overlay (fades in/out) --- */}
+              {storyImageBase64 && (
+                <div
+                  className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-300"
+                  style={{
+                    opacity: showStoryImage ? 1 : 0,
+                    zIndex: 20,
+                  }}
+                >
+                  <img
+                    src={`data:image/png;base64,${storyImageBase64}`}
+                    alt="Story Illustration"
+                    className={`w-full h-full object-contain${showStoryImage ? " fade-in-image" : ""}`}
                   />
-                  <p className="text-gray-600 font-semibold">
-                    Creating magic...
-                  </p>
                 </div>
               )}
 
@@ -1165,7 +1244,12 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 ref={coloringCanvasRef}
                 className={`w-full h-full rounded-2xl ${
                   hasGeneratedContent ? "block cursor-crosshair" : "hidden"
-                }`}
+                } transition-opacity duration-700`}
+                style={{
+                  opacity: showStoryImage ? 0 : 1,
+                  zIndex: 10,
+                  position: "relative",
+                }}
                 onClick={handleColoringClick}
                 onTouchStart={handleColoringClick}
               ></canvas>
@@ -1224,8 +1308,10 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         </main>
 
         {/* Controls Section */}
-        <div className="mt-6 flex flex-wrap justify-center items-center gap-4">
-          {/* clear button */}
+
+        <div className="mt-6 flex flex-wrap justify-center items-center gap-40">
+
+        
           <button
             onClick={handleClearAll}
             className=" bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out"
@@ -1236,7 +1322,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             </span>
           </button>
 
-          {/* <button
+
+            <button
             onClick={getDrawingIdea}
             disabled={isGettingIdea}
             className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
@@ -1249,10 +1336,12 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             ) : (
               <span className="flex items-center gap-2">
                 <Sparkles size={20} />
-                Get an Idea
+                Idea
               </span>
             )}
-          </button> */}
+          </button>
+
+
 
           <button
             onClick={enhanceDrawing}
@@ -1274,10 +1363,15 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             ) : (
               <span className="flex items-center gap-2">
                 <Wand2 size={20} />
-                Create Magic
+                Surprise Drawing
               </span>
             )}
           </button>
+
+
+          
+
+  
 
           {/* Webcam Button */}
         </div>
