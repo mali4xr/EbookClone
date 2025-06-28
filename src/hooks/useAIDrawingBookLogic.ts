@@ -522,7 +522,18 @@ export const useAIDrawingBookLogic = () => {
 
   const handleReadStory = async () => {
     if (!story) return;
+    
+    // Clear any existing fade interval before starting new one
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+    
+    // Reset story image visibility to ensure clean start
+    setShowStoryImage(false);
+    
     setIsReadingStory(true);
+    
     try {
       const encodedStory = encodeURIComponent(story);
       const voice = "alloy";
@@ -530,10 +541,13 @@ export const useAIDrawingBookLogic = () => {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to generate audio.");
       const blob = await response.blob();
+      
+      // Stop any existing audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = "";
       }
+      
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
 
@@ -546,13 +560,15 @@ export const useAIDrawingBookLogic = () => {
       bgAudio.play().catch(() => {});
 
       // Slower Fade Animation: alternate coloring and story image every 5 seconds
+      // FIXED: Always restart the animation cycle when playing audio
       if (storyImageBase64 && hasGeneratedContent) {
+        // Start with story image visible
         setShowStoryImage(true);
-        let showingStory = true;
+        
+        // Set up the alternating cycle
         fadeIntervalRef.current = setInterval(() => {
           setShowStoryImage((prev) => !prev);
-          showingStory = !showingStory;
-        }, 5000); // Changed from 2000ms to 5000ms for slower transition
+        }, 5000); // 5 seconds for each image
       }
 
       audioRef.current = audio;
@@ -567,14 +583,17 @@ export const useAIDrawingBookLogic = () => {
         setShowStoryImage(false);
         if (fadeIntervalRef.current) {
           clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
         }
         URL.revokeObjectURL(audioUrl);
       };
+      
       audio.onerror = () => {
         setIsReadingStory(false);
         setShowStoryImage(false);
         if (fadeIntervalRef.current) {
           clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
         }
         setError("Could not play the story audio.");
         bgAudio.pause();
@@ -587,6 +606,7 @@ export const useAIDrawingBookLogic = () => {
       setShowStoryImage(false);
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
       }
     }
   };
@@ -598,6 +618,7 @@ export const useAIDrawingBookLogic = () => {
     setRecognizedImage(item.recognizedImage);
     setCurrentPrompt(item.prompt);
     setStory(item.story || "");
+    setStoryImageBase64(item.storyImageBase64 || null); // FIXED: Ensure story image is set from history
     setHasGeneratedContent(true);
 
     // Draw sketch to sketchCanvas
