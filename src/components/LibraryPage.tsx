@@ -142,6 +142,21 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       filtered = filtered.filter(book => book.difficulty_level === selectedDifficulty);
     }
 
+    // Sort by availability first (available books first), then by subject, then by title
+    filtered = filtered.sort((a, b) => {
+      // First priority: availability (available books first)
+      if (a.is_available !== b.is_available) {
+        return b.is_available ? 1 : -1; // Available books (true) come first
+      }
+      
+      // Second priority: subject
+      if (a.subject !== b.subject) {
+        return a.subject.localeCompare(b.subject);
+      }
+      
+      // Third priority: title
+      return a.title.localeCompare(b.title);
+    });
     setFilteredBooks(filtered);
   };
 
