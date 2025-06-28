@@ -23,6 +23,7 @@ interface BookFormData {
   difficulty_level: BookType['difficulty_level'];
   target_age_min: number;
   target_age_max: number;
+  is_available: boolean;
 }
 
 const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
@@ -54,7 +55,8 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     cover_image_url: '',
     difficulty_level: 'beginner',
     target_age_min: 3,
-    target_age_max: 12
+    target_age_max: 12,
+    is_available: true
   });
 
   const authService = AuthService.getInstance();
@@ -192,7 +194,8 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       cover_image_url: '',
       difficulty_level: 'beginner',
       target_age_min: 3,
-      target_age_max: 12
+      target_age_max: 12,
+      is_available: true
     });
   };
 
@@ -229,7 +232,8 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       cover_image_url: book.cover_image_url,
       difficulty_level: book.difficulty_level,
       target_age_min: book.target_age_min,
-      target_age_max: book.target_age_max
+      target_age_max: book.target_age_max,
+      is_available: book.is_available ?? true
     });
     setEditingBook(book);
     setShowAddBook(true);
@@ -901,6 +905,44 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                     onChange={(e) => setFormData({ ...formData, target_age_max: parseInt(e.target.value) })}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   />
+                </div>
+              </div>
+
+              {/* Book Availability Toggle */}
+              <div className="space-y-3 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  📚 Book Availability
+                </h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">
+                      {formData.is_available ? 'Available for Reading' : 'Coming Soon'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.is_available 
+                        ? 'Students can start reading this book immediately' 
+                        : 'Book will show "Coming Soon" and be disabled for students'
+                      }
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-medium ${formData.is_available ? 'text-green-600' : 'text-gray-500'}`}>
+                      {formData.is_available ? '✅ Available' : '⏳ Coming Soon'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, is_available: !formData.is_available })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+                        formData.is_available ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          formData.is_available ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
