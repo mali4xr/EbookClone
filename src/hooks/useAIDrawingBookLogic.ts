@@ -46,9 +46,10 @@ export const useAIDrawingBookLogic = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number | null>(null);
 
-  // Webcam state
+  // Webcam state - Fixed: Better state management
   const [showWebcam, setShowWebcam] = useState(false);
   const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
+  const [isWebcamReady, setIsWebcamReady] = useState(false);
 
   // Color palette
   const colors = [
@@ -126,23 +127,65 @@ export const useAIDrawingBookLogic = () => {
     return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
-  // Webcam stream management
+  // Fixed: Improved webcam stream management
   useEffect(() => {
+    let mounted = true;
+
     if (showWebcam) {
+      setIsWebcamReady(false);
+      setError(null);
+      
       navigator.mediaDevices
-        .getUserMedia({ video: true })
+        .getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        })
         .then((stream) => {
+          if (!mounted) {
+            // Component unmounted, clean up stream
+            stream.getTracks().forEach(track => track.stop());
+            return;
+          }
+          
           setWebcamStream(stream);
           if (webcamVideoRef.current) {
             webcamVideoRef.current.srcObject = stream;
+            webcamVideoRef.current.onloadedmetadata = () => {
+              if (mounted) {
+                setIsWebcamReady(true);
+              }
+            };
           }
         })
-        .catch(() => setError("Could not access webcam."));
-    } else if (webcamStream) {
-      webcamStream.getTracks().forEach((track) => track.stop());
-      setWebcamStream(null);
+        .catch((err) => {
+          if (mounted) {
+            console.error('Webcam error:', err);
+            setError("Could not access webcam. Please check permissions.");
+            setShowWebcam(false);
+          }
+        });
+    } else {
+      // Clean up webcam when hiding
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+        setWebcamStream(null);
+      }
+      if (webcamVideoRef.current) {
+        webcamVideoRef.current.srcObject = null;
+      }
+      setIsWebcamReady(false);
     }
-  }, [showWebcam, webcamStream]);
+
+    return () => {
+      mounted = false;
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [showWebcam]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -155,8 +198,11 @@ export const useAIDrawingBookLogic = () => {
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
       }
+      if (webcamStream) {
+        webcamStream.getTracks().forEach((track) => track.stop());
+      }
     };
-  }, []);
+  }, [webcamStream]);
 
   // Canvas utility functions
   const resizeColoringCanvas = () => {
@@ -200,6 +246,8 @@ export const useAIDrawingBookLogic = () => {
   const startDrawing = (
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
+    if (showWebcam) return; // Prevent drawing when webcam is active
+    
     const canvas = sketchCanvasRef.current;
     if (!canvas) return;
 
@@ -212,7 +260,7 @@ export const useAIDrawingBookLogic = () => {
   const drawSketch = (
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
-    if (!isDrawing || !sketchCanvasRef.current) return;
+    if (!isDrawing || !sketchCanvasRef.current || showWebcam) return;
 
     e.preventDefault();
     const canvas = sketchCanvasRef.current;
@@ -341,6 +389,11 @@ export const useAIDrawingBookLogic = () => {
   };
 
   const enhanceDrawing = async () => {
+    if (showWebcam) {
+      setError("Please close the camera first!");
+      return;
+    }
+
     if (isSketchCanvasEmpty()) {
       setError("Please draw something on the canvas first!");
       const errorSound = new Audio(
@@ -727,40 +780,48 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
-  // Webcam handlers
+  // Fixed: Improved webcam handlers
   const handleWebcamCapture = async () => {
     const video = webcamVideoRef.current;
-    if (!video) return;
-    
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/png");
-    const base64Image = await resizeBase64Image(dataUrl.split(",")[1], 200);
-
-    // Set the captured image into the drawing area
-    const sketchCanvas = sketchCanvasRef.current;
-    if (sketchCanvas) {
-      const sketchCtx = sketchCanvas.getContext("2d");
-      if (sketchCtx) {
-        sketchCtx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
-        const img = new window.Image();
-        img.onload = () => {
-          sketchCtx.drawImage(img, 0, 0, sketchCanvas.width, sketchCanvas.height);
-        };
-        img.src = dataUrl;
-      }
+    if (!video || !isWebcamReady) {
+      setError("Camera not ready. Please wait a moment.");
+      return;
     }
-
-    setIsGenerating(true);
-    setShowWebcam(false);
-    setError(null);
     
     try {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setError("Could not process camera image.");
+        return;
+      }
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/png");
+      const base64Image = await resizeBase64Image(dataUrl.split(",")[1], 200);
+
+      // Close webcam first
+      setShowWebcam(false);
+      
+      // Set the captured image into the drawing area
+      const sketchCanvas = sketchCanvasRef.current;
+      if (sketchCanvas) {
+        const sketchCtx = sketchCanvas.getContext("2d");
+        if (sketchCtx) {
+          sketchCtx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+          const img = new window.Image();
+          img.onload = () => {
+            sketchCtx.drawImage(img, 0, 0, sketchCanvas.width, sketchCanvas.height);
+          };
+          img.src = dataUrl;
+        }
+      }
+
+      setIsGenerating(true);
+      setError(null);
+      
       const sketchDescription = await GeminiService.recognizePhoto(base64Image);
       setRecognizedImage(sketchDescription);
 
@@ -816,10 +877,7 @@ export const useAIDrawingBookLogic = () => {
 
   const handleWebcamCancel = () => {
     setShowWebcam(false);
-    if (webcamStream) {
-      webcamStream.getTracks().forEach((track) => track.stop());
-      setWebcamStream(null);
-    }
+    setError(null);
   };
 
   return {

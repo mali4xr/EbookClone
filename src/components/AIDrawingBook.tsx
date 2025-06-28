@@ -158,7 +158,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
         {/* Story Section - Moved here, below history */}
         {showStorySection && (
-          <section className="w-full mx-auto animate__animated animate__fadeInUp">
+          <section className="w-full mx-auto animate__animated animate__fadeInUp mb-6">
             <div className="flex items-center gap-2"> 
             <div className="text-center ">
               <button
@@ -219,7 +219,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               1. Draw Here
               <button
                 onClick={() => setShowWebcam(true)}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out"
+                disabled={showWebcam}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <span className="flex items-center gap-2">
                   <Camera size={20} />
@@ -227,10 +228,15 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 </span>
               </button>
             </h2>
-            <div className="w-full aspect-square bg-white rounded-2xl shadow-inner border-2 border-gray-200 overflow-hidden">
+            
+            {/* Canvas Container with Webcam Integration */}
+            <div className="relative w-full aspect-square bg-white rounded-2xl shadow-inner border-2 border-gray-200 overflow-hidden">
+              {/* Drawing Canvas */}
               <canvas
                 ref={sketchCanvasRef}
-                className="w-full h-full rounded-2xl cursor-default"
+                className={`w-full h-full rounded-2xl cursor-default transition-opacity duration-300 ${
+                  showWebcam ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                }`}
                 onMouseDown={startDrawing}
                 onMouseMove={drawSketch}
                 onMouseUp={stopDrawing}
@@ -239,11 +245,21 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 onTouchMove={drawSketch}
                 onTouchEnd={stopDrawing}
               />
+              
+              {/* Webcam Modal - Integrated into canvas area */}
+              {showWebcam && (
+                <WebcamModal
+                  showWebcam={showWebcam}
+                  webcamVideoRef={webcamVideoRef}
+                  onCapture={handleWebcamCapture}
+                  onCancel={handleWebcamCancel}
+                />
+              )}
             </div>
 
             {/* Recognized Image Label */}
             {recognizedImage && (
-              <div className="text-center animate__animated animate__fadeIn">
+              <div className="text-center animate__animated animate__fadeIn mt-4">
                 <div className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg mx-auto transform hover:scale-105 transition-transform duration-200">
                   <div className="flex items-center justify-center gap-2">
                     <Wand2 size={24} className="text-yellow-200" />
@@ -256,7 +272,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
           {/* AI Generated Image & Coloring Section */}
           <div className="flex flex-col items-center">
-            <h2 className="text-2xl font-bold text-gray-700 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-gray-700 flex items-center gap-2 mb-2">
               <Wand2 size={24} className="text-pink-600" />
               2. See & Color the Secret Drawing
             </h2>
@@ -370,13 +386,15 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
           <button
             onClick={enhanceDrawing}
-            disabled={isGenerating || history.length >= 10}
+            disabled={isGenerating || history.length >= 10 || showWebcam}
             className={`bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out
               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
               ${history.length >= 10 ? "opacity-50 cursor-not-allowed" : ""}`}
             title={
               history.length >= 10
                 ? "Maximum of 10 drawings reached. Delete a thumbnail to create more."
+                : showWebcam
+                ? "Close camera first"
                 : undefined
             }
           >
@@ -393,14 +411,6 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             )}
           </button>
         </div>
-
-        {/* Webcam Modal */}
-        <WebcamModal
-          showWebcam={showWebcam}
-          webcamVideoRef={webcamVideoRef}
-          onCapture={handleWebcamCapture}
-          onCancel={handleWebcamCancel}
-        />
       </div>
     </div>
   );
