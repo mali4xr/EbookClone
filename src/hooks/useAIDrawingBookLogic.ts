@@ -520,7 +520,25 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
-  // FIXED: Completely rewritten handleReadStory to fix hot reload issues
+  // FIXED: Enhanced cleanup function to ensure animation stops
+  const cleanupStoryAnimation = useCallback(() => {
+    console.log('🧹 Cleaning up story animation');
+    
+    // Clear the fade interval
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+      console.log('⏰ Cleared fade interval');
+    }
+    
+    // Reset animation state
+    setShowStoryImage(false);
+    setIsReadingStory(false);
+    
+    console.log('✅ Animation cleanup complete');
+  }, []);
+
+  // FIXED: Completely rewritten handleReadStory with proper cleanup
   const handleReadStory = async () => {
     if (!story) return;
     
@@ -529,11 +547,7 @@ export const useAIDrawingBookLogic = () => {
     console.log('🎨 hasGeneratedContent:', hasGeneratedContent);
     
     // STEP 1: Complete cleanup of any existing state
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
-      console.log('🧹 Cleared existing fade interval');
-    }
+    cleanupStoryAnimation();
     
     if (audioRef.current) {
       audioRef.current.pause();
@@ -609,43 +623,48 @@ export const useAIDrawingBookLogic = () => {
       audioRef.current = audio;
       audio.play();
 
+      // FIXED: Enhanced audio.onended with proper cleanup
       audio.onended = () => {
-        console.log('🎵 Audio ended - cleaning up');
+        console.log('🎵 Audio ended - starting cleanup');
+        
+        // Stop background music
         setTimeout(() => {
           bgAudio.pause();
           bgAudio.currentTime = 0;
         }, 2000);
-        setIsReadingStory(false);
-        setShowStoryImage(false);
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
-        }
+        
+        // Clean up animation and state
+        cleanupStoryAnimation();
+        
+        // Clean up audio resources
         URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+        
+        console.log('✅ Audio cleanup complete');
       };
       
+      // FIXED: Enhanced audio.onerror with proper cleanup
       audio.onerror = () => {
-        console.log('❌ Audio error - cleaning up');
-        setIsReadingStory(false);
-        setShowStoryImage(false);
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
-        }
-        setError("Could not play the story audio.");
+        console.log('❌ Audio error - starting cleanup');
+        
+        // Clean up animation and state
+        cleanupStoryAnimation();
+        
+        // Stop background music
         bgAudio.pause();
         bgAudio.currentTime = 0;
+        
+        // Clean up audio resources
         URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+        
+        setError("Could not play the story audio.");
+        console.log('✅ Audio error cleanup complete');
       };
     } catch (err) {
       console.log('💥 Error in handleReadStory:', err);
       setError("Could not generate audio for the story.");
-      setIsReadingStory(false);
-      setShowStoryImage(false);
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
-        fadeIntervalRef.current = null;
-      }
+      cleanupStoryAnimation();
     }
   };
 
