@@ -187,7 +187,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 </div>
                 <p className="leading-relaxed">{story}</p>
                 <button
-                  className="px-2 py-3 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition"
+                  className="px-2 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition"
                   onClick={handleReadStory}
                   disabled={isReadingStory}
                 >
