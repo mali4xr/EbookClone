@@ -29,7 +29,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
       <div className="flex items-center gap-2 mb-2">
         <span className="font-medium text-gray-700 text-sm">Your Drawings:</span>
       </div>
-      <div className="flex overflow-x-auto gap-2 py-1 px-1 bg-white rounded-lg shadow-inner border border-gray-200 flex-1">
+      <div className="flex gap-2 py-2 px-2 bg-white rounded-lg shadow-inner border border-gray-200 flex-1 overflow-hidden">
         {history.map((item, idx) => (
           <div key={idx} className="flex flex-col items-center">
             <div
@@ -41,10 +41,10 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 }
               `}
               style={{
-                width: 48,
-                height: 48,
-                minWidth: 48,
-                minHeight: 48,
+                width: 60,
+                height: 60,
+                minWidth: 60,
+                minHeight: 60,
                 background: "#f9fafb",
                 display: "flex",
                 alignItems: "center",
@@ -65,8 +65,8 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 aria-label="Delete"
               >
                 <svg
-                  width="10"
-                  height="10"
+                  width="12"
+                  height="12"
                   fill="none"
                   stroke="red"
                   strokeWidth="2"
@@ -79,7 +79,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
             </div>
             {/* Numbered circle below thumbnail */}
             <div
-              className="mt-1 w-5 h-5 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-xs"
+              className="mt-2 w-6 h-6 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-sm"
               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}
             >
               {idx + 1}
