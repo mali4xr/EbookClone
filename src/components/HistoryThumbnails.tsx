@@ -25,18 +25,18 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
   if (history.length === 0) return null;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="mb-2">
       <div className="flex items-center gap-2 mb-2">
         <span className="font-medium text-gray-700 text-sm">Your Drawings:</span>
       </div>
-      <div className="flex overflow-x-auto gap-2 py-1 px-1 bg-white rounded-lg shadow-inner border border-gray-200 flex-1">
+      <div className="flex overflow-x-auto gap-3 py-1 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
         {history.map((item, idx) => (
           <div key={idx} className="flex flex-col items-center">
             <div
               className={`relative flex-shrink-0 rounded-full border-4 cursor-pointer transition-transform duration-150
                 ${
                   selectedHistoryIndex === idx
-                    ? "border-sky-500"
+                    ? "border-sky-500 scale-110"
                     : "border-gray-200 hover:border-purple-400 hover:scale-105"
                 }
               `}
@@ -60,13 +60,13 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
               />
               <button
                 className="absolute top-0 right-0 bg-white rounded-full p-1 shadow hover:bg-red-100"
-                style={{ transform: "translate(25%,-25%)" }}
+                style={{ transform: "translate(30%,-30%)" }}
                 onClick={(e) => onDeleteHistory(idx, e)}
                 aria-label="Delete"
               >
                 <svg
-                  width="10"
-                  height="10"
+                  width="12"
+                  height="12"
                   fill="none"
                   stroke="red"
                   strokeWidth="2"
