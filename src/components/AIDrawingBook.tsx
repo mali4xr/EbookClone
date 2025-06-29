@@ -165,12 +165,13 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         {/* Story Section - Moved here, below history */}
         {showStorySection && (
           <section className="w-full mx-auto animate__animated animate__fadeInUp mb-1 flex-shrink-0">
-            <div className="flex items-center gap-2"> 
-            <div className="text-center ">
+            <div className="flex items-start gap-3"> 
+            {/* Vertical Button Stack */}
+            <div className="flex flex-col gap-2">
               <button
                 onClick={generateStory}
                 disabled={isGeneratingStory || isTypingStory}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3 rounded-full text-sm shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg text-sm shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none min-w-[100px]"
               >
                 {isGeneratingStory || isTypingStory ? (
                   <span className="flex items-center  gap-2">
@@ -181,33 +182,31 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                   <div > Create Story </div>
                 )}
               </button>
+              
+              {/* Read button - only show when story is fully typed and not currently typing */}
+              {!isTypingStory && story && (
+                <button
+                  className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition animate__animated animate__bounceIn text-sm min-w-[100px]"
+                  onClick={handleReadStory}
+                  disabled={isReadingStory}
+                >
+                  {isReadingStory ? (
+                    <span className="flex items-center gap-2">
+                      <Loader size={14} className="animate-spin" />
+                      Reading...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <BookOpen size={14} />
+                      Read
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
 
             {(story || displayedStory) && (
-              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-2 text-sm shadow-inner animate__animated animate__fadeIn">
-                
-                <div className="flex items-center gap-2"> 
-                {/* Only show read button when story is fully typed and not currently typing */}
-                {!isTypingStory && story && (
-                  <button
-                    className="px-2 py-1 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition animate__animated animate__bounceIn text-xs"
-                    onClick={handleReadStory}
-                    disabled={isReadingStory}
-                  >
-                    {isReadingStory ? (
-                      <span className="flex items-center gap-2">
-                        <Loader size={14} className="animate-spin" />
-                        Reading...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <BookOpen size={14} />
-                        Read
-                      </span>
-                    )}
-                  </button>
-                )}
-                  
+              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-3 text-sm shadow-inner animate__animated animate__fadeIn flex-1">
                 <div className="leading-relaxed">
                   {isTypingStory ? (
                     <span>
@@ -218,13 +217,9 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                     story
                   )}
                 </div>
-                
-                  </div>
-                
               </div>
-            
             )}
-               </div>
+            </div>
           </section>
         )}
 
