@@ -37,6 +37,8 @@ export const useAIDrawingBookLogic = () => {
   const [showStorySection, setShowStorySection] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isReadingStory, setIsReadingStory] = useState(false);
+  const [isTypingStory, setIsTypingStory] = useState(false);
+  const [displayedStory, setDisplayedStory] = useState<string>("");
 
   // Story image overlay state
   const [storyImageBase64, setStoryImageBase64] = useState<string | null>(null);
@@ -87,6 +89,49 @@ export const useAIDrawingBookLogic = () => {
       });
     }, 600);
   };
+
+  // Play win sound function
+  const playWinSound = () => {
+    try {
+      const winAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/01/18/audio_8db1f1b5a5.mp3?filename=snd_fragment_retrievewav-14728.mp3');
+      winAudio.volume = 0.5; // Set to 50% volume
+      winAudio.play().catch(e => {
+        console.log('Win sound play failed:', e);
+      });
+    } catch (error) {
+      console.log('Error playing win sound:', error);
+    }
+  };
+
+  // Typing effect function
+  const typeStory = useCallback((fullStory: string) => {
+    setIsTypingStory(true);
+    setDisplayedStory("");
+    
+    const words = fullStory.split(' ');
+    let currentWordIndex = 0;
+    
+    const typeInterval = setInterval(() => {
+      if (currentWordIndex < words.length) {
+        setDisplayedStory(prev => {
+          const newText = prev + (prev ? ' ' : '') + words[currentWordIndex];
+          return newText;
+        });
+        currentWordIndex++;
+      } else {
+        clearInterval(typeInterval);
+        setIsTypingStory(false);
+        
+        // Play win sound and confetti when typing completes
+        setTimeout(() => {
+          playWinSound();
+          celebrateWithConfetti();
+        }, 500);
+      }
+    }, 150); // 150ms delay between words for smooth typing effect
+    
+    return () => clearInterval(typeInterval);
+  }, []);
 
   // Canvas setup effects
   useEffect(() => {
@@ -433,8 +478,9 @@ export const useAIDrawingBookLogic = () => {
         img.onload = async () => {
           setHasGeneratedContent(true);
           
-          // Trigger confetti celebration for successful generation
+          // Trigger confetti and win sound for successful generation
           celebrateWithConfetti();
+          playWinSound();
           
           setTimeout(() => {
             const coloringCanvas = coloringCanvasRef.current;
@@ -475,8 +521,9 @@ export const useAIDrawingBookLogic = () => {
         img.onload = async () => {
           setHasGeneratedContent(true);
           
-          // Trigger confetti celebration for successful generation
+          // Trigger confetti and win sound for successful generation
           celebrateWithConfetti();
+          playWinSound();
           
           setTimeout(() => {
             const coloringCanvas = coloringCanvasRef.current;
@@ -547,6 +594,9 @@ export const useAIDrawingBookLogic = () => {
     try {
       const storyText = await GeminiService.generateStory(recognizedImage);
       setStory(storyText);
+      
+      // Start typing effect for the story
+      typeStory(storyText);
 
       // Generate Story Image
       const storyImageBlob = await PollinationsService.generateImage("colorful child scene+no+nudit" + storyText);
@@ -834,6 +884,7 @@ export const useAIDrawingBookLogic = () => {
       
       // Trigger confetti celebration for photo processing
       celebrateWithConfetti();
+      playWinSound();
       
       setTimeout(() => {
         const coloringCanvas = coloringCanvasRef.current;
@@ -895,6 +946,8 @@ export const useAIDrawingBookLogic = () => {
     isGenerating,
     isGettingIdea,
     isGeneratingStory,
+    isTypingStory,
+    displayedStory,
     showStorySection,
     error,
     isReadingStory,

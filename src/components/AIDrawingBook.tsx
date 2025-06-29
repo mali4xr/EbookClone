@@ -36,6 +36,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     isGenerating,
     isGettingIdea,
     isGeneratingStory,
+    isTypingStory,
+    displayedStory,
     showStorySection,
     error,
     isReadingStory,
@@ -163,13 +165,13 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             <div className="text-center ">
               <button
                 onClick={generateStory}
-                disabled={isGeneratingStory}
+                disabled={isGeneratingStory || isTypingStory}
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                {isGeneratingStory ? (
+                {isGeneratingStory || isTypingStory ? (
                   <span className="flex items-center  gap-2">
                     <Loader size={20} className="animate-spin" />
-                    Writing...
+                    {isGeneratingStory ? 'Creating...' : 'Writing...'}
                   </span>
                 ) : (
                   <div > Create Story </div>
@@ -177,29 +179,41 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               </button>
             </div>
 
-            {story && (
+            {(story || displayedStory) && (
               <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-2 text-lg shadow-inner animate__animated animate__fadeIn">
                 
                 <div className="flex items-center gap-2"> 
-                <button
-                  className="px-2 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition"
-                  onClick={handleReadStory}
-                  disabled={isReadingStory}
-                >
-                  {isReadingStory ? (
-                    <span className="flex items-center gap-2">
-                      <Loader size={20} className="animate-spin" />
-                      Reading...
+                {/* Only show read button when story is fully typed and not currently typing */}
+                {!isTypingStory && story && (
+                  <button
+                    className="px-2 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition animate__animated animate__bounceIn"
+                    onClick={handleReadStory}
+                    disabled={isReadingStory}
+                  >
+                    {isReadingStory ? (
+                      <span className="flex items-center gap-2">
+                        <Loader size={20} className="animate-spin" />
+                        Reading...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <BookOpen size={20} />
+                        Read
+                      </span>
+                    )}
+                  </button>
+                )}
+                  
+                <div className="leading-relaxed">
+                  {isTypingStory ? (
+                    <span>
+                      {displayedStory}
+                      <span className="animate-pulse">|</span>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-2">
-                      <BookOpen size={20} />
-                      Read
-                    </span>
+                    story
                   )}
-                </button>
-                  
-                <p className="leading-relaxed">{story}</p>
+                </div>
                 
                   </div>
                 
