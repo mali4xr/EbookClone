@@ -25,26 +25,26 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
   if (history.length === 0) return null;
 
   return (
-    <div className="mb-2">
+    <div className="h-full flex flex-col">
       <div className="flex items-center gap-2 mb-2">
         <span className="font-medium text-gray-700 text-sm">Your Drawings:</span>
       </div>
-      <div className="flex overflow-x-auto gap-3 py-1 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
+      <div className="flex overflow-x-auto gap-2 py-1 px-1 bg-white rounded-lg shadow-inner border border-gray-200 flex-1">
         {history.map((item, idx) => (
           <div key={idx} className="flex flex-col items-center">
             <div
               className={`relative flex-shrink-0 rounded-full border-4 cursor-pointer transition-transform duration-150
                 ${
                   selectedHistoryIndex === idx
-                    ? "border-sky-500 scale-110"
+                    ? "border-sky-500"
                     : "border-gray-200 hover:border-purple-400 hover:scale-105"
                 }
               `}
               style={{
-                width: 48,
-                height: 48,
-                minWidth: 48,
-                minHeight: 48,
+                width: 40,
+                height: 40,
+                minWidth: 40,
+                minHeight: 40,
                 background: "#f9fafb",
                 display: "flex",
                 alignItems: "center",
@@ -60,13 +60,13 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
               />
               <button
                 className="absolute top-0 right-0 bg-white rounded-full p-1 shadow hover:bg-red-100"
-                style={{ transform: "translate(30%,-30%)" }}
+                style={{ transform: "translate(25%,-25%)" }}
                 onClick={(e) => onDeleteHistory(idx, e)}
                 aria-label="Delete"
               >
                 <svg
-                  width="12"
-                  height="12"
+                  width="10"
+                  height="10"
                   fill="none"
                   stroke="red"
                   strokeWidth="2"
@@ -79,7 +79,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
             </div>
             {/* Numbered circle below thumbnail */}
             <div
-              className="mt-1 w-5 h-5 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-xs"
+              className="mt-1 w-4 h-4 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-xs"
               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}
             >
               {idx + 1}
