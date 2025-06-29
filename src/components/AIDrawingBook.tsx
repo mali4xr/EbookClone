@@ -224,7 +224,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 grid grid-cols-2 lg:grid-cols-2 gap-2 bg-white p-2 rounded-2xl shadow-lg border-4 border-dashed border-blue-600 min-h-0 overflow-hidden"> 
+        <main className="relative w-full flex-1 grid grid-cols-2 lg:grid-cols-2 gap-2 bg-white p-2 rounded-2xl shadow-lg border-4 border-dashed border-blue-600 min-h-0 overflow-hidden"> 
           {/* Drawing Canvas Section */}
           <div className="flex flex-col items-center min-h-0">
             <h2 className="text-base font-bold mb-1 text-gray-700 flex items-center gap-2 flex-shrink-0">
