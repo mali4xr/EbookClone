@@ -41,10 +41,10 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 }
               `}
               style={{
-                width: 40,
-                height: 40,
-                minWidth: 40,
-                minHeight: 40,
+                width: 48,
+                height: 48,
+                minWidth: 48,
+                minHeight: 48,
                 background: "#f9fafb",
                 display: "flex",
                 alignItems: "center",
@@ -79,7 +79,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
             </div>
             {/* Numbered circle below thumbnail */}
             <div
-              className="mt-1 w-4 h-4 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-xs"
+              className="mt-1 w-5 h-5 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-xs"
               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}
             >
               {idx + 1}
