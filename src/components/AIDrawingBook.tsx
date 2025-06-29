@@ -103,7 +103,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
       className="h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-2 overflow-hidden flex flex-col"
       style={{ fontFamily: "Kalam, cursive, sans-serif" }}
     >
-      <div className="max-w-7xl mx-auto flex-1 flex flex-col min-h-0">
+      <div className="max-w-8xl mx-auto flex-1 flex flex-col min-h-0">
         {/* Header */}
         <header className="text-center mb-1 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
