@@ -25,11 +25,11 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
   if (history.length === 0) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-2">
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-semibold text-gray-700">Your Drawings:</span>
+        <span className="font-medium text-gray-700 text-sm">Your Drawings:</span>
       </div>
-      <div className="flex overflow-x-auto gap-6 py-2 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
+      <div className="flex overflow-x-auto gap-3 py-1 px-1 bg-white rounded-xl shadow-inner border border-gray-200">
         {history.map((item, idx) => (
           <div key={idx} className="flex flex-col items-center">
             <div
@@ -41,10 +41,10 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 }
               `}
               style={{
-                width: 64,
-                height: 64,
-                minWidth: 64,
-                minHeight: 64,
+                width: 48,
+                height: 48,
+                minWidth: 48,
+                minHeight: 48,
                 background: "#f9fafb",
                 display: "flex",
                 alignItems: "center",
@@ -60,13 +60,13 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
               />
               <button
                 className="absolute top-0 right-0 bg-white rounded-full p-1 shadow hover:bg-red-100"
-                style={{ transform: "translate(40%,-40%)" }}
+                style={{ transform: "translate(30%,-30%)" }}
                 onClick={(e) => onDeleteHistory(idx, e)}
                 aria-label="Delete"
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="12"
+                  height="12"
                   fill="none"
                   stroke="red"
                   strokeWidth="2"
@@ -79,7 +79,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
             </div>
             {/* Numbered circle below thumbnail */}
             <div
-              className="mt-2 w-6 h-6 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-sm"
+              className="mt-1 w-5 h-5 flex items-center justify-center rounded-full border-2 border-sky-400 bg-white text-sky-700 font-bold text-xs"
               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}
             >
               {idx + 1}
