@@ -505,17 +505,18 @@ Focus on fostering creativity and imagination.`;
 
       {/* AI Chat Panel */}
       {showAIChat && (
-        <div className="fixed inset-4 bg-white rounded-xl shadow-2xl border-4 border-purple-300 z-50 flex flex-col animate__animated animate__slideInRight">
-          <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
+        <div className="fixed bottom-4 right-4 w-80 h-96 bg-white rounded-xl shadow-2xl border-4 border-purple-300 z-50 flex flex-col animate__animated animate__slideInRight">
+          <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
             <div className="flex items-center gap-2">
-              <MessageCircle size={20} />
-              <span className="font-bold">AI Drawing Assistant</span>
+              <MessageCircle size={16} />
+              <span className="font-bold text-sm">AI Drawing Assistant</span>
             </div>
             <button
               onClick={() => setShowAIChat(false)}
               className="p-1 rounded-full hover:bg-white/20 transition-colors"
+              title="Close AI assistant"
             >
-              <X size={20} />
+              <X size={16} />
             </button>
           </div>
           
@@ -532,56 +533,58 @@ Focus on fostering creativity and imagination.`;
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate__animated animate__slideInDown">
+        <div className="fixed bottom-4 left-4 w-80 h-96 bg-white rounded-xl shadow-2xl border-4 border-gray-300 z-50 flex flex-col animate__animated animate__slideInLeft">
+          <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-xl">
+            <h2 className="text-sm font-bold text-gray-800">Drawing Settings</h2>
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Drawing Settings</h2>
               <button 
                 onClick={() => setShowSettings(false)}
-                className="p-1 rounded-full hover:bg-gray-100"
+                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                title="Close settings"
               >
-                <X size={24} />
+                <X size={16} />
               </button>
             </div>
+          </div>
             
-            <div className="p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Storyteller Selection */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <BookOpen size={20} className="text-purple-600" />
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  <BookOpen size={16} className="text-purple-600" />
                   Story Narrator
                 </h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
                     <input
                       type="radio"
                       name="storyteller"
                       value="pollinations"
                       checked={storytellerType === 'pollinations'}
                       onChange={(e) => setStorytellerType(e.target.value as 'pollinations' | 'elevenlabs')}
-                      className="w-4 h-4 text-purple-600"
+                      className="w-3 h-3 text-purple-600"
                     />
                     <div>
-                      <div className="font-medium text-gray-800">Pollinations AI</div>
-                      <div className="text-sm text-gray-600">Default storyteller with natural voice</div>
+                      <div className="text-sm font-medium text-gray-800">Pollinations AI</div>
+                      <div className="text-xs text-gray-600">Default storyteller</div>
                     </div>
                   </label>
                   
-                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <label className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
                     <input
                       type="radio"
                       name="storyteller"
                       value="elevenlabs"
                       checked={storytellerType === 'elevenlabs'}
                       onChange={(e) => setStorytellerType(e.target.value as 'pollinations' | 'elevenlabs')}
-                      className="w-4 h-4 text-purple-600"
+                      className="w-3 h-3 text-purple-600"
                       disabled={!ElevenLabsService.getApiKey()}
                     />
                     <div>
-                      <div className="font-medium text-gray-800">ElevenLabs AI</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm font-medium text-gray-800">ElevenLabs AI</div>
+                      <div className="text-xs text-gray-600">
                         {ElevenLabsService.getApiKey() 
-                          ? 'High-quality AI voice synthesis' 
+                          ? 'High-quality voice' 
                           : 'Requires API key configuration'
                         }
                       </div>
@@ -590,8 +593,8 @@ Focus on fostering creativity and imagination.`;
                 </div>
                 
                 {!ElevenLabsService.getApiKey() && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-amber-800 text-sm">
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-amber-800 text-xs">
                       <strong>Note:</strong> To use ElevenLabs AI storyteller, configure your API key in the environment variables.
                     </p>
                   </div>
@@ -599,37 +602,36 @@ Focus on fostering creativity and imagination.`;
               </div>
 
               {/* AI Assistant Info */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <MessageCircle size={20} className="text-purple-600" />
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  <MessageCircle size={16} className="text-purple-600" />
                   AI Assistant
                 </h3>
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-blue-800 text-sm">
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-xs">
                     The AI assistant can help with drawing ideas, explain recognized images, 
                     suggest improvements, and provide creative inspiration throughout your artistic journey.
                   </p>
                 </div>
                 {aiMessages.length > 0 && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-800 text-sm font-medium">
+                  <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 text-xs font-medium">
                       Recent AI messages: {aiMessages.length}
                     </p>
                   </div>
                 )}
               </div>
+          </div>
             </div>
             
-            <div className="p-4 border-t flex justify-end">
+          <div className="p-3 border-t flex justify-end">
               <button
                 onClick={() => setShowSettings(false)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                className="px-3 py-1 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
               >
                 Done
               </button>
             </div>
-          </div>
-        </div>
       )}
     </>
   );

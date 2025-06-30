@@ -158,7 +158,7 @@ const ConversationalAIButton = ({
 
       {/* Enhanced Chat Panel */}
       {showChat && (
-        <div className={`${className?.includes('h-full') ? 'h-full' : 'fixed inset-4 md:absolute md:top-full md:left-0 md:mt-2 md:inset-auto md:w-96 md:h-[500px]'} bg-white ${className?.includes('h-full') ? '' : 'border border-gray-300 rounded-xl shadow-2xl z-50'} flex flex-col animate__animated animate__fadeInUp`}>
+        <div className={`${className?.includes('h-full') ? 'h-full' : 'fixed bottom-4 right-4 w-80 h-96'} bg-white ${className?.includes('h-full') ? '' : 'border border-gray-300 rounded-xl shadow-2xl z-50'} flex flex-col animate__animated animate__fadeInUp`}>
           {/* Header */}
           <div className={`flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white ${className?.includes('h-full') ? '' : 'rounded-t-xl'}`}>
             <div className="flex items-center gap-3">
@@ -224,6 +224,7 @@ const ConversationalAIButton = ({
                   onClick={handleEndConversation}
                   disabled={isConnecting || !isConnected}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-md text-white font-medium text-sm transition-all duration-300 disabled:opacity-50 bg-red-500 hover:bg-red-600 disabled:cursor-not-allowed"
+                  title="Disconnect from AI assistant"
                 >
                   <WifiOff size={14} />
                   Disconnect
