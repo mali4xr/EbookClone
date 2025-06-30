@@ -536,15 +536,13 @@ Focus on fostering creativity and imagination.`;
         <div className="fixed bottom-4 left-4 w-80 h-96 bg-white rounded-xl shadow-2xl border-4 border-gray-300 z-50 flex flex-col animate__animated animate__slideInLeft">
           <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-xl">
             <h2 className="text-sm font-bold text-gray-800">Drawing Settings</h2>
-            <div className="flex items-center justify-between p-4 border-b">
-              <button 
-                onClick={() => setShowSettings(false)}
-                className="p-1 rounded-full hover:bg-white/20 transition-colors"
-                title="Close settings"
-              >
-                <X size={16} />
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowSettings(false)}
+              className="p-1 rounded-full hover:bg-white/20 transition-colors"
+              title="Close settings"
+            >
+              <X size={16} />
+            </button>
           </div>
             
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -622,7 +620,6 @@ Focus on fostering creativity and imagination.`;
                 )}
               </div>
           </div>
-            </div>
             
           <div className="p-3 border-t flex justify-end">
               <button
@@ -632,6 +629,7 @@ Focus on fostering creativity and imagination.`;
                 Done
               </button>
             </div>
+        </div>
       )}
     </>
   );
