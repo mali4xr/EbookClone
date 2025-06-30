@@ -7,24 +7,13 @@ import {
   Wand2,
   Camera,
   Loader,
-  MessageCircle,
-  Settings,
-  X,
-  PhoneOff,
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import { GeminiService } from "../services/GeminiService";
-import { ElevenLabsService } from "../services/ElevenLabsService";
-import { useConversationalAI } from "../hooks/useConversationalAI";
 import { useAIDrawingBookLogic } from "../hooks/useAIDrawingBookLogic";
 import ColorPalette from "./ColorPalette";
 import HistoryThumbnails from "./HistoryThumbnails";
 import WebcamModal from "./WebcamModal";
 import MagicWandAnimation from "./MagicWandAnimation";
-import ConversationalAIButton from "./ConversationalAIButton";
 import "../index.css";
 
 interface AIDrawingBookProps {
@@ -32,24 +21,6 @@ interface AIDrawingBookProps {
 }
 
 const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
-  // AI Chat and Settings State
-  const [showAIChat, setShowAIChat] = React.useState(false);
-  const [showSettings, setShowSettings] = React.useState(false);
-  const [storytellerType, setStorytellerType] = React.useState<'pollinations' | 'elevenlabs'>('pollinations');
-  const [conversationStarted, setConversationStarted] = React.useState(false);
-  const [lastIdeaShared, setLastIdeaShared] = React.useState<string>('');
-  const [aiMessages, setAiMessages] = React.useState<string[]>([]);
-
-  // ElevenLabs Conversational AI
-  const {
-    isConnected,
-    isConnecting,
-    currentMode,
-    error: aiError,
-    startConversation,
-    endConversation,
-    conversation
-  } = useConversationalAI();
   const {
     // Refs
     sketchCanvasRef,
@@ -101,121 +72,6 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     handleWebcamCancel,
   } = useAIDrawingBookLogic();
 
-  // Get AI context for the drawing assistant
-  const getAIDrawingAIContext = () => {
-    return `Current drawing session context:
-- Has drawing: ${hasGeneratedContent ? 'Yes' : 'No'}
-- Current prompt: "${currentPrompt || 'None'}"
-- Recognized image: "${recognizedImage || 'None'}"
-- Story created: ${story ? 'Yes' : 'No'}
-- History items: ${history.length}
-- Is generating: ${isGenerating ? 'Yes' : 'No'}
-- Is reading story: ${isReadingStory ? 'Yes' : 'No'}
-
-You are helping a child with their drawing and storytelling experience. Be encouraging, creative, and use simple language.`;
-  };
-
-  // Handle AI messages
-  const handleAIMessage = (message: string) => {
-    setAiMessages(prev => [...prev, message]);
-    console.log('AI Drawing Assistant message:', message);
-  };
-
-  // Start AI conversation with initial context
-  const handleStartAIChat = async () => {
-    if (!ElevenLabsService.isConfigured()) {
-      console.error('ElevenLabs not configured');
-      return;
-    }
-
-    try {
-      await startConversation({
-        agentId: ElevenLabsService.getAgentId(),
-        onConnect: () => {
-          console.log('AI Drawing Assistant connected');
-          setConversationStarted(true);
-          // Send initial context message (won't appear in UI)
-          sendContextMessage();
-        },
-        onDisconnect: () => {
-          console.log('AI Drawing Assistant disconnected');
-          setConversationStarted(false);
-        },
-        onMessage: (message) => {
-          console.log('AI Drawing Message:', message);
-          // Messages are handled by the AI but don't appear in our UI
-        },
-        onError: (error) => {
-          console.error('AI Drawing Error:', error);
-        }
-      });
-      setShowAIChat(true);
-    } catch (error) {
-      console.error('Failed to start AI conversation:', error);
-    }
-  };
-
-  // Send context message to AI (invisible to user)
-  const sendContextMessage = () => {
-    if (!conversation) return;
-
-    const contextMessage = `You are a creative AI assistant helping children with drawing and storytelling in the Sketch-A-Magic AI app. 
-
-Current State:
-- Has drawing: ${hasGeneratedContent ? 'Yes' : 'No'}
-- Current prompt: "${currentPrompt || 'None'}"
-- Recognized image: "${recognizedImage || 'None'}"
-- Story created: ${story ? 'Yes' : 'No'}
-- History items: ${history.length}
-
-Your Role:
-- Help with drawing ideas and creative inspiration
-- Explain what the AI recognized in their drawings
-- Suggest improvements or variations for their artwork
-- Help with storytelling and creative writing
-- Encourage creativity and artistic expression
-- Answer questions about colors, shapes, and art techniques
-- Make the drawing experience fun and educational
-
-Be encouraging, creative, and use simple language appropriate for children.
-Focus on fostering creativity and imagination.
-
-Please start by giving a fun drawing idea for a child.`;
-
-    // This message provides context but won't appear in the chat UI
-    console.log('Sending context to AI:', contextMessage);
-  };
-
-  // Handle Get Idea button click - share idea with AI
-  const handleGetIdeaWithAI = async () => {
-    await getDrawingIdea();
-    
-    // If AI is connected and we have a new idea, share it
-    if (isConnected && currentPrompt && currentPrompt !== lastIdeaShared) {
-      setLastIdeaShared(currentPrompt);
-      console.log('Sharing drawing idea with AI:', currentPrompt);
-      // The AI will receive this context and can elaborate on the idea
-    }
-  };
-
-  // Disconnect from AI
-  const handleDisconnectAI = async () => {
-    try {
-      if (conversation) {
-        await conversation.endSession();
-      }
-      await endConversation();
-      setShowAIChat(false);
-      setConversationStarted(false);
-    } catch (error) {
-      console.error('Error disconnecting AI:', error);
-    }
-  };
-
-  const handleReadStoryWithSettings = () => {
-    handleReadStory(storytellerType);
-  };
-
   // API Key Check UI
   if (!GeminiService.getApiKey()) {
     return (
@@ -243,7 +99,6 @@ Please start by giving a fun drawing idea for a child.`;
   }
 
   return (
-    <>
     <div
       className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-4"
       style={{ fontFamily: "Kalam, cursive, sans-serif" }}
@@ -269,48 +124,7 @@ Please start by giving a fun drawing idea for a child.`;
                 Draw, get ideas, and create stories with AI!
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Settings Button */}
-              <button
-                onClick={() => setShowSettings(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                title="Settings"
-              >
-                <Settings size={20} className="text-gray-600" />
-              </button>
-              
-              {/* AI Assistant Controls */}
-              <div className="flex items-center gap-2">
-                {/* AI Chat Button */}
-                <button
-                  onClick={isConnected ? () => setShowAIChat(!showAIChat) : handleStartAIChat}
-                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                  title={isConnected ? (showAIChat ? "Hide AI Assistant" : "Show AI Assistant") : "Start AI Assistant"}
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? (
-                    <Loader size={20} className="animate-spin" />
-                  ) : (
-                    <MessageCircle size={20} />
-                  )}
-                  <span className="hidden sm:inline">
-                    {isConnecting ? 'Connecting...' : isConnected ? 'AI Helper' : 'AI Helper'}
-                  </span>
-                </button>
-                
-                {/* Disconnect Button - Only show when connected */}
-                {isConnected && (
-                  <button
-                    onClick={handleDisconnectAI}
-                    className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg shadow-md hover:shadow-lg hover:bg-red-600 transition-all duration-300 transform hover:scale-105"
-                    title="Disconnect AI Assistant"
-                  >
-                    <PhoneOff size={20} />
-                    <span className="hidden sm:inline">Disconnect</span>
-                  </button>
-                )}
-              </div>
-            </div>
+            <div className="w-32"></div>
           </div>
         </header>
 
@@ -373,7 +187,7 @@ Please start by giving a fun drawing idea for a child.`;
                 {!isTypingStory && story && (
                   <button
                     className="px-2 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition animate__animated animate__bounceIn"
-                    onClick={handleReadStoryWithSettings}
+                    onClick={handleReadStory}
                     disabled={isReadingStory}
                   >
                     {isReadingStory ? (
@@ -567,7 +381,7 @@ Please start by giving a fun drawing idea for a child.`;
           </button>
 
           <button
-            onClick={handleGetIdeaWithAI}
+            onClick={getDrawingIdea}
             disabled={isGettingIdea}
             className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
@@ -613,239 +427,6 @@ Please start by giving a fun drawing idea for a child.`;
         </div>
       </div>
     </div>
-
-      {/* AI Chat Panel */}
-      {showAIChat && (
-        <div className="fixed bottom-4 right-4 w-96 h-[500px] bg-white rounded-xl shadow-2xl border-4 border-purple-300 z-50 flex flex-col animate__animated animate__slideInRight">
-          <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
-            <div className="flex items-center gap-2">
-              <MessageCircle size={16} />
-              <span className="font-bold text-sm">AI Drawing Assistant</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {/* Connection Status Indicator */}
-              {isConnected ? (
-                <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-green-200">Connected</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 px-2 py-1 bg-gray-500/20 rounded-full">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span className="text-xs text-gray-200">Disconnected</span>
-                </div>
-              )}
-              
-              <button
-                onClick={() => {
-                  setShowAIChat(false);
-                }}
-                className="p-1 rounded-full hover:bg-white/20 transition-colors"
-                title="Close AI assistant panel"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100">
-            {!isConnected ? (
-              <div className="text-center text-gray-500 py-12">
-                <MessageCircle size={48} className="mx-auto mb-4 text-gray-400" />
-                <p className="text-base mb-6 font-medium">Start a conversation with your AI drawing assistant!</p>
-                <p className="text-sm mb-6 text-gray-400">Get creative ideas, drawing tips, and storytelling help through voice chat</p>
-                <button
-                  onClick={handleStartAIChat}
-                  disabled={isConnecting || !ElevenLabsService.isConfigured()}
-                  className="flex items-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 mx-auto font-medium"
-                >
-                  {isConnecting ? (
-                    <>
-                      <Loader size={20} className="animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={20} />
-                      Start Voice Chat
-                    </>
-                  )}
-                </button>
-                {!ElevenLabsService.isConfigured() && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600 font-medium">⚠️ ElevenLabs not configured</p>
-                    <p className="text-xs text-red-500 mt-1">Check your environment variables</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center text-green-600 py-12">
-                <div className="relative mb-6">
-                  <Mic size={64} className="mx-auto text-green-500" />
-                  <div className="absolute inset-0 rounded-full border-4 border-green-400 animate-ping opacity-75"></div>
-                </div>
-                <p className="text-lg mb-3 font-bold text-green-700">🎤 AI Assistant is listening!</p>
-                <p className="text-sm text-gray-600 mb-6">Speak to get drawing ideas and creative help</p>
-                
-                {/* Connection Status */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-green-700">
-                      Mode: {currentMode === 'speaking' ? '🗣️ AI Speaking' : '👂 Listening'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-green-600">Voice conversation active</p>
-                </div>
-                
-                {/* Control Buttons */}
-                <div className="space-y-3">
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={handleGetIdeaWithAI}
-                      disabled={isGettingIdea}
-                      className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 text-sm"
-                    >
-                      {isGettingIdea ? (
-                        <Loader size={16} className="animate-spin" />
-                      ) : (
-                        <Sparkles size={16} />
-                      )}
-                      <span>Get Idea</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowSettings(true)}
-                      className="flex items-center gap-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-                    >
-                      <Settings size={16} />
-                      <span>Settings</span>
-                    </button>
-                  </div>
-                </div>
-                
-                {aiError && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600 font-medium">⚠️ Connection Error</p>
-                    <p className="text-xs text-red-500 mt-1">{aiError}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          <div className="p-4 border-t bg-white rounded-b-xl">
-            <div className="text-xs text-gray-500 text-center">
-              {isConnected 
-                ? `🎙️ Voice chat active • ${currentMode === 'speaking' ? 'AI is speaking' : 'Listening for your voice'}`
-                : '🎤 Ready to start voice conversation with AI assistant'
-              }
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed bottom-4 left-4 w-96 h-[500px] bg-white rounded-xl shadow-2xl border-4 border-gray-300 z-50 flex flex-col animate__animated animate__slideInLeft">
-          <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-xl">
-            <h2 className="text-sm font-bold text-white">Drawing Settings</h2>
-            <button 
-              onClick={() => setShowSettings(false)}
-              className="p-1 rounded-full hover:bg-white/20 transition-colors"
-              title="Close settings"
-            >
-              <X size={16} />
-            </button>
-          </div>
-            
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Storyteller Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                  <BookOpen size={16} className="text-purple-600" />
-                  Story Narrator
-                </h3>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <input
-                      type="radio"
-                      name="storyteller"
-                      value="pollinations"
-                      checked={storytellerType === 'pollinations'}
-                      onChange={(e) => setStorytellerType(e.target.value as 'pollinations' | 'elevenlabs')}
-                      className="w-3 h-3 text-purple-600"
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-gray-800">Pollinations AI</div>
-                      <div className="text-xs text-gray-600">Default storyteller</div>
-                    </div>
-                  </label>
-                  
-                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <input
-                      type="radio"
-                      name="storyteller"
-                      value="elevenlabs"
-                      checked={storytellerType === 'elevenlabs'}
-                      onChange={(e) => setStorytellerType(e.target.value as 'pollinations' | 'elevenlabs')}
-                      className="w-3 h-3 text-purple-600"
-                      disabled={!ElevenLabsService.getApiKey()}
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-gray-800">ElevenLabs AI</div>
-                      <div className="text-xs text-gray-600">
-                        {ElevenLabsService.getApiKey() 
-                          ? 'High-quality voice' 
-                          : 'Requires API key configuration'
-                        }
-                      </div>
-                    </div>
-                  </label>
-                </div>
-                
-                {!ElevenLabsService.getApiKey() && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-amber-800 text-xs">
-                      <strong>Note:</strong> To use ElevenLabs AI storyteller, configure your API key in the environment variables.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* AI Assistant Info */}
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                  <MessageCircle size={16} className="text-purple-600" />
-                  AI Assistant
-                </h3>
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-blue-800 text-xs">
-                    The AI assistant can help with drawing ideas, explain recognized images, 
-                    suggest improvements, and provide creative inspiration throughout your artistic journey.
-                  </p>
-                </div>
-                {aiMessages.length > 0 && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-800 text-xs font-medium">
-                      Recent AI messages: {aiMessages.length}
-                    </p>
-                  </div>
-                )}
-              </div>
-          </div>
-            
-          <div className="p-4 border-t flex justify-end">
-              <button
-                onClick={() => setShowSettings(false)}
-                className="px-4 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors font-medium"
-              >
-                Done
-              </button>
-            </div>
-        </div>
-      )}
-    </>
   );
 };
 
