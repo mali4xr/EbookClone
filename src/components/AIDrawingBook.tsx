@@ -656,6 +656,16 @@ Please start by giving a fun drawing idea for a child.`;
                 <Mic size={48} className="mx-auto mb-4" />
                 <p className="text-sm mb-2">AI Assistant is listening!</p>
                 <p className="text-xs text-gray-500">Speak to get drawing ideas and creative help</p>
+                
+                {/* Prominent Disconnect Button */}
+                <button
+                  onClick={handleDisconnectAI}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors mx-auto"
+                >
+                  <PhoneOff size={16} />
+                  <span>Disconnect</span>
+                </button>
+                
                 {aiError && (
                   <p className="text-xs text-red-500 mt-2">{aiError}</p>
                 )}
