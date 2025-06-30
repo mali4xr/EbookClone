@@ -946,66 +946,7 @@ const LibraryAIAssistant: React.FC<LibraryAIAssistantProps> = ({
       </div>
 
       {/* Enhanced Instructions Panel */}
-      {isOpen && replicaConnected && (
-        <div className="fixed bottom-6 left-6 bg-green-50 border border-green-200 rounded-lg p-4 max-w-sm z-40">
-          <h4 className="font-semibold text-green-800 mb-2">🔒 Catalog-Restricted Commands</h4>
-          <ul className="text-sm text-green-700 space-y-1">
-            <li>• "Show me <strong>science</strong> books"</li>
-            <li>• "Find books about <strong>animals</strong>"</li>
-            <li>• "I want <strong>easy</strong> books"</li>
-            <li>• "Books for <strong>kids</strong>"</li>
-            <li>• "Recommend <strong>adventure</strong> stories"</li>
-          </ul>
-          
-          {/* Catalog Info */}
-          <div className="mt-3 p-2 bg-purple-100 rounded text-xs">
-            <strong>📚 Available Catalog:</strong>
-            <div className="text-purple-800">
-              {books.length} books total
-              <br />
-              Subjects: {[...new Set(books.map(b => b.subject))].join(', ')}
-            </div>
-          </div>
-          
-          {/* Restricted Response Counter */}
-          {restrictedResponseCount > 0 && (
-            <div className="mt-3 p-2 bg-green-100 rounded text-xs">
-              <strong>🔒 Catalog-only responses: {restrictedResponseCount}</strong>
-              <div className="text-green-600">AI only suggests our books!</div>
-            </div>
-          )}
-          
-          {/* Tool Call History */}
-          {toolCallHistory.length > 0 && (
-            <div className="mt-3 p-2 bg-blue-100 rounded text-xs">
-              <strong>Recent actions:</strong>
-              <div className="max-h-20 overflow-y-auto">
-                {toolCallHistory.slice(-3).map((call, index) => (
-                  <div key={index} className="text-blue-800">🔧 {call}</div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Current Status */}
-          <div className="mt-2 text-xs text-green-600">
-            Status: {connectionStatus}
-          </div>
-
-          {/* Debug Info */}
-          {showDebugInfo && (
-            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-              <strong>Debug Info:</strong>
-              <div>Restricted Persona: {personaCreated ? '✅' : '❌'}</div>
-              <div>Connected: {isConnected ? '✅' : '❌'}</div>
-              <div>Replica Ready: {replicaConnected ? '✅' : '❌'}</div>
-              <div>Catalog Responses: {restrictedResponseCount}</div>
-              <div>Tool Calls: {toolCallHistory.length}</div>
-              <div>Books Available: {books.length}</div>
-            </div>
-          )}
-        </div>
-      )}
+      
     </>
   );
 };
