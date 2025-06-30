@@ -38,6 +38,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const [storytellerType, setStorytellerType] = React.useState<'pollinations' | 'elevenlabs'>('pollinations');
   const [conversationStarted, setConversationStarted] = React.useState(false);
   const [lastIdeaShared, setLastIdeaShared] = React.useState<string>('');
+  const [aiMessages, setAiMessages] = React.useState<string[]>([]);
 
   // ElevenLabs Conversational AI
   const {
@@ -99,6 +100,26 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     handleWebcamCapture,
     handleWebcamCancel,
   } = useAIDrawingBookLogic();
+
+  // Get AI context for the drawing assistant
+  const getAIDrawingAIContext = () => {
+    return `Current drawing session context:
+- Has drawing: ${hasGeneratedContent ? 'Yes' : 'No'}
+- Current prompt: "${currentPrompt || 'None'}"
+- Recognized image: "${recognizedImage || 'None'}"
+- Story created: ${story ? 'Yes' : 'No'}
+- History items: ${history.length}
+- Is generating: ${isGenerating ? 'Yes' : 'No'}
+- Is reading story: ${isReadingStory ? 'Yes' : 'No'}
+
+You are helping a child with their drawing and storytelling experience. Be encouraging, creative, and use simple language.`;
+  };
+
+  // Handle AI messages
+  const handleAIMessage = (message: string) => {
+    setAiMessages(prev => [...prev, message]);
+    console.log('AI Drawing Assistant message:', message);
+  };
 
   // Start AI conversation with initial context
   const handleStartAIChat = async () => {
