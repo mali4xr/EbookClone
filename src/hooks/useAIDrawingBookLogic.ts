@@ -642,10 +642,11 @@ export const useAIDrawingBookLogic = () => {
   }, []);
 
   // FIXED: Completely rewritten handleReadStory with proper cleanup
-  const handleReadStory = async () => {
+  const handleReadStory = async (storytellerType: 'pollinations' | 'elevenlabs' = 'pollinations') => {
     if (!story) return;
     
     console.log('🎬 Starting handleReadStory');
+    console.log('🎭 Using storyteller:', storytellerType);
     console.log('📸 Current storyImageBase64:', !!storyImageBase64);
     console.log('🎨 hasGeneratedContent:', hasGeneratedContent);
     
@@ -677,14 +678,26 @@ export const useAIDrawingBookLogic = () => {
     console.log('🖼️ Final story image check:', !!currentStoryImage);
     
     try {
-      const encodedStory = encodeURIComponent(story);
-      const voice = "alloy";
-      const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to generate audio.");
-      const blob = await response.blob();
+      let audioBlob: Blob;
       
-      const audioUrl = URL.createObjectURL(blob);
+      if (storytellerType === 'elevenlabs') {
+        // Use ElevenLabs TTS
+        const { ElevenLabsService } = await import('../services/ElevenLabsService');
+        const storyText = `Tell a 4 year old kid a moral story about ${story}`;
+        audioBlob = await ElevenLabsService.generateTTSAudio(storyText);
+        console.log('🎤 Generated audio using ElevenLabs TTS');
+      } else {
+        // Use existing Pollinations AI
+        const encodedStory = encodeURIComponent(story);
+        const voice = "alloy";
+        const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to generate audio.");
+        audioBlob = await response.blob();
+        console.log('🎤 Generated audio using Pollinations AI');
+      }
+      
+      const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
 
       // Play background music at a lower volume
@@ -766,7 +779,7 @@ export const useAIDrawingBookLogic = () => {
       };
     } catch (err) {
       console.log('💥 Error in handleReadStory:', err);
-      setError("Could not generate audio for the story.");
+      setError(`Could not generate audio for the story using ${storytellerType}.`);
       cleanupStoryAnimation();
     }
   };
