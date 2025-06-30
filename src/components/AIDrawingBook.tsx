@@ -281,12 +281,21 @@ Please start by giving a fun drawing idea for a child.`;
               
               {/* AI Chat Button */}
               <button
-                onClick={() => setShowAIChat(!showAIChat)}
+                onClick={isConnected ? handleDisconnectAI : handleStartAIChat}
                 className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                title="AI Assistant"
+                title={isConnected ? "Disconnect AI Assistant" : "Start AI Assistant"}
+                disabled={isConnecting}
               >
-                <MessageCircle size={20} />
-                <span className="hidden sm:inline">AI Helper</span>
+                {isConnecting ? (
+                  <Loader size={20} className="animate-spin" />
+                ) : isConnected ? (
+                  <PhoneOff size={20} />
+                ) : (
+                  <MessageCircle size={20} />
+                )}
+                <span className="hidden sm:inline">
+                  {isConnecting ? 'Connecting...' : isConnected ? 'Disconnect' : 'AI Helper'}
+                </span>
               </button>
             </div>
           </div>
@@ -545,7 +554,7 @@ Please start by giving a fun drawing idea for a child.`;
           </button>
 
           <button
-            onClick={getDrawingIdea}
+            onClick={handleGetIdeaWithAI}
             disabled={isGettingIdea}
             className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
@@ -599,23 +608,68 @@ Please start by giving a fun drawing idea for a child.`;
             <div className="flex items-center gap-2">
               <MessageCircle size={16} />
               <span className="font-bold text-sm">AI Drawing Assistant</span>
+              {isConnected && (
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-xs">Connected</span>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => setShowAIChat(false)}
-              className="p-1 rounded-full hover:bg-white/20 transition-colors"
-              title="Close AI assistant"
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-1">
+              {isConnected && (
+                <button
+                  onClick={handleDisconnectAI}
+                  className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                  title="Disconnect AI assistant"
+                >
+                  <PhoneOff size={16} />
+                </button>
+              )}
+              <button
+                onClick={() => setShowAIChat(false)}
+                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                title="Close AI assistant"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
           
-          <div className="flex-1 min-h-0">
-            <ConversationalAIButton
-              context={getAIDrawingAIContext()}
-              onMessage={handleAIMessage}
-              initialShowChat={true}
-              className="h-full"
-            />
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
+            {!isConnected ? (
+              <div className="text-center text-gray-500 py-8">
+                <MessageCircle size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-sm mb-4">Start a conversation with your AI drawing assistant!</p>
+                <button
+                  onClick={handleStartAIChat}
+                  disabled={isConnecting || !ElevenLabsService.isConfigured()}
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50"
+                >
+                  {isConnecting ? 'Connecting...' : 'Start Chat'}
+                </button>
+                {!ElevenLabsService.isConfigured() && (
+                  <p className="text-xs text-red-500 mt-2">ElevenLabs not configured</p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center text-green-600 py-8">
+                <Mic size={48} className="mx-auto mb-4" />
+                <p className="text-sm mb-2">AI Assistant is listening!</p>
+                <p className="text-xs text-gray-500">Speak to get drawing ideas and creative help</p>
+                {aiError && (
+                  <p className="text-xs text-red-500 mt-2">{aiError}</p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="p-3 border-t bg-white rounded-b-xl">
+            <div className="text-xs text-gray-500 text-center">
+              {isConnected 
+                ? `Mode: ${currentMode || 'listening'} • Click disconnect to end chat`
+                : 'Connect to start voice conversation'
+              }
+            </div>
           </div>
         </div>
       )}
