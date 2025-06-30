@@ -626,9 +626,15 @@ Please start by giving a fun drawing idea for a child.`;
                 </button>
               )}
               <button
-                onClick={() => setShowAIChat(false)}
+                onClick={() => {
+                  if (isConnected) {
+                    handleDisconnectAI();
+                  } else {
+                    setShowAIChat(false);
+                  }
+                }}
                 className="p-1 rounded-full hover:bg-white/20 transition-colors"
-                title="Close AI assistant"
+                title={isConnected ? "Disconnect and close AI assistant" : "Close AI assistant"}
               >
                 <X size={16} />
               </button>
