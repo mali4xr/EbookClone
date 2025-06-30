@@ -138,7 +138,7 @@ export class GeminiService {
   }
 
   static async recognizePhoto(base64ImageData: string): Promise<string> {
-    const descriptionPrompt = "Describe this simple photo in a few detailed keywords related to the subject for an AI image generator. Focus on the main subject and one key feature. For example, 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'. Do not use any introduction, just give the keywords directly. Do not mention any colors.";
+    const descriptionPrompt = "Describe this photo in three detailed keywords related to the subject. Focus on the main subject and three key feature,like 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'. Do not use introduction,Do not mention any colors.";
     const payload = {
       contents: [
         {
