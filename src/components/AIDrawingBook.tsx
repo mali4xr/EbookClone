@@ -279,24 +279,37 @@ Please start by giving a fun drawing idea for a child.`;
                 <Settings size={20} className="text-gray-600" />
               </button>
               
-              {/* AI Chat Button */}
-              <button
-                onClick={isConnected ? handleDisconnectAI : handleStartAIChat}
-                className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                title={isConnected ? "Disconnect AI Assistant" : "Start AI Assistant"}
-                disabled={isConnecting}
-              >
-                {isConnecting ? (
-                  <Loader size={20} className="animate-spin" />
-                ) : isConnected ? (
-                  <PhoneOff size={20} />
-                ) : (
-                  <MessageCircle size={20} />
+              {/* AI Assistant Controls */}
+              <div className="flex items-center gap-2">
+                {/* AI Chat Button */}
+                <button
+                  onClick={isConnected ? () => setShowAIChat(!showAIChat) : handleStartAIChat}
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                  title={isConnected ? (showAIChat ? "Hide AI Assistant" : "Show AI Assistant") : "Start AI Assistant"}
+                  disabled={isConnecting}
+                >
+                  {isConnecting ? (
+                    <Loader size={20} className="animate-spin" />
+                  ) : (
+                    <MessageCircle size={20} />
+                  )}
+                  <span className="hidden sm:inline">
+                    {isConnecting ? 'Connecting...' : isConnected ? 'AI Helper' : 'AI Helper'}
+                  </span>
+                </button>
+                
+                {/* Disconnect Button - Only show when connected */}
+                {isConnected && (
+                  <button
+                    onClick={handleDisconnectAI}
+                    className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg shadow-md hover:shadow-lg hover:bg-red-600 transition-all duration-300 transform hover:scale-105"
+                    title="Disconnect AI Assistant"
+                  >
+                    <PhoneOff size={20} />
+                    <span className="hidden sm:inline">Disconnect</span>
+                  </button>
                 )}
-                <span className="hidden sm:inline">
-                  {isConnecting ? 'Connecting...' : isConnected ? 'Disconnect' : 'AI Helper'}
-                </span>
-              </button>
+              </div>
             </div>
           </div>
         </header>
@@ -608,37 +621,29 @@ Please start by giving a fun drawing idea for a child.`;
             <div className="flex items-center gap-2">
               <MessageCircle size={16} />
               <span className="font-bold text-sm">AI Drawing Assistant</span>
-              {isConnected && (
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs">Connected</span>
-                </div>
-              )}
             </div>
             <div className="flex items-center gap-1">
-              {isConnected && (
-                <button
-                  onClick={handleDisconnectAI}
-                  className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-white/20 transition-colors text-xs"
-                  title="Disconnect AI assistant"
-                >
-                  <PhoneOff size={16} />
-                  <span>Disconnect</span>
-                </button>
+              {/* Connection Status Indicator */}
+              {isConnected ? (
+                <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-green-200">Connected</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-1 bg-gray-500/20 rounded-full">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span className="text-xs text-gray-200">Disconnected</span>
+                </div>
               )}
+              
               <button
                 onClick={() => {
-                  if (isConnected) {
-                    handleDisconnectAI();
-                  } else {
-                    setShowAIChat(false);
-                  }
+                  setShowAIChat(false);
                 }}
-                className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-white/20 transition-colors text-xs"
-                title={isConnected ? "Disconnect and close AI assistant" : "Close AI assistant"}
+                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                title="Close AI assistant panel"
               >
                 <X size={16} />
-                <span>Close</span>
               </button>
             </div>
           </div>
@@ -695,14 +700,6 @@ Please start by giving a fun drawing idea for a child.`;
                 
                 {/* Control Buttons */}
                 <div className="space-y-3">
-                  <button
-                    onClick={handleDisconnectAI}
-                    className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors mx-auto font-medium shadow-lg"
-                  >
-                    <PhoneOff size={20} />
-                    <span>End Conversation</span>
-                  </button>
-                  
                   <div className="flex gap-2 justify-center">
                     <button
                       onClick={handleGetIdeaWithAI}
