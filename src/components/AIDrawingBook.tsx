@@ -24,6 +24,7 @@ import ColorPalette from "./ColorPalette";
 import HistoryThumbnails from "./HistoryThumbnails";
 import WebcamModal from "./WebcamModal";
 import MagicWandAnimation from "./MagicWandAnimation";
+import ConversationalAIButton from "./ConversationalAIButton";
 import "../index.css";
 
 interface AIDrawingBookProps {
