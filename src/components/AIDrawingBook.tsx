@@ -11,15 +11,19 @@ import {
   Settings,
   X,
   PhoneOff,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { GeminiService } from "../services/GeminiService";
 import { ElevenLabsService } from "../services/ElevenLabsService";
+import { useConversationalAI } from "../hooks/useConversationalAI";
 import { useAIDrawingBookLogic } from "../hooks/useAIDrawingBookLogic";
 import ColorPalette from "./ColorPalette";
 import HistoryThumbnails from "./HistoryThumbnails";
 import WebcamModal from "./WebcamModal";
 import MagicWandAnimation from "./MagicWandAnimation";
-import ConversationalAIButton from "./ConversationalAIButton";
 import "../index.css";
 
 interface AIDrawingBookProps {
@@ -31,8 +35,19 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   const [showAIChat, setShowAIChat] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [storytellerType, setStorytellerType] = React.useState<'pollinations' | 'elevenlabs'>('pollinations');
-  const [aiMessages, setAiMessages] = React.useState<any[]>([]);
+  const [conversationStarted, setConversationStarted] = React.useState(false);
+  const [lastIdeaShared, setLastIdeaShared] = React.useState<string>('');
 
+  // ElevenLabs Conversational AI
+  const {
+    isConnected,
+    isConnecting,
+    currentMode,
+    error: aiError,
+    startConversation,
+    endConversation,
+    conversation
+  } = useConversationalAI();
   const {
     // Refs
     sketchCanvasRef,
@@ -84,19 +99,51 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     handleWebcamCancel,
   } = useAIDrawingBookLogic();
 
-  // AI Drawing Context for Conversational AI
-  const getAIDrawingAIContext = () => {
-    let context = `You are a creative AI assistant helping children with drawing and storytelling in the Sketch-A-Magic AI app.
-    
+  // Start AI conversation with initial context
+  const handleStartAIChat = async () => {
+    if (!ElevenLabsService.isConfigured()) {
+      console.error('ElevenLabs not configured');
+      return;
+    }
+
+    try {
+      await startConversation({
+        agentId: ElevenLabsService.getAgentId(),
+        onConnect: () => {
+          console.log('AI Drawing Assistant connected');
+          setConversationStarted(true);
+          // Send initial context message (won't appear in UI)
+          sendContextMessage();
+        },
+        onDisconnect: () => {
+          console.log('AI Drawing Assistant disconnected');
+          setConversationStarted(false);
+        },
+        onMessage: (message) => {
+          console.log('AI Drawing Message:', message);
+          // Messages are handled by the AI but don't appear in our UI
+        },
+        onError: (error) => {
+          console.error('AI Drawing Error:', error);
+        }
+      });
+      setShowAIChat(true);
+    } catch (error) {
+      console.error('Failed to start AI conversation:', error);
+    }
+  };
+
+  // Send context message to AI (invisible to user)
+  const sendContextMessage = () => {
+    if (!conversation) return;
+
+    const contextMessage = `You are a creative AI assistant helping children with drawing and storytelling in the Sketch-A-Magic AI app. 
+
 Current State:
 - Has drawing: ${hasGeneratedContent ? 'Yes' : 'No'}
 - Current prompt: "${currentPrompt || 'None'}"
 - Recognized image: "${recognizedImage || 'None'}"
 - Story created: ${story ? 'Yes' : 'No'}
-- Currently generating: ${isGenerating ? 'Yes' : 'No'}
-- Getting idea: ${isGettingIdea ? 'Yes' : 'No'}
-- Generating story: ${isGeneratingStory ? 'Yes' : 'No'}
-- Reading story: ${isReadingStory ? 'Yes' : 'No'}
 - History items: ${history.length}
 
 Your Role:
@@ -109,18 +156,38 @@ Your Role:
 - Make the drawing experience fun and educational
 
 Be encouraging, creative, and use simple language appropriate for children.
-Focus on fostering creativity and imagination.`;
+Focus on fostering creativity and imagination.
 
-    if (story) {
-      context += `\n\nCurrent Story: "${story}"`;
-    }
+Please start by giving a fun drawing idea for a child.`;
 
-    return context;
+    // This message provides context but won't appear in the chat UI
+    console.log('Sending context to AI:', contextMessage);
   };
 
-  const handleAIMessage = (message: any) => {
-    setAiMessages(prev => [...prev, message]);
-    console.log('AI Drawing Message:', message);
+  // Handle Get Idea button click - share idea with AI
+  const handleGetIdeaWithAI = async () => {
+    await getDrawingIdea();
+    
+    // If AI is connected and we have a new idea, share it
+    if (isConnected && currentPrompt && currentPrompt !== lastIdeaShared) {
+      setLastIdeaShared(currentPrompt);
+      console.log('Sharing drawing idea with AI:', currentPrompt);
+      // The AI will receive this context and can elaborate on the idea
+    }
+  };
+
+  // Disconnect from AI
+  const handleDisconnectAI = async () => {
+    try {
+      if (conversation) {
+        await conversation.endSession();
+      }
+      await endConversation();
+      setShowAIChat(false);
+      setConversationStarted(false);
+    } catch (error) {
+      console.error('Error disconnecting AI:', error);
+    }
   };
 
   const handleReadStoryWithSettings = () => {
