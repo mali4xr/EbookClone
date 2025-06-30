@@ -603,7 +603,7 @@ Please start by giving a fun drawing idea for a child.`;
 
       {/* AI Chat Panel */}
       {showAIChat && (
-        <div className="fixed bottom-4 right-4 w-80 h-96 bg-white rounded-xl shadow-2xl border-4 border-purple-300 z-50 flex flex-col animate__animated animate__slideInRight">
+        <div className="fixed bottom-4 right-4 w-96 h-[500px] bg-white rounded-xl shadow-2xl border-4 border-purple-300 z-50 flex flex-col animate__animated animate__slideInRight">
           <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-xl">
             <div className="flex items-center gap-2">
               <MessageCircle size={16} />
@@ -619,10 +619,11 @@ Please start by giving a fun drawing idea for a child.`;
               {isConnected && (
                 <button
                   onClick={handleDisconnectAI}
-                  className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-white/20 transition-colors text-xs"
                   title="Disconnect AI assistant"
                 >
                   <PhoneOff size={16} />
+                  <span>Disconnect</span>
                 </button>
               )}
               <button
@@ -633,57 +634,114 @@ Please start by giving a fun drawing idea for a child.`;
                     setShowAIChat(false);
                   }
                 }}
-                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-white/20 transition-colors text-xs"
                 title={isConnected ? "Disconnect and close AI assistant" : "Close AI assistant"}
               >
                 <X size={16} />
+                <span>Close</span>
               </button>
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100">
             {!isConnected ? (
-              <div className="text-center text-gray-500 py-8">
+              <div className="text-center text-gray-500 py-12">
                 <MessageCircle size={48} className="mx-auto mb-4 text-gray-400" />
-                <p className="text-sm mb-4">Start a conversation with your AI drawing assistant!</p>
+                <p className="text-base mb-6 font-medium">Start a conversation with your AI drawing assistant!</p>
+                <p className="text-sm mb-6 text-gray-400">Get creative ideas, drawing tips, and storytelling help through voice chat</p>
                 <button
                   onClick={handleStartAIChat}
                   disabled={isConnecting || !ElevenLabsService.isConfigured()}
-                  className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 mx-auto font-medium"
                 >
-                  {isConnecting ? 'Connecting...' : 'Start Chat'}
+                  {isConnecting ? (
+                    <>
+                      <Loader size={20} className="animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Mic size={20} />
+                      Start Voice Chat
+                    </>
+                  )}
                 </button>
                 {!ElevenLabsService.isConfigured() && (
-                  <p className="text-xs text-red-500 mt-2">ElevenLabs not configured</p>
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 font-medium">⚠️ ElevenLabs not configured</p>
+                    <p className="text-xs text-red-500 mt-1">Check your environment variables</p>
+                  </div>
                 )}
               </div>
             ) : (
-              <div className="text-center text-green-600 py-8">
-                <Mic size={48} className="mx-auto mb-4" />
-                <p className="text-sm mb-2">AI Assistant is listening!</p>
-                <p className="text-xs text-gray-500">Speak to get drawing ideas and creative help</p>
+              <div className="text-center text-green-600 py-12">
+                <div className="relative mb-6">
+                  <Mic size={64} className="mx-auto text-green-500" />
+                  <div className="absolute inset-0 rounded-full border-4 border-green-400 animate-ping opacity-75"></div>
+                </div>
+                <p className="text-lg mb-3 font-bold text-green-700">🎤 AI Assistant is listening!</p>
+                <p className="text-sm text-gray-600 mb-6">Speak to get drawing ideas and creative help</p>
                 
-                {/* Prominent Disconnect Button */}
-                <button
-                  onClick={handleDisconnectAI}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors mx-auto"
-                >
-                  <PhoneOff size={16} />
-                  <span>Disconnect</span>
-                </button>
+                {/* Connection Status */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-green-700">
+                      Mode: {currentMode === 'speaking' ? '🗣️ AI Speaking' : '👂 Listening'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600">Voice conversation active</p>
+                </div>
+                
+                {/* Control Buttons */}
+                <div className="space-y-3">
+                  <button
+                    onClick={handleDisconnectAI}
+                    className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors mx-auto font-medium shadow-lg"
+                  >
+                    <PhoneOff size={20} />
+                    <span>End Conversation</span>
+                  </button>
+                  
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={handleGetIdeaWithAI}
+                      disabled={isGettingIdea}
+                      className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      {isGettingIdea ? (
+                        <Loader size={16} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={16} />
+                      )}
+                      <span>Get Idea</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowSettings(true)}
+                      className="flex items-center gap-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                    >
+                      <Settings size={16} />
+                      <span>Settings</span>
+                    </button>
+                  </div>
+                </div>
                 
                 {aiError && (
-                  <p className="text-xs text-red-500 mt-2">{aiError}</p>
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 font-medium">⚠️ Connection Error</p>
+                    <p className="text-xs text-red-500 mt-1">{aiError}</p>
+                  </div>
                 )}
               </div>
             )}
           </div>
           
-          <div className="p-3 border-t bg-white rounded-b-xl">
+          <div className="p-4 border-t bg-white rounded-b-xl">
             <div className="text-xs text-gray-500 text-center">
               {isConnected 
-                ? `Mode: ${currentMode || 'listening'} • Click disconnect to end chat`
-                : 'Connect to start voice conversation'
+                ? `🎙️ Voice chat active • ${currentMode === 'speaking' ? 'AI is speaking' : 'Listening for your voice'}`
+                : '🎤 Ready to start voice conversation with AI assistant'
               }
             </div>
           </div>
@@ -692,9 +750,9 @@ Please start by giving a fun drawing idea for a child.`;
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed bottom-4 left-4 w-80 h-96 bg-white rounded-xl shadow-2xl border-4 border-gray-300 z-50 flex flex-col animate__animated animate__slideInLeft">
+        <div className="fixed bottom-4 left-4 w-96 h-[500px] bg-white rounded-xl shadow-2xl border-4 border-gray-300 z-50 flex flex-col animate__animated animate__slideInLeft">
           <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-t-xl">
-            <h2 className="text-sm font-bold text-gray-800">Drawing Settings</h2>
+            <h2 className="text-sm font-bold text-white">Drawing Settings</h2>
             <button 
               onClick={() => setShowSettings(false)}
               className="p-1 rounded-full hover:bg-white/20 transition-colors"
@@ -704,7 +762,7 @@ Please start by giving a fun drawing idea for a child.`;
             </button>
           </div>
             
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Storyteller Selection */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
@@ -712,7 +770,7 @@ Please start by giving a fun drawing idea for a child.`;
                   Story Narrator
                 </h3>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
                     <input
                       type="radio"
                       name="storyteller"
@@ -727,7 +785,7 @@ Please start by giving a fun drawing idea for a child.`;
                     </div>
                   </label>
                   
-                  <label className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
                     <input
                       type="radio"
                       name="storyteller"
@@ -750,7 +808,7 @@ Please start by giving a fun drawing idea for a child.`;
                 </div>
                 
                 {!ElevenLabsService.getApiKey() && (
-                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-amber-800 text-xs">
                       <strong>Note:</strong> To use ElevenLabs AI storyteller, configure your API key in the environment variables.
                     </p>
@@ -764,14 +822,14 @@ Please start by giving a fun drawing idea for a child.`;
                   <MessageCircle size={16} className="text-purple-600" />
                   AI Assistant
                 </h3>
-                <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-800 text-xs">
                     The AI assistant can help with drawing ideas, explain recognized images, 
                     suggest improvements, and provide creative inspiration throughout your artistic journey.
                   </p>
                 </div>
                 {aiMessages.length > 0 && (
-                  <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-green-800 text-xs font-medium">
                       Recent AI messages: {aiMessages.length}
                     </p>
@@ -780,10 +838,10 @@ Please start by giving a fun drawing idea for a child.`;
               </div>
           </div>
             
-          <div className="p-3 border-t flex justify-end">
+          <div className="p-4 border-t flex justify-end">
               <button
                 onClick={() => setShowSettings(false)}
-                className="px-3 py-1 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors"
+                className="px-4 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors font-medium"
               >
                 Done
               </button>
