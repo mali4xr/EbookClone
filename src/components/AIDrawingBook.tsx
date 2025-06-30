@@ -154,6 +154,7 @@ Focus on fostering creativity and imagination.`;
   }
 
   return (
+    <>
     <div
       className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-4"
       style={{ fontFamily: "Kalam, cursive, sans-serif" }}
@@ -501,6 +502,7 @@ Focus on fostering creativity and imagination.`;
         </div>
       </div>
     </div>
+
       {/* AI Chat Panel */}
       {showAIChat && (
         <div className="fixed inset-4 bg-white rounded-xl shadow-2xl border-4 border-purple-300 z-50 flex flex-col animate__animated animate__slideInRight">
@@ -629,6 +631,7 @@ Focus on fostering creativity and imagination.`;
           </div>
         </div>
       )}
+    </>
   );
 };
 
