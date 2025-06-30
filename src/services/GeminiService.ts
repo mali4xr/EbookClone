@@ -138,7 +138,7 @@ export class GeminiService {
   }
 
   static async recognizePhoto(base64ImageData: string): Promise<string> {
-    const descriptionPrompt = "Describe this photo in three detailed keywords related to the subject. Focus on the main subject and three key feature,like 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'. Do not use introduction,Do not mention any colors.";
+    const descriptionPrompt = "Describe this photo in detailed keywords related to the subject. Focus on the main subject and two key feature,like 'a smiling sun', 'a round roof house with a tree', 'a cat chasing a ball'. Do not use introduction,Do not mention any colors.";
     const payload = {
       contents: [
         {
