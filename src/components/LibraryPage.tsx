@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield, AlertCircle, RotateCcw } from 'lucide-react';
+import { Book, ArrowLeft, Search, Filter, Star, Clock, Users, Settings, Plus, Trash2, Edit, Save, X, LogIn, LogOut, Shield, AlertCircle, RotateCcw, Menu } from 'lucide-react';
 import { BookService } from '../services/BookService';
 import { AuthService, User } from '../services/AuthService';
 import { Book as BookType, SUBJECT_COLORS, SUBJECT_ICONS } from '../types/Book';
@@ -44,6 +44,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const [recommendedBooks, setRecommendedBooks] = useState<BookType[]>([]);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [showAIDrawingBook, setShowAIDrawingBook] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
@@ -226,6 +227,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     resetForm();
     setEditingBook(null);
     setShowAddBook(true);
+    setIsMobileMenuOpen(false); // Close mobile menu
   };
 
   const handleEditBook = (book: BookType) => {
@@ -300,6 +302,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     try {
       await authService.signOut();
       setCurrentUser(null);
+      setIsMobileMenuOpen(false); // Close mobile menu
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -412,7 +415,8 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-3">
               {/* Auth Configuration Warning */}
               {authConfigError && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg">
@@ -461,12 +465,213 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 <span>Add Book</span>
               </button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+              >
+                <Menu size={24} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col h-full">
+              {/* Mobile Menu Header */}
+              <div className="flex items-center justify-between p-4 border-b bg-purple-600 text-white">
+                <h2 className="text-lg font-semibold">Menu</h2>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1 rounded-full hover:bg-purple-700 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Mobile Menu Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {/* Auth Section */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Account</h3>
+                  
+                  {authConfigError ? (
+                    <div className="flex items-center gap-2 p-3 bg-yellow-100 text-yellow-700 rounded-lg">
+                      <AlertCircle size={16} />
+                      <span className="text-sm font-medium">Auth not configured</span>
+                    </div>
+                  ) : currentUser ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 p-3 bg-green-100 text-green-700 rounded-lg">
+                        <Shield size={16} />
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">Admin</div>
+                          <div className="text-xs">{currentUser.email}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 p-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        <LogOut size={16} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setShowAuthModal(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 p-3 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                    >
+                      <LogIn size={20} />
+                      <span>Admin Login</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Actions Section */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Actions</h3>
+                  
+                  <button
+                    onClick={handleAddBook}
+                    className={`w-full flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                      currentUser && !authConfigError
+                        ? 'bg-green-600 text-white hover:bg-green-700' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    disabled={!currentUser || !!authConfigError}
+                  >
+                    <Plus size={20} />
+                    <span>Add Book</span>
+                  </button>
+                </div>
+
+                {/* Filters Section */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Filters</h3>
+                  
+                  {/* Search */}
+                  <div className="relative">
+                    <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search books, authors..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Subject Filter */}
+                  <div className="relative">
+                    <Filter size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <select
+                      value={selectedSubject}
+                      onChange={(e) => setSelectedSubject(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+                    >
+                      <option value="ALL">All Subjects</option>
+                      {getUniqueSubjects().map(subject => (
+                        <option key={subject} value={subject}>
+                          {SUBJECT_ICONS[subject as keyof typeof SUBJECT_ICONS]} {subject}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Difficulty Filter */}
+                  <div className="relative">
+                    <Star size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <select
+                      value={selectedDifficulty}
+                      onChange={(e) => setSelectedDifficulty(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+                    >
+                      <option value="ALL">All Levels</option>
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  <button
+                    onClick={() => {
+                      clearAllFilters();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    disabled={!hasActiveFilters()}
+                    className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg transition-colors ${
+                      hasActiveFilters()
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                    }`}
+                  >
+                    <RotateCcw size={16} />
+                    <span className="font-medium">Clear Filters</span>
+                  </button>
+                </div>
+
+                {/* Active Filters Display */}
+                {hasActiveFilters() && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-600">Active Filters:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {searchTerm && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                          Search: "{searchTerm}"
+                          <button
+                            onClick={() => setSearchTerm('')}
+                            className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
+                          >
+                            <X size={10} />
+                          </button>
+                        </span>
+                      )}
+                      
+                      {selectedSubject !== 'ALL' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                          {SUBJECT_ICONS[selectedSubject as keyof typeof SUBJECT_ICONS]} {selectedSubject}
+                          <button
+                            onClick={() => setSelectedSubject('ALL')}
+                            className="ml-1 hover:bg-purple-200 rounded-full p-0.5"
+                          >
+                            <X size={10} />
+                          </button>
+                        </span>
+                      )}
+                      
+                      {selectedDifficulty !== 'ALL' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          {selectedDifficulty}
+                          <button
+                            onClick={() => setSelectedDifficulty('ALL')}
+                            className="ml-1 hover:bg-green-200 rounded-full p-0.5"
+                          >
+                            <X size={10} />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Filters */}
+      <div className="max-w-7xl mx-auto px-4 py-6 hidden md:block">
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
@@ -576,8 +781,10 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Books Grid */}
+      {/* Books Grid */}
+      <div className="max-w-7xl mx-auto px-4 pb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredBooks.map((book) => (
             <div
