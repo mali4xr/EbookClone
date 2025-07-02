@@ -23,7 +23,7 @@ interface BookFormData {
   difficulty_level: BookType['difficulty_level'];
   target_age_min: number;
   target_age_max: number;
-  is_available: boolean;
+  is_active: boolean;
 }
 
 const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
@@ -57,7 +57,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     difficulty_level: 'beginner',
     target_age_min: 3,
     target_age_max: 12,
-    is_available: true
+    is_active: true
   });
 
   const authService = AuthService.getInstance();
@@ -143,11 +143,11 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       filtered = filtered.filter(book => book.difficulty_level === selectedDifficulty);
     }
 
-    // Sort with available books first, then by subject, then by title
+    // Sort with active books first, then by subject, then by title
     filtered = filtered.sort((a, b) => {
-      // Primary sort: Available books first (true before false)
-      if (a.is_available !== b.is_available) {
-        return b.is_available ? 1 : -1; // Available (true) books come first
+      // Primary sort: Active books first (true before false)
+      if (a.is_active !== b.is_active) {
+        return b.is_active ? 1 : -1; // Active (true) books come first
       }
       
       // Secondary sort: By subject alphabetically
@@ -211,7 +211,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       difficulty_level: 'beginner',
       target_age_min: 3,
       target_age_max: 12,
-      is_available: true
+      is_active: true
     });
   };
 
@@ -250,7 +250,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       difficulty_level: book.difficulty_level,
       target_age_min: book.target_age_min,
       target_age_max: book.target_age_max,
-      is_available: book.is_available ?? true
+      is_active: book.is_active ?? true
     });
     setEditingBook(book);
     setShowAddBook(true);
@@ -790,7 +790,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
             <div
               key={book.id}
               className={`bg-white rounded-xl shadow-lg overflow-hidden transform transition-all duration-300 animate__animated animate__fadeInUp group ${
-                book.is_available 
+                book.is_active 
                   ? 'hover:scale-105 hover:shadow-xl' 
                   : 'opacity-75'
               }`}
@@ -822,7 +822,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 )}
                 
                 {/* Unavailable overlay */}
-                {!book.is_available && (
+                {!book.is_active && (
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
                     <div className="bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full">
                       <span className="text-gray-700 font-bold text-sm">🔒 Coming Soon</span>
@@ -893,15 +893,15 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
               {/* Action Button */}
               <div className="px-4 pb-4">
                 <button 
-                  onClick={() => book.is_available ? handleBookSelect(book) : undefined}
-                  disabled={!book.is_available}
+                  onClick={() => book.is_active ? handleBookSelect(book) : undefined}
+                  disabled={!book.is_active}
                   className={`w-full py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
-                    book.is_available 
+                    book.is_active 
                       ? `text-white transform hover:scale-105 bg-gradient-to-r ${SUBJECT_COLORS[book.subject]} hover:shadow-lg` 
                       : 'text-gray-500 bg-gray-200 cursor-not-allowed'
                   }`}
                 >
-                  {!book.is_available 
+                  {!book.is_active 
                     ? '🔒 Coming Soon' 
                     : book.title === 'Creative Art Adventures' && book.subject === 'ART' 
                       ? 'Start Drawing' 
@@ -1161,29 +1161,29 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-700">
-                      {formData.is_available ? 'Available for Reading' : 'Coming Soon'}
+                      {formData.is_active ? 'Available for Reading' : 'Coming Soon'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {formData.is_available 
+                      {formData.is_active 
                         ? 'Students can start reading this book immediately' 
                         : 'Book will show "Coming Soon" and be disabled for students'
                       }
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-sm font-medium ${formData.is_available ? 'text-green-600' : 'text-gray-500'}`}>
-                      {formData.is_available ? '✅ Available' : '⏳ Coming Soon'}
+                    <span className={`text-sm font-medium ${formData.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+                      {formData.is_active ? '✅ Available' : '⏳ Coming Soon'}
                     </span>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, is_available: !formData.is_available })}
+                      onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-                        formData.is_available ? 'bg-green-500' : 'bg-gray-300'
+                        formData.is_active ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
                       <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          formData.is_available ? 'translate-x-6' : 'translate-x-1'
+                          formData.is_active ? 'translate-x-6' : 'translate-x-1'
                         }`}
                       />
                     </button>
