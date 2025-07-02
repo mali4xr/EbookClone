@@ -423,7 +423,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
               <div className="flex items-center gap-3">
                 <Book size={32} className="text-purple-600" />
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-800">Interactive Library</h1>
+                  <h1 className="text-2xl font-bold text-gray-800">Interactive Library</h1>
                   <p className="text-gray-600">Choose your learning adventure</p>
                 </div>
               </div>
