@@ -7,6 +7,14 @@ import {
   Wand2,
   Camera,
   Loader,
+  Lightbulb,
+  Play,
+  Volume2,
+  Trash2,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
 import { GeminiService } from "../services/GeminiService";
 import { useAIDrawingBookLogic } from "../hooks/useAIDrawingBookLogic";
@@ -75,21 +83,20 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   // API Key Check UI
   if (!GeminiService.getApiKey()) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md text-center">
-          <div className="text-red-500 mb-4">
-            <Camera size={48} className="mx-auto" />
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md text-center border border-purple-100">
+          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Camera size={32} className="text-white" />
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            API Key Required
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            AI Magic Needs Setup
           </h2>
-          <p className="text-gray-600 mb-6">
-            Please configure your Gemini API key in the environment variables to
-            use the AI drawing features.
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            To unlock the full AI drawing experience, please configure your Gemini API key in the environment variables.
           </p>
           <button
             onClick={onBack}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 font-semibold shadow-lg"
           >
             Back to Library
           </button>
@@ -99,53 +106,60 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-4"
-      style={{ fontFamily: "Kalam, cursive, sans-serif" }}
-    >
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <header className="text-center mb-6">
-          <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-purple-100 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
             <button
               onClick={onBack}
-              className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              className="flex items-center gap-3 px-4 py-2 bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 border border-purple-100"
             >
-              <BookOpen size={20} className="text-purple-600" />
-              <span className="text-purple-600 font-semibold">
-                Back to Library
-              </span>
+              <ArrowLeft size={20} className="text-purple-600" />
+              <span className="text-purple-600 font-semibold hidden sm:inline">Back to Library</span>
             </button>
-            <div className="text-center flex-1">
-              <h1 className="text-4xl md:text-5xl font-bold text-sky-600">
-                Sketch-A-Magic AI
+            
+            <div className="text-center flex-1 mx-4">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">
+                ✨ AI Art Studio
               </h1>
-              <p className="text-lg text-orange-500 mt-2">
-                Draw, get ideas, and create stories with AI!
+              <p className="text-sm sm:text-base text-purple-600 mt-1 font-medium">
+                Draw, Create & Tell Stories with AI Magic!
               </p>
             </div>
-            <div className="w-32"></div>
-          </div>
-        </header>
 
+            <div className="w-20 sm:w-32"></div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* AI Prompt Display */}
         {currentPrompt && (
-          <div className="text-center mb-6 animate__animated animate__fadeIn">
-            <div className="bg-sky-100 border-2 border-sky-300 text-sky-800 rounded-lg p-4 text-lg shadow-md max-w-2xl mx-auto">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Sparkles size={20} className="text-sky-600" />
-                <span className="font-semibold">Drawing Idea:</span>
+          <div className="animate__animated animate__fadeIn">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl p-4 shadow-lg">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <Lightbulb size={16} className="text-yellow-300" />
+                </div>
+                <span className="font-bold text-lg">Drawing Inspiration:</span>
               </div>
-              {currentPrompt}
+              <p className="text-lg leading-relaxed">{currentPrompt}</p>
             </div>
           </div>
         )}
 
         {/* Error Display */}
         {error && (
-          <div className="text-center mb-6 animate__animated animate__fadeIn">
-            <div className="bg-red-100 border-2 border-red-300 text-red-800 rounded-lg p-4 text-lg shadow-md max-w-2xl mx-auto">
-              {error}
+          <div className="animate__animated animate__fadeIn">
+            <div className="bg-red-50 border-2 border-red-200 text-red-800 rounded-2xl p-4 shadow-md">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-red-200 rounded-full flex items-center justify-center">
+                  <span className="text-red-600 text-sm">!</span>
+                </div>
+                <span className="font-semibold">Oops!</span>
+              </div>
+              <p className="mt-2">{error}</p>
             </div>
           </div>
         )}
@@ -158,252 +172,241 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
           onDeleteHistory={handleDeleteHistory}
         />
 
-        {/* Story Section - Moved here, below history */}
+        {/* Story Section */}
         {showStorySection && (
-          <section className="w-full mx-auto animate__animated animate__fadeInUp mb-6">
-            <div className="flex items-center gap-2"> 
-            <div className="text-center ">
-              <button
-                onClick={generateStory}
-                disabled={isGeneratingStory || isTypingStory}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {isGeneratingStory || isTypingStory ? (
-                  <span className="flex items-center  gap-2">
-                    <Loader size={20} className="animate-spin" />
-                    {isGeneratingStory ? 'Creating...' : 'Writing...'}
-                  </span>
-                ) : (
-                  <div > Create Story </div>
-                )}
-              </button>
-            </div>
-
-            {(story || displayedStory) && (
-              <div className="bg-orange-100 border-2 border-orange-300 text-orange-900 rounded-lg p-2 text-lg shadow-inner animate__animated animate__fadeIn">
-                
-                <div className="flex items-center gap-2"> 
-                {/* Only show read button when story is fully typed and not currently typing */}
-                {!isTypingStory && story && (
+          <section className="animate__animated animate__fadeInUp">
+            <div className="bg-white rounded-3xl shadow-xl border border-orange-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-orange-400 to-pink-500 p-4">
+                <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                  <BookOpen size={24} />
+                  Your Story
+                </h3>
+              </div>
+              
+              <div className="p-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start">
                   <button
-                    className="px-2 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition animate__animated animate__bounceIn"
-                    onClick={handleReadStory}
-                    disabled={isReadingStory}
+                    onClick={generateStory}
+                    disabled={isGeneratingStory || isTypingStory}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
-                    {isReadingStory ? (
-                      <span className="flex items-center gap-2">
+                    {isGeneratingStory || isTypingStory ? (
+                      <>
                         <Loader size={20} className="animate-spin" />
-                        Reading...
-                      </span>
+                        {isGeneratingStory ? 'Creating...' : 'Writing...'}
+                      </>
                     ) : (
-                      <span className="flex items-center gap-2">
-                        <BookOpen size={20} />
-                        Read
-                      </span>
+                      <>
+                        <Zap size={20} />
+                        Create Story
+                      </>
                     )}
                   </button>
-                )}
-                  
-                <div className="leading-relaxed">
-                  {isTypingStory ? (
-                    <span>
-                      {displayedStory}
-                      <span className="animate-pulse">|</span>
-                    </span>
-                  ) : (
-                    story
+
+                  {!isTypingStory && story && (
+                    <button
+                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                      onClick={handleReadStory}
+                      disabled={isReadingStory}
+                    >
+                      {isReadingStory ? (
+                        <>
+                          <Loader size={20} className="animate-spin" />
+                          Reading...
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 size={20} />
+                          Read Aloud
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
-                
+
+                {(story || displayedStory) && (
+                  <div className="mt-6 bg-gradient-to-br from-orange-50 to-pink-50 rounded-2xl p-6 border-2 border-orange-200">
+                    <div className="text-lg leading-relaxed text-gray-800">
+                      {isTypingStory ? (
+                        <span>
+                          {displayedStory}
+                          <span className="animate-pulse text-orange-500">|</span>
+                        </span>
+                      ) : (
+                        story
+                      )}
+                    </div>
                   </div>
-                
+                )}
               </div>
-            
-            )}
-               </div>
+            </div>
           </section>
         )}
 
-        {/* Main Content */}
-        <main className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 bg-white p-4 rounded-3xl shadow-lg border-4 border-dashed border-blue-600">
-          {/* Drawing Canvas Section */}
-          <div className="flex flex-col items-center">
-            <h2 className="text-2xl font-bold mb-2 text-gray-700 flex items-center gap-2">
-              <Palette size={24} className="text-purple-600" />
-              1. Draw Here
-              <button
-                onClick={() => setShowWebcam(true)}
-                disabled={showWebcam}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                <span className="flex items-center gap-2">
-                  <Camera size={20} />
-                  Draw on Paper 
-                </span>
-              </button>
-            </h2>
-            
-            {/* Canvas Container with Webcam Integration */}
-            <div className="relative w-full aspect-square bg-white rounded-2xl shadow-inner border-2 border-gray-200 overflow-hidden">
-              {/* Drawing Canvas */}
-              <canvas
-                ref={sketchCanvasRef}
-                className={`w-full h-full rounded-2xl cursor-default transition-opacity duration-300 ${
-                  showWebcam ? 'opacity-0 pointer-events-none' : 'opacity-100'
-                }`}
-                onMouseDown={startDrawing}
-                onMouseMove={drawSketch}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={drawSketch}
-                onTouchEnd={stopDrawing}
-              />
-              
-              {/* Webcam Modal - Integrated into canvas area */}
-              {showWebcam && (
-                <WebcamModal
-                  showWebcam={showWebcam}
-                  webcamVideoRef={webcamVideoRef}
-                  onCapture={handleWebcamCapture}
-                  onCancel={handleWebcamCancel}
-                />
-              )}
+        {/* Main Canvas Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Drawing Canvas */}
+          <div className="bg-white rounded-3xl shadow-xl border border-purple-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                  <Palette size={24} />
+                  Draw Here
+                </h3>
+                <button
+                  onClick={() => setShowWebcam(true)}
+                  disabled={showWebcam}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Camera size={18} />
+                  <span className="hidden sm:inline">Photo</span>
+                </button>
+              </div>
             </div>
+            
+            <div className="p-6">
+              <div className="relative aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-purple-300 overflow-hidden">
+                <canvas
+                  ref={sketchCanvasRef}
+                  className={`w-full h-full rounded-2xl cursor-crosshair transition-opacity duration-300 ${
+                    showWebcam ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                  }`}
+                  onMouseDown={startDrawing}
+                  onMouseMove={drawSketch}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={drawSketch}
+                  onTouchEnd={stopDrawing}
+                />
+                
+                {showWebcam && (
+                  <WebcamModal
+                    showWebcam={showWebcam}
+                    webcamVideoRef={webcamVideoRef}
+                    onCapture={handleWebcamCapture}
+                    onCancel={handleWebcamCancel}
+                  />
+                )}
 
-            {/* Recognized Image Label */}
-            {recognizedImage && (
-              <div className="text-center animate__animated animate__fadeIn mt-4">
-                <div className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white rounded-lg p-4 text-lg font-bold shadow-lg mx-auto transform hover:scale-105 transition-transform duration-200">
-                  <div className="flex items-center justify-center gap-2">
-                    <Wand2 size={24} className="text-yellow-200" />
-                    <span>Magic Eye sees: {recognizedImage}</span>
+                {!showWebcam && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center text-purple-400">
+                      <Palette size={48} className="mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-medium">Start drawing your masterpiece!</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {recognizedImage && (
+                <div className="mt-4 animate__animated animate__fadeIn">
+                  <div className="bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300 text-purple-800 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wand2 size={20} className="text-purple-600" />
+                      <span className="font-bold">AI Vision:</span>
+                    </div>
+                    <p className="text-lg">{recognizedImage}</p>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* AI Generated Image & Coloring Section */}
-          <div className="flex flex-col items-center">
-            <h2 className="text-2xl font-bold text-gray-700 flex items-center gap-2 mb-2">
-              <Wand2 size={24} className="text-pink-600" />
-              2. See & Color the Secret Drawing
-            </h2>
-            <div className="relative w-full aspect-square bg-gray-100 rounded-2xl shadow-inner border-2 border-gray-200 flex items-center justify-center overflow-hidden">
-              {/* Magic Wand Animation - shows during generation */}
-              <MagicWandAnimation isVisible={isGenerating} />
-
-              {/* Story Image Overlay with slower transition */}
-              {storyImageBase64 && (
-                <div
-                  className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-1000"
-                  style={{
-                    opacity: showStoryImage ? 1 : 0,
-                    zIndex: 20,
-                  }}
-                >
-                  <img
-                    src={`data:image/png;base64,${storyImageBase64}`}
-                    alt="Story Illustration"
-                    className={`w-full h-full object-contain ${showStoryImage ? "slow-fade-animation" : ""}`}
-                  />
-                </div>
-              )}
-
-              {/* Coloring Canvas */}
-              <canvas
-                ref={coloringCanvasRef}
-                className={`w-full h-full rounded-2xl ${
-                  hasGeneratedContent ? "block cursor-crosshair" : "hidden"
-                } transition-opacity duration-1000`}
-                style={{
-                  opacity: showStoryImage ? 0 : 1,
-                  zIndex: 10,
-                  position: "relative",
-                }}
-                onClick={handleColoringClick}
-                onTouchStart={handleColoringClick}
-              ></canvas>
-
-              {/* Color Indicator Circle */}
-              {hasGeneratedContent && (
-                <div
-                  className="absolute"
-                  style={{
-                    right: 24,
-                    bottom: 24,
-                    zIndex: 10,
-                  }}
-                >
-                  <div
-                    className="w-12 h-12 rounded-full border-4 border-white shadow-lg flex items-center justify-center transition-colors duration-200"
-                    style={{
-                      backgroundColor: selectedColor,
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                    }}
-                    title={`Current color: ${selectedColor}`}
-                  />
-                </div>
-              )}
-
-              {/* Placeholder text */}
-              {!isGenerating && !hasGeneratedContent && (
-                <div className="text-center text-gray-500 p-8">
-                  <Sparkles size={48} className="mx-auto mb-4 text-gray-400" />
-                  <p className="text-lg">
-                    Your magical drawing will appear here!
-                  </p>
-                </div>
               )}
             </div>
-
-            {/* Color Palette */}
-            <ColorPalette
-              colors={colors}
-              selectedColor={selectedColor}
-              onColorSelect={handleColorSelect}
-              hasGeneratedContent={hasGeneratedContent}
-            />
           </div>
-        </main>
 
-        {/* Controls Section */}
-        <div className="mt-6 flex flex-wrap justify-center items-center gap-40">
-          <button
-            onClick={handleClearAll}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out"
-          >
-            <span className="flex items-center gap-2">
-              <RotateCcw size={20} />
-              Clear
-            </span>
-          </button>
+          {/* AI Generated Canvas */}
+          <div className="bg-white rounded-3xl shadow-xl border border-green-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4">
+              <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                <Wand2 size={24} />
+                AI Magic Canvas
+              </h3>
+            </div>
+            
+            <div className="p-6">
+              <div className="relative aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-green-300 overflow-hidden">
+                <MagicWandAnimation isVisible={isGenerating} />
 
+                {storyImageBase64 && (
+                  <div
+                    className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-1000 z-20"
+                    style={{ opacity: showStoryImage ? 1 : 0 }}
+                  >
+                    <img
+                      src={`data:image/png;base64,${storyImageBase64}`}
+                      alt="Story Illustration"
+                      className={`w-full h-full object-contain rounded-2xl ${showStoryImage ? "slow-fade-animation" : ""}`}
+                    />
+                  </div>
+                )}
+
+                <canvas
+                  ref={coloringCanvasRef}
+                  className={`w-full h-full rounded-2xl transition-opacity duration-1000 ${
+                    hasGeneratedContent ? "block cursor-crosshair" : "hidden"
+                  }`}
+                  style={{
+                    opacity: showStoryImage ? 0 : 1,
+                    zIndex: 10,
+                    position: "relative",
+                  }}
+                  onClick={handleColoringClick}
+                  onTouchStart={handleColoringClick}
+                />
+
+                {hasGeneratedContent && (
+                  <div className="absolute bottom-4 right-4 z-30">
+                    <div
+                      className="w-12 h-12 rounded-full border-4 border-white shadow-xl flex items-center justify-center transition-colors duration-200"
+                      style={{ backgroundColor: selectedColor }}
+                      title={`Current color: ${selectedColor}`}
+                    />
+                  </div>
+                )}
+
+                {!isGenerating && !hasGeneratedContent && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-green-400">
+                      <Sparkles size={48} className="mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-medium">Your AI artwork will appear here!</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <ColorPalette
+                colors={colors}
+                selectedColor={selectedColor}
+                onColorSelect={handleColorSelect}
+                hasGeneratedContent={hasGeneratedContent}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap justify-center gap-4">
           <button
             onClick={getDrawingIdea}
             disabled={isGettingIdea}
-            className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isGettingIdea ? (
-              <span className="flex items-center gap-2">
-                <Loader size={20} className="animate-spin" />
-                Thinking...
-              </span>
+              <>
+                <Loader size={24} className="animate-spin" />
+                <span className="hidden sm:inline">Thinking...</span>
+              </>
             ) : (
-              <span className="flex items-center gap-2">
-                <Sparkles size={20} />
-                Idea
-              </span>
+              <>
+                <Lightbulb size={24} />
+                <span>Get Idea</span>
+              </>
             )}
           </button>
 
           <button
             onClick={enhanceDrawing}
             disabled={isGenerating || history.length >= 10 || showWebcam}
-            className={`bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-all duration-200 ease-in-out
-              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-              ${history.length >= 10 ? "opacity-50 cursor-not-allowed" : ""}`}
+            className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             title={
               history.length >= 10
                 ? "Maximum of 10 drawings reached. Delete a thumbnail to create more."
@@ -413,16 +416,24 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
             }
           >
             {isGenerating ? (
-              <span className="flex items-center gap-2">
-                <Loader size={20} className="animate-spin" />
-                Creating...
-              </span>
+              <>
+                <Loader size={24} className="animate-spin" />
+                <span className="hidden sm:inline">Creating...</span>
+              </>
             ) : (
-              <span className="flex items-center gap-2">
-                <Wand2 size={20} />
-                Surprise Drawing
-              </span>
+              <>
+                <Wand2 size={24} />
+                <span>AI Magic</span>
+              </>
             )}
+          </button>
+
+          <button
+            onClick={handleClearAll}
+            className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-red-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+          >
+            <RotateCcw size={24} />
+            <span>Clear All</span>
           </button>
         </div>
       </div>

@@ -16,20 +16,23 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
   if (!hasGeneratedContent) return null;
 
   return (
-    <div className="mt-4 flex flex-wrap justify-center gap-2 p-2 bg-white rounded-xl shadow-md border border-gray-200">
-      {colors.map((color, index) => (
-        <div
-          key={index}
-          className={`w-8 h-8 rounded-full border-2 cursor-pointer shadow-md transform hover:scale-110 transition-transform duration-150
-            ${
+    <div className="mt-6 bg-white rounded-2xl p-4 shadow-lg border border-gray-200">
+      <h4 className="text-sm font-bold text-gray-700 mb-3 text-center">Color Palette</h4>
+      <div className="flex flex-wrap justify-center gap-3">
+        {colors.map((color, index) => (
+          <button
+            key={index}
+            className={`w-10 h-10 rounded-full border-4 shadow-lg transform hover:scale-110 transition-all duration-200 ${
               selectedColor === color
-                ? "border-sky-500 border-4"
-                : "border-gray-300"
+                ? "border-gray-800 scale-110"
+                : "border-white hover:border-gray-300"
             }`}
-          style={{ backgroundColor: color }}
-          onClick={(e) => onColorSelect(color, e)}
-        ></div>
-      ))}
+            style={{ backgroundColor: color }}
+            onClick={(e) => onColorSelect(color, e)}
+            title={`Color: ${color}`}
+          />
+        ))}
+      </div>
     </div>
   );
 };
