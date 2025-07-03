@@ -70,6 +70,11 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     const { data: { subscription } } = authService.onAuthStateChange((user) => {
       setCurrentUser(user);
       setIsCheckingAuth(false);
+      
+      // If user was signed out due to expired token, clear any auth errors
+      if (!user) {
+        setError(null);
+      }
     });
 
     return () => {
@@ -111,21 +116,41 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const loadBooks = async () => {
     try {
       setIsLoading(true);
+      setError(null); // Clear any previous errors
+      
       const bookService = BookService.getInstance();
       // Load ALL books, not just active ones
-      const { data, error } = await bookService.supabase.supabase
+      const { data, error: bookError } = await bookService.supabase.supabase
         .from('books')
         .select('*')
         .order('subject', { ascending: true })
         .order('title', { ascending: true });
 
-      if (error) {
-        throw new Error(`Failed to fetch books: ${error.message}`);
+      if (bookError) {
+        // Check if it's a JWT expired error
+        if (bookError.message.includes('JWT expired') || bookError.message.includes('invalid JWT')) {
+          console.warn('JWT expired while loading books, clearing session...');
+          await authService.clearExpiredSession();
+          setCurrentUser(null);
+          setError('Your session has expired. Please sign in again to manage books.');
+        } else {
+          throw new Error(`Failed to fetch books: ${bookError.message}`);
+        }
+        return;
       }
 
       setBooks(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load books');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load books';
+      console.error('Error loading books:', errorMessage);
+      
+      // Check if it's an authentication error
+      if (errorMessage.includes('JWT') || errorMessage.includes('expired') || errorMessage.includes('401')) {
+        setError('Your session has expired. Please sign in again to manage books.');
+        setCurrentUser(null);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -273,6 +298,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     }
 
     try {
+      setError(null); // Clear any previous errors
       const bookService = BookService.getInstance();
       
       if (editingBook) {
@@ -288,7 +314,17 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       setEditingBook(null);
       resetForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save book');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save book';
+      console.error('Error saving book:', errorMessage);
+      
+      // Check if it's an authentication error
+      if (errorMessage.includes('JWT') || errorMessage.includes('expired') || errorMessage.includes('401')) {
+        setError('Your session has expired. Please sign in again.');
+        setCurrentUser(null);
+        setShowAddBook(false);
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
@@ -299,12 +335,23 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     }
 
     try {
+      setError(null); // Clear any previous errors
       const bookService = BookService.getInstance();
       await bookService.deleteBook(book.id);
       await loadBooks();
       setDeletingBook(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete book');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete book';
+      console.error('Error deleting book:', errorMessage);
+      
+      // Check if it's an authentication error
+      if (errorMessage.includes('JWT') || errorMessage.includes('expired') || errorMessage.includes('401')) {
+        setError('Your session has expired. Please sign in again.');
+        setCurrentUser(null);
+        setDeletingBook(null);
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
@@ -312,6 +359,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
     try {
       await authService.signOut();
       setCurrentUser(null);
+      setError(null); // Clear any errors when signing out
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -320,6 +368,9 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     setShowAuthModal(false);
+    setError(null); // Clear any errors when successfully authenticated
+    // Reload books after successful authentication
+    loadBooks();
   };
 
   const handleBookSelect = (book: BookType) => {
@@ -392,15 +443,28 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center">
-        <div className="text-center p-6 bg-red-50 rounded-lg border border-red-200">
+        <div className="text-center p-6 bg-red-50 rounded-lg border border-red-200 max-w-md">
           <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Library</h3>
           <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={loadBooks}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
+          <div className="space-y-2">
+            <button 
+              onClick={loadBooks}
+              className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+            {error.includes('session has expired') && (
+              <button 
+                onClick={() => {
+                  setError(null);
+                  setShowAuthModal(true);
+                }}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Sign In Again
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

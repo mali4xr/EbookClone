@@ -24,7 +24,13 @@ export class AuthService {
     }
 
     try {
-      this.supabase = createClient(supabaseUrl, supabaseKey);
+      this.supabase = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false
+        }
+      });
       this.isConfigured = true;
     } catch (error) {
       console.error('Failed to initialize Supabase client:', error);
@@ -128,10 +134,56 @@ export class AuthService {
     }
     
     try {
+      // First try to refresh the session
+      const { data: sessionData, error: sessionError } = await this.supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.warn('Error getting session:', sessionError.message);
+        // If session is invalid, clear it
+        await this.supabase.auth.signOut();
+        return null;
+      }
+
+      // If no session, return null
+      if (!sessionData.session) {
+        return null;
+      }
+
+      // Check if token is expired
+      const now = Math.floor(Date.now() / 1000);
+      if (sessionData.session.expires_at && sessionData.session.expires_at < now) {
+        console.warn('Session expired, attempting refresh...');
+        
+        // Try to refresh the session
+        const { data: refreshData, error: refreshError } = await this.supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.warn('Failed to refresh session:', refreshError.message);
+          // Clear the expired session
+          await this.supabase.auth.signOut();
+          return null;
+        }
+
+        if (!refreshData.session?.user) {
+          return null;
+        }
+
+        return {
+          id: refreshData.session.user.id,
+          email: refreshData.session.user.email || '',
+          role: refreshData.session.user.user_metadata?.role || 'user'
+        };
+      }
+
+      // Session is valid, get user
       const { data: { user }, error } = await this.supabase.auth.getUser();
       
       if (error) {
         console.warn('Error getting current user:', error.message);
+        // If JWT is invalid, clear the session
+        if (error.message.includes('JWT') || error.message.includes('expired')) {
+          await this.supabase.auth.signOut();
+        }
         return null;
       }
 
@@ -146,6 +198,12 @@ export class AuthService {
       };
     } catch (error) {
       console.warn('Error getting current user:', error);
+      // Clear any invalid session
+      try {
+        await this.supabase.auth.signOut();
+      } catch (signOutError) {
+        console.warn('Error clearing invalid session:', signOutError);
+      }
       return null;
     }
   }
@@ -163,16 +221,33 @@ export class AuthService {
     }
     
     return this.supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const user: User = {
-          id: session.user.id,
-          email: session.user.email || '',
-          role: session.user.user_metadata?.role || 'user'
-        };
-        callback(user);
-      } else {
-        callback(null);
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
       }
+      
+      if (event === 'SIGNED_OUT' || !session?.user) {
+        callback(null);
+        return;
+      }
+
+      // Check if the session is valid
+      if (session?.expires_at) {
+        const now = Math.floor(Date.now() / 1000);
+        if (session.expires_at < now) {
+          console.warn('Received expired session in auth state change');
+          callback(null);
+          return;
+        }
+      }
+
+      const user: User = {
+        id: session.user.id,
+        email: session.user.email || '',
+        role: session.user.user_metadata?.role || 'user'
+      };
+      callback(user);
     });
   }
 
@@ -181,8 +256,35 @@ export class AuthService {
       return null;
     }
     
-    const { data: { session } } = await this.supabase.auth.getSession();
-    return session;
+    try {
+      const { data: { session }, error } = await this.supabase.auth.getSession();
+      
+      if (error) {
+        console.warn('Error getting session:', error.message);
+        return null;
+      }
+
+      // Check if session is expired
+      if (session?.expires_at) {
+        const now = Math.floor(Date.now() / 1000);
+        if (session.expires_at < now) {
+          console.warn('Session is expired');
+          // Try to refresh
+          const { data: refreshData, error: refreshError } = await this.supabase.auth.refreshSession();
+          if (refreshError) {
+            console.warn('Failed to refresh expired session:', refreshError.message);
+            await this.supabase.auth.signOut();
+            return null;
+          }
+          return refreshData.session;
+        }
+      }
+
+      return session;
+    } catch (error) {
+      console.warn('Error in getSession:', error);
+      return null;
+    }
   }
 
   getConfigurationStatus(): { isConfigured: boolean; message?: string } {
@@ -193,5 +295,19 @@ export class AuthService {
       };
     }
     return { isConfigured: true };
+  }
+
+  // Helper method to clear expired sessions
+  async clearExpiredSession(): Promise<void> {
+    if (!this.isConfigured || !this.supabase) {
+      return;
+    }
+
+    try {
+      await this.supabase.auth.signOut();
+      console.log('Cleared expired session');
+    } catch (error) {
+      console.warn('Error clearing expired session:', error);
+    }
   }
 }
