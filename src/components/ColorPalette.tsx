@@ -16,9 +16,9 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
   if (!hasGeneratedContent) return null;
 
   return (
-    <div className="mt-6 bg-white rounded-2xl p-4 shadow-lg border border-gray-200">
-      <h4 className="text-sm font-bold text-gray-700 mb-3 text-center">Color Palette</h4>
-      <div className="flex flex-wrap justify-center gap-3">
+    <div className="mt-4 bg-white rounded-2xl p-3 shadow-lg border border-gray-200">
+      <h4 className="text-sm font-bold text-gray-700 mb-2 text-center">Color Palette</h4>
+      <div className="flex flex-wrap justify-center gap-2">
         {colors.map((color, index) => (
           <button
             key={index}

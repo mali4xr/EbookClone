@@ -27,13 +27,13 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
 
   return (
     <div className="bg-white rounded-3xl shadow-xl border border-purple-200 overflow-hidden">
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
+      <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3">
         <h3 className="text-white font-bold text-xl flex items-center gap-2">
           🎨 Your Art Gallery ({history.length}/10)
         </h3>
       </div>
       
-      <div className="p-6">
+      <div className="p-4">
         <div className="flex overflow-x-auto gap-4 pb-2">
           {history.map((item, idx) => (
             <div key={idx} className="flex flex-col items-center flex-shrink-0">
@@ -77,5 +77,3 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
     </div>
   );
 };
-
-export default HistoryThumbnails;

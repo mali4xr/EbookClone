@@ -109,7 +109,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-purple-100 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <button
               onClick={onBack}
@@ -133,11 +133,11 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-3 space-y-3">
         {/* AI Prompt Display */}
         {currentPrompt && (
           <div className="animate__animated animate__fadeIn">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl p-4 shadow-lg">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl p-3 shadow-lg">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                   <Lightbulb size={16} className="text-yellow-300" />
@@ -152,7 +152,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         {/* Error Display */}
         {error && (
           <div className="animate__animated animate__fadeIn">
-            <div className="bg-red-50 border-2 border-red-200 text-red-800 rounded-2xl p-4 shadow-md">
+            <div className="bg-red-50 border-2 border-red-200 text-red-800 rounded-2xl p-3 shadow-md">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-red-200 rounded-full flex items-center justify-center">
                   <span className="text-red-600 text-sm">!</span>
@@ -176,15 +176,15 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         {showStorySection && (
           <section className="animate__animated animate__fadeInUp">
             <div className="bg-white rounded-3xl shadow-xl border border-orange-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-400 to-pink-500 p-4">
+              <div className="bg-gradient-to-r from-orange-400 to-pink-500 p-3">
                 <h3 className="text-white font-bold text-xl flex items-center gap-2">
                   <BookOpen size={24} />
                   Your Story
                 </h3>
               </div>
               
-              <div className="p-6">
-                <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <div className="p-4">
+                <div className="flex flex-col sm:flex-row gap-3 items-start">
                   <button
                     onClick={generateStory}
                     disabled={isGeneratingStory || isTypingStory}
@@ -225,7 +225,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 </div>
 
                 {(story || displayedStory) && (
-                  <div className="mt-6 bg-gradient-to-br from-orange-50 to-pink-50 rounded-2xl p-6 border-2 border-orange-200">
+                  <div className="mt-4 bg-gradient-to-br from-orange-50 to-pink-50 rounded-2xl p-4 border-2 border-orange-200">
                     <div className="text-lg leading-relaxed text-gray-800">
                       {isTypingStory ? (
                         <span>
@@ -244,10 +244,10 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         )}
 
         {/* Main Canvas Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Drawing Canvas */}
           <div className="bg-white rounded-3xl shadow-xl border border-purple-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-white font-bold text-xl flex items-center gap-2">
                   <Palette size={24} />
@@ -264,7 +264,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               </div>
             </div>
             
-            <div className="p-6">
+            <div className="p-4">
               <div className="relative aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-purple-300 overflow-hidden">
                 <canvas
                   ref={sketchCanvasRef}
@@ -300,8 +300,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
               </div>
 
               {recognizedImage && (
-                <div className="mt-4 animate__animated animate__fadeIn">
-                  <div className="bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300 text-purple-800 rounded-xl p-4">
+                <div className="mt-3 animate__animated animate__fadeIn">
+                  <div className="bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300 text-purple-800 rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <Wand2 size={20} className="text-purple-600" />
                       <span className="font-bold">AI Vision:</span>
@@ -315,14 +315,14 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
 
           {/* AI Generated Canvas */}
           <div className="bg-white rounded-3xl shadow-xl border border-green-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4">
+            <div className="bg-gradient-to-r from-green-500 to-blue-500 p-3">
               <h3 className="text-white font-bold text-xl flex items-center gap-2">
                 <Wand2 size={24} />
                 AI Magic Canvas
               </h3>
             </div>
             
-            <div className="p-6">
+            <div className="p-4">
               <div className="relative aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-green-300 overflow-hidden">
                 <MagicWandAnimation isVisible={isGenerating} />
 
@@ -384,7 +384,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-3">
           <button
             onClick={getDrawingIdea}
             disabled={isGettingIdea}
