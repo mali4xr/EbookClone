@@ -133,38 +133,24 @@ export const useAIDrawingBookLogic = () => {
     return () => clearInterval(typeInterval);
   }, []);
 
-  // Enhanced canvas setup function with proper initialization
+  // SIMPLIFIED: Canvas setup without DPR complications
   const setupCanvas = useCallback((canvas: HTMLCanvasElement, isSketchCanvas: boolean = false) => {
     if (!canvas) return;
-
-    // Force a reflow to ensure the canvas has proper dimensions
-    canvas.style.display = 'none';
-    canvas.offsetHeight; // Trigger reflow
-    canvas.style.display = '';
 
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     
-    console.log(`Setting up ${isSketchCanvas ? 'sketch' : 'coloring'} canvas:`, {
-      rect: { width: rect.width, height: rect.height },
-      dpr,
-      canvasSize: { width: rect.width * dpr, height: rect.height * dpr }
-    });
-    
-    // Set the actual size in memory (scaled to account for extra pixel density)
+    // Set canvas size to match display size * DPR for crisp rendering
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     
-    // Scale the canvas back down using CSS
+    // Scale canvas back to display size with CSS
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
 
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      // Clear any existing transforms
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      
-      // Scale the drawing context so everything will work at the higher resolution
+      // Scale context to handle DPR - this is the key part
       ctx.scale(dpr, dpr);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -175,8 +161,6 @@ export const useAIDrawingBookLogic = () => {
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 4;
       }
-      
-      console.log(`Canvas context configured with scale: ${dpr}`);
     }
   }, []);
 
@@ -320,7 +304,7 @@ export const useAIDrawingBookLogic = () => {
     return tempCanvas.toDataURL("image/png").split(",")[1];
   }, []);
 
-  // Enhanced drawing handlers with proper coordinate scaling
+  // SIMPLIFIED: Drawing handlers - let canvas context handle DPR
   const startDrawing = (
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
@@ -333,8 +317,6 @@ export const useAIDrawingBookLogic = () => {
     const pos = getCanvasPos(canvas, e.nativeEvent);
     setLastPos(pos);
     canvas.style.cursor = "crosshair";
-    
-    console.log('Start drawing at:', pos);
   };
 
   const drawSketch = (
@@ -348,8 +330,6 @@ export const useAIDrawingBookLogic = () => {
     if (!ctx) return;
 
     const currentPos = getCanvasPos(canvas, e.nativeEvent);
-    
-    console.log('Drawing from:', lastPos, 'to:', currentPos);
 
     ctx.beginPath();
     ctx.moveTo(lastPos.x, lastPos.y);
@@ -364,7 +344,6 @@ export const useAIDrawingBookLogic = () => {
     if (sketchCanvasRef.current) {
       sketchCanvasRef.current.style.cursor = "default";
     }
-    console.log('Stop drawing');
   };
 
   // Flood fill algorithm for coloring

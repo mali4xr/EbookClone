@@ -44,7 +44,8 @@ export const blobToBase64 = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
-// Gets mouse or touch position relative to a canvas element with proper coordinate scaling
+// SIMPLIFIED: Gets mouse or touch position relative to canvas in CSS pixels
+// The canvas context scaling handles DPR conversion automatically
 export const getCanvasPos = (
   canvas: HTMLCanvasElement,
   e: MouseEvent | TouchEvent
@@ -55,15 +56,10 @@ export const getCanvasPos = (
   const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
   const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
-  // Calculate position relative to canvas in CSS pixels
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
-
-  // Return coordinates in CSS pixels (not scaled by DPR)
-  // The canvas context scaling handles the DPR conversion internally
+  // Return position in CSS pixels - let canvas context handle DPR scaling
   return {
-    x: Math.floor(x),
-    y: Math.floor(y),
+    x: clientX - rect.left,
+    y: clientY - rect.top,
   };
 };
 
