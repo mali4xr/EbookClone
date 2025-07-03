@@ -353,7 +353,7 @@ export const useAIDrawingBookLogic = () => {
 
     ctx.beginPath();
     ctx.moveTo(lastPos.x -10, lastPos.y);
-    ctx.lineTo(currentPos.x, currentPos.y);
+    ctx.lineTo(currentPos.x -10, currentPos.y);
     ctx.stroke();
 
     setLastPos(currentPos);
