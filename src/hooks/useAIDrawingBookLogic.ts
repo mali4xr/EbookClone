@@ -133,70 +133,63 @@ export const useAIDrawingBookLogic = () => {
     return () => clearInterval(typeInterval);
   }, []);
 
+  // Enhanced canvas setup function
+  const setupCanvas = useCallback((canvas: HTMLCanvasElement, isSketchCanvas: boolean = false) => {
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set the actual size in memory (scaled to account for extra pixel density)
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
+    // Scale the canvas back down using CSS
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      // Scale the drawing context so everything will work at the higher resolution
+      ctx.scale(dpr, dpr);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      if (isSketchCanvas) {
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 4;
+      }
+    }
+  }, []);
+
   // Enhanced canvas setup with proper resolution handling
   useEffect(() => {
     const canvas = sketchCanvasRef.current;
     if (!canvas) return;
 
     const resizeCanvas = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      
-      // Set the actual size in memory (scaled to account for extra pixel density)
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      
-      // Scale the canvas back down using CSS
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        // Scale the drawing context so everything will work at the higher resolution
-        ctx.scale(dpr, dpr);
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 4;
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-      }
+      setupCanvas(canvas, true);
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
+  }, [setupCanvas]);
 
   useEffect(() => {
     const canvas = coloringCanvasRef.current;
     if (!canvas) return;
 
     const resizeCanvas = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      
-      // Set the actual size in memory (scaled to account for extra pixel density)
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      
-      // Scale the canvas back down using CSS
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        // Scale the drawing context so everything will work at the higher resolution
-        ctx.scale(dpr, dpr);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-      }
+      setupCanvas(canvas, false);
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
+  }, [setupCanvas]);
 
   // Fixed: Improved webcam stream management
   useEffect(() => {
@@ -279,20 +272,7 @@ export const useAIDrawingBookLogic = () => {
   const resizeColoringCanvas = () => {
     const canvas = coloringCanvasRef.current;
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.scale(dpr, dpr);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-    }
+    setupCanvas(canvas, false);
   };
 
   const isSketchCanvasEmpty = useCallback((): boolean => {
@@ -842,6 +822,8 @@ export const useAIDrawingBookLogic = () => {
     sketchImg.onload = () => {
       const canvas = sketchCanvasRef.current;
       if (canvas) {
+        // Ensure canvas is properly set up before drawing
+        setupCanvas(canvas, true);
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -908,6 +890,8 @@ export const useAIDrawingBookLogic = () => {
       // Set the captured image into the drawing area
       const sketchCanvas = sketchCanvasRef.current;
       if (sketchCanvas) {
+        // Ensure canvas is properly set up before drawing
+        setupCanvas(sketchCanvas, true);
         const sketchCtx = sketchCanvas.getContext("2d");
         if (sketchCtx) {
           sketchCtx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
