@@ -77,3 +77,5 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
     </div>
   );
 };
+
+export default HistoryThumbnails;
