@@ -352,7 +352,7 @@ export const useAIDrawingBookLogic = () => {
     const currentPos = getCanvasPos(canvas, e.nativeEvent);
 
     ctx.beginPath();
-    ctx.moveTo(lastPos.x, lastPos.y);
+    ctx.moveTo(lastPos.x -5, lastPos.y);
     ctx.lineTo(currentPos.x, currentPos.y);
     ctx.stroke();
 
