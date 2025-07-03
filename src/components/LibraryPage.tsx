@@ -119,7 +119,7 @@ const LibraryPage = ({ onSelectBook, onBack }: LibraryPageProps) => {
       setError(null); // Clear any previous errors
       
       const bookService = BookService.getInstance();
-      // Load ALL books, not just active ones
+      // Load ALL books (both active and inactive) - Remove the is_active filter
       const { data, error: bookError } = await bookService.supabase.supabase
         .from('books')
         .select('*')
