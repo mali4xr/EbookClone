@@ -311,12 +311,17 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                     </div>
 
                     {/* Drawing Canvas */}
-                    <div className="relative aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-purple-300 overflow-hidden">
+                    <div className="relative w-full bg-gray-50 rounded-2xl border-2 border-dashed border-purple-300 overflow-hidden" style={{ aspectRatio: '4/3' }}>
                       <canvas
                         ref={sketchCanvasRef}
                         className={`w-full h-full rounded-2xl cursor-crosshair transition-opacity duration-300 ${
                           showWebcam ? 'opacity-0 pointer-events-none' : 'opacity-100'
                         }`}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%',
+                          imageRendering: 'pixelated'
+                        }}
                         onMouseDown={startDrawing}
                         onMouseMove={drawSketch}
                         onMouseUp={stopDrawing}
@@ -375,7 +380,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                     </div>
 
                     {/* AI Generated Canvas */}
-                    <div className="relative aspect-square bg-gray-50 rounded-2xl border-2 border-dashed border-green-300 overflow-hidden">
+                    <div className="relative w-full bg-gray-50 rounded-2xl border-2 border-dashed border-green-300 overflow-hidden" style={{ aspectRatio: '4/3' }}>
                       <MagicWandAnimation isVisible={isGenerating} />
 
                       {storyImageBase64 && (
@@ -400,6 +405,9 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                           opacity: showStoryImage ? 0 : 1,
                           zIndex: 10,
                           position: "relative",
+                          width: '100%',
+                          height: '100%',
+                          imageRendering: 'auto'
                         }}
                         onClick={handleColoringClick}
                         onTouchStart={handleColoringClick}
