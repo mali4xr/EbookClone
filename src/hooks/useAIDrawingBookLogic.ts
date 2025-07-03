@@ -133,12 +133,23 @@ export const useAIDrawingBookLogic = () => {
     return () => clearInterval(typeInterval);
   }, []);
 
-  // Enhanced canvas setup function
+  // Enhanced canvas setup function with proper initialization
   const setupCanvas = useCallback((canvas: HTMLCanvasElement, isSketchCanvas: boolean = false) => {
     if (!canvas) return;
 
+    // Force a reflow to ensure the canvas has proper dimensions
+    canvas.style.display = 'none';
+    canvas.offsetHeight; // Trigger reflow
+    canvas.style.display = '';
+
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
+    
+    console.log(`Setting up ${isSketchCanvas ? 'sketch' : 'coloring'} canvas:`, {
+      rect: { width: rect.width, height: rect.height },
+      dpr,
+      canvasSize: { width: rect.width * dpr, height: rect.height * dpr }
+    });
     
     // Set the actual size in memory (scaled to account for extra pixel density)
     canvas.width = rect.width * dpr;
@@ -150,6 +161,9 @@ export const useAIDrawingBookLogic = () => {
 
     const ctx = canvas.getContext("2d");
     if (ctx) {
+      // Clear any existing transforms
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      
       // Scale the drawing context so everything will work at the higher resolution
       ctx.scale(dpr, dpr);
       ctx.imageSmoothingEnabled = true;
@@ -161,6 +175,8 @@ export const useAIDrawingBookLogic = () => {
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 4;
       }
+      
+      console.log(`Canvas context configured with scale: ${dpr}`);
     }
   }, []);
 
@@ -317,6 +333,8 @@ export const useAIDrawingBookLogic = () => {
     const pos = getCanvasPos(canvas, e.nativeEvent);
     setLastPos(pos);
     canvas.style.cursor = "crosshair";
+    
+    console.log('Start drawing at:', pos);
   };
 
   const drawSketch = (
@@ -330,6 +348,8 @@ export const useAIDrawingBookLogic = () => {
     if (!ctx) return;
 
     const currentPos = getCanvasPos(canvas, e.nativeEvent);
+    
+    console.log('Drawing from:', lastPos, 'to:', currentPos);
 
     ctx.beginPath();
     ctx.moveTo(lastPos.x, lastPos.y);
@@ -344,6 +364,7 @@ export const useAIDrawingBookLogic = () => {
     if (sketchCanvasRef.current) {
       sketchCanvasRef.current.style.cursor = "default";
     }
+    console.log('Stop drawing');
   };
 
   // Flood fill algorithm for coloring
@@ -417,14 +438,16 @@ export const useAIDrawingBookLogic = () => {
     const sketchCanvas = sketchCanvasRef.current;
     const coloringCanvas = coloringCanvasRef.current;
     if (sketchCanvas) {
-      sketchCanvas
-        .getContext("2d")
-        ?.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+      const ctx = sketchCanvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+      }
     }
     if (coloringCanvas) {
-      coloringCanvas
-        .getContext("2d")
-        ?.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+      const ctx = coloringCanvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
+      }
     }
     setHasGeneratedContent(false);
     setCurrentPrompt("");

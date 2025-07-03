@@ -319,7 +319,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                         }`}
                         style={{ 
                           width: '100%', 
-                          height: '100%'
+                          height: '100%',
+                          touchAction: 'none' // Prevent scrolling on touch devices
                         }}
                         onMouseDown={startDrawing}
                         onMouseMove={drawSketch}
@@ -405,7 +406,8 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                           zIndex: 10,
                           position: "relative",
                           width: '100%',
-                          height: '100%'
+                          height: '100%',
+                          touchAction: 'none' // Prevent scrolling on touch devices
                         }}
                         onClick={handleColoringClick}
                         onTouchStart={handleColoringClick}
