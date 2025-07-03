@@ -44,21 +44,35 @@ export const blobToBase64 = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
-// Gets mouse or touch position relative to a canvas element
+// Gets mouse or touch position relative to a canvas element with proper DPI scaling
 export const getCanvasPos = (
   canvas: HTMLCanvasElement,
   e: MouseEvent | TouchEvent
 ): { x: number; y: number } => {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
+  
+  // Get the CSS display size (what the user sees)
+  const cssWidth = rect.width;
+  const cssHeight = rect.height;
+  
+  // Get the actual canvas size (internal resolution)
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+  
+  // Calculate the scale factors
+  const scaleX = canvasWidth / cssWidth;
+  const scaleY = canvasHeight / cssHeight;
 
   const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
   const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
+  // Calculate position relative to canvas, then scale to internal resolution
+  const x = (clientX - rect.left) * scaleX;
+  const y = (clientY - rect.top) * scaleY;
+
   return {
-    x: Math.floor((clientX - rect.left) * scaleX),
-    y: Math.floor((clientY - rect.top) * scaleY),
+    x: Math.floor(x),
+    y: Math.floor(y),
   };
 };
 
