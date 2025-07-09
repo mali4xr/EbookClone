@@ -59,7 +59,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 />
                 
                 <button
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-110"
+                  className="absolute -top-4 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-110"
                   onClick={(e) => onDeleteHistory(idx, e)}
                   aria-label="Delete"
                 >
