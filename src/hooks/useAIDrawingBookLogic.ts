@@ -134,7 +134,7 @@ export const useAIDrawingBookLogic = () => {
 
       const { createFFmpeg } = window.FFmpeg;
       const ffmpeg = createFFmpeg({
-        log: true,
+        log: true, // Keep logging enabled for debugging
         corePath: 'https://unpkg.com/@ffmpeg/core@0.8.5/dist/ffmpeg-core.js',
       });
       
@@ -969,11 +969,14 @@ export const useAIDrawingBookLogic = () => {
 
       const audioMixFilter = `[${imagesData.length}:a]volume=1.0[story_a];[${imagesData.length + 1}:a]volume=0.1[bg_a];[story_a][bg_a]amix=inputs=2:duration=first:dropout_transition=3[mixed_a]`;
 
+      const fullFilterComplex = `${videoConcatAndLoopFilter};${audioMixFilter}`;
+      console.log('FFmpeg filter_complex string:', fullFilterComplex); // Log the filter complex for debugging
+
       await ffmpeg.run(
         ...ffmpegInputArgs, // All the -i arguments for images
         '-i', 'audio.mp3',
         '-stream_loop', '-1', '-i', 'bg_music.mp3',
-        '-filter_complex', `${videoConcatAndLoopFilter};${audioMixFilter}`,
+        '-filter_complex', fullFilterComplex, // Use the constructed filter complex
         '-map', '[looped_video]', // Map the looped video stream
         '-map', '[mixed_a]', // Map the mixed audio stream
         '-c:v', 'libx264', '-c:a', 'aac',
@@ -1053,7 +1056,7 @@ export const useAIDrawingBookLogic = () => {
         }
       }
     };
-    genImg.src = "data:image/png;base664," + item.generated;
+    genImg.src = "data:image/png;base64," + item.generated; // Corrected base664 to base64
 
     setShowStorySection(true);
   };
