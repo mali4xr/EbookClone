@@ -851,141 +851,148 @@ export const useAIDrawingBookLogic = () => {
   };
 
   // Generate and download video slideshow
-  const generateAndDownloadVideo = useCallback(async () => {
-    // Check if FFmpeg is still loading
-    if (ffmpegLoading) {
-      setError('Video processing is still loading. Please wait a moment and try again.');
-      return;
-    }
+const generateAndDownloadVideo = useCallback(async () => {
+  if (ffmpegLoading) {
+    setError('Video processing is still loading. Please wait a moment and try again.');
+    return;
+  }
 
-    // If FFmpeg failed to load, try loading it again
-    if (!ffmpegLoaded) {
-      setError('Video processing not ready. Initializing...');
-      try {
-        await loadFFmpeg();
-        if (!ffmpegLoaded) {
-          setError('Failed to initialize video processing. Please refresh the page and try again.');
-          return;
-        }
-      } catch (error) {
-        setError('Failed to initialize video processing. Please refresh the page and try again.');
+  if (!ffmpegLoaded) {
+    setError('Video processing not ready. Initializing...');
+    try {
+      await loadFFmpeg();
+      if (!ffmpegLoaded) {
+        setError('Failed to initialize video processing. Please refresh and try again.');
         return;
       }
-    }
-
-    // Double-check that FFmpeg is actually loaded
-    if (!ffmpegRef.current || !ffmpegLoaded) {
-      setError('Video processing not available. Please refresh the page and try again.');
+    } catch (error) {
+      setError('Failed to initialize video processing. Please refresh and try again.');
       return;
     }
+  }
 
-    if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
-      setError('Please select a drawing from your gallery first.');
-      return;
+  if (!ffmpegRef.current || !ffmpegLoaded) {
+    setError('Video processing not available. Please refresh and try again.');
+    return;
+  }
+
+  if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
+    setError('Please select a drawing from your gallery first.');
+    return;
+  }
+
+  if (!generatedAudioBlob) {
+    setError('Please generate and play the story audio first.');
+    return;
+  }
+
+  const historyItem = history[selectedHistoryIndex];
+  if (!historyItem.sketch || !historyItem.generated) {
+    setError('Missing required images for video generation.');
+    return;
+  }
+
+  setIsGeneratingVideo(true);
+  setError(null);
+
+  try {
+    const ffmpeg = ffmpegRef.current;
+    const { fetchFile } = window.FFmpeg;
+
+    // Convert images to blobs
+    const sketchBlob = await fetch(`data:image/png;base64,${historyItem.sketch}`).then(r => r.blob());
+    const generatedBlob = await fetch(`data:image/png;base64,${historyItem.generated}`).then(r => r.blob());
+
+    ffmpeg.FS('writeFile', 'sketch.png', await fetchFile(sketchBlob));
+    ffmpeg.FS('writeFile', 'generated.png', await fetchFile(generatedBlob));
+
+    let hasStoryImage = false;
+    if (historyItem.storyImageBase64) {
+      const storyBlob = await fetch(`data:image/png;base64,${historyItem.storyImageBase64}`).then(r => r.blob());
+      ffmpeg.FS('writeFile', 'story.png', await fetchFile(storyBlob));
+      hasStoryImage = true;
     }
 
-    if (!generatedAudioBlob) {
-      setError('Please generate and play the story audio first.');
-      return;
-    }
+    ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
 
-    const historyItem = history[selectedHistoryIndex];
-    if (!historyItem.sketch || !historyItem.generated) {
-      setError('Missing required images for video generation.');
-      return;
-    }
+    // Get audio duration
+    const audioDuration = await new Promise<number>((resolve, reject) => {
+      const audio = new Audio(URL.createObjectURL(generatedAudioBlob));
+      audio.addEventListener('loadedmetadata', () => resolve(audio.duration));
+      audio.addEventListener('error', () => reject(new Error('Failed to load audio duration')));
+    });
 
-    setIsGeneratingVideo(true);
-    setError(null);
+    // Image and transition settings
+    const visibleDuration = 3; // seconds each image fully visible
+    const transitionDuration = 2; // fade duration
+    const totalImageDuration = visibleDuration + transitionDuration;
 
-    try {
-      const ffmpeg = ffmpegRef.current;
-      
-      if (!ffmpeg || !window.FFmpeg) {
-        throw new Error('FFmpeg not properly initialized');
-      }
+    // Prepare image list
+    const images = ['sketch.png', 'generated.png'];
+    if (hasStoryImage) images.push('story.png');
 
-      const { fetchFile } = window.FFmpeg;
-      
-      // Convert base64 images to files
-      const sketchBlob = await fetch(`data:image/png;base64,${historyItem.sketch}`).then(r => r.blob());
-      const generatedBlob = await fetch(`data:image/png;base64,${historyItem.generated}`).then(r => r.blob());
-      
-      // Write images to FFmpeg filesystem
-      ffmpeg.FS('writeFile', 'sketch.png', await fetchFile(sketchBlob));
-      ffmpeg.FS('writeFile', 'generated.png', await fetchFile(generatedBlob));
-      
-      // Add story image if available
-      let hasStoryImage = false;
-      if (historyItem.storyImageBase64) {
-        const storyBlob = await fetch(`data:image/png;base64,${historyItem.storyImageBase64}`).then(r => r.blob());
-        ffmpeg.FS('writeFile', 'story.png', await fetchFile(storyBlob));
-        hasStoryImage = true;
-      }
-      
-      // Write audio file
-      ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
-      
-      // Create video slideshow
-      const imageDuration = hasStoryImage ? '3' : '4'; // Adjust duration based on number of images
-      
-      if (hasStoryImage) {
-        // Three images: sketch, generated, story
-        await ffmpeg.run(
-          '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
-          '-loop', '1', '-t', imageDuration, '-i', 'generated.png', 
-          '-loop', '1', '-t', imageDuration, '-i', 'story.png',
-          '-i', 'audio.mp3',
-          '-filter_complex', 
-          `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[v0];
-           [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[v1];
-           [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${parseInt(imageDuration)*2}/TB[v2];
-           [v0][v1][v2]concat=n=3:v=1:a=0[outv]`,
-          '-map', '[outv]', '-map', '3:a',
-          '-c:v', 'libx264', '-c:a', 'aac',
-          '-shortest', '-y', 'slideshow.mp4'
+    const numImages = images.length;
+    const cycleDuration = numImages * totalImageDuration;
+    const numCycles = Math.ceil(audioDuration / cycleDuration);
+
+    // Write ffmpeg input arguments
+    const inputArgs: string[] = [];
+    images.forEach(img => {
+      inputArgs.push('-loop', '1', '-t', `${audioDuration}`, '-i', img);
+    });
+    inputArgs.push('-i', 'audio.mp3');
+
+    // Build filter graph
+    let filterComplexParts: string[] = [];
+    let streamTags: string[] = [];
+
+    for (let cycle = 0; cycle < numCycles; cycle++) {
+      for (let idx = 0; idx < numImages; idx++) {
+        const startTime = cycle * cycleDuration + idx * totalImageDuration;
+
+        filterComplexParts.push(
+          `[${idx}:v]format=rgba,fade=t=in:st=${startTime}:d=${transitionDuration}:alpha=1,fade=t=out:st=${startTime + visibleDuration}:d=${transitionDuration}:alpha=1,setpts=PTS-STARTPTS+${startTime}/TB[v${cycle}_${idx}]`
         );
-      } else {
-        // Two images: sketch and generated
-        await ffmpeg.run(
-          '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
-          '-loop', '1', '-t', imageDuration, '-i', 'generated.png',
-          '-i', 'audio.mp3',
-          '-filter_complex',
-          `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[v0];
-           [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[v1];
-           [v0][v1]concat=n=2:v=1:a=0[outv]`,
-          '-map', '[outv]', '-map', '2:a',
-          '-c:v', 'libx264', '-c:a', 'aac',
-          '-shortest', '-y', 'slideshow.mp4'
-        );
+
+        streamTags.push(`[v${cycle}_${idx}]`);
       }
-      
-      // Read the output video
-      const videoData = ffmpeg.FS('readFile', 'slideshow.mp4');
-      const videoBlob = new Blob([videoData], { type: 'video/mp4' });
-      
-      // Download the video
-      const url = URL.createObjectURL(videoBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ai-story-${Date.now()}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Celebrate successful video generation
-      celebrateWithConfetti();
-      playWinSound();
-      
-    } catch (err: any) {
-      console.error('Error generating video:', err);
-      setError(err.message || 'Failed to generate video. Please try again.');
-    } finally {
-      setIsGeneratingVideo(false);
     }
-  }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+
+    const concatFilter = `${streamTags.join('')}` + `concat=n=${numImages * numCycles}:v=1:a=0[outv]`;
+
+    const fullFilter = `${filterComplexParts.join(';')};${concatFilter}`;
+
+    await ffmpeg.run(
+      ...inputArgs,
+      '-filter_complex',
+      fullFilter,
+      '-map', '[outv]', '-map', `${numImages}:a`,
+      '-c:v', 'libx264', '-c:a', 'aac',
+      '-shortest', '-y', 'slideshow.mp4'
+    );
+
+    // Read and download video
+    const videoData = ffmpeg.FS('readFile', 'slideshow.mp4');
+    const videoBlob = new Blob([videoData], { type: 'video/mp4' });
+
+    const url = URL.createObjectURL(videoBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-story-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    celebrateWithConfetti();
+    playWinSound();
+  } catch (err: any) {
+    console.error('Error generating video:', err);
+    setError(err.message || 'Failed to generate video. Please try again.');
+  } finally {
+    setIsGeneratingVideo(false);
+  }
+}, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
