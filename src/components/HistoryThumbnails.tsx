@@ -67,7 +67,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 </button>
               </div>
               
-              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg">
+              <div className="w-6 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg">
                 {idx + 1}
               </div>
             </div>
