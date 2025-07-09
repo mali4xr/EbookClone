@@ -1,10 +1,18 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import confetti from 'canvas-confetti';
 import { GeminiService } from '../services/GeminiService';
 import { PollinationsService } from '../services/PollinationsService';
 import { resizeBase64Image, blobToBase64, getCanvasPos, hexToRgbA, getPixelColor, setPixelColor, colorsMatch } from '../utils/imageUtils';
+
+// Declare FFmpeg types for the older version
+declare global {
+  interface Window {
+    FFmpeg: {
+      createFFmpeg: (options?: any) => any;
+      fetchFile: (data: any) => Promise<Uint8Array>;
+    };
+  }
+}
 
 interface HistoryItem {
   sketch: string;
@@ -67,7 +75,7 @@ export const useAIDrawingBookLogic = () => {
     "#BF00BF", "#00FFFF", "#FFC0CB", "#8B4513", "#808080", "#FFFFFF"
   ];
 
-  const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
+  const ffmpegRef = useRef<any>(null);
 
   // Confetti celebration function
   const celebrateWithConfetti = () => {
@@ -119,14 +127,20 @@ export const useAIDrawingBookLogic = () => {
     
     setFfmpegLoading(true);
     try {
-      const ffmpeg = ffmpegRef.current;
-      
-      // Load FFmpeg with CDN URLs
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      // Check if FFmpeg is available globally
+      if (!window.FFmpeg) {
+        throw new Error('FFmpeg library not loaded. Please refresh the page.');
+      }
+
+      const { createFFmpeg } = window.FFmpeg;
+      const ffmpeg = createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.8.5/dist/ffmpeg-core.js',
       });
+      
+      ffmpegRef.current = ffmpeg;
+      
+      await ffmpeg.load();
       
       setFfmpegLoaded(true);
       console.log('FFmpeg loaded successfully');
@@ -887,32 +901,37 @@ export const useAIDrawingBookLogic = () => {
     try {
       const ffmpeg = ffmpegRef.current;
       
+      if (!ffmpeg || !window.FFmpeg) {
+        throw new Error('FFmpeg not properly initialized');
+      }
+
+      const { fetchFile } = window.FFmpeg;
+      
       // Convert base64 images to files
       const sketchBlob = await fetch(`data:image/png;base64,${historyItem.sketch}`).then(r => r.blob());
       const generatedBlob = await fetch(`data:image/png;base64,${historyItem.generated}`).then(r => r.blob());
       
       // Write images to FFmpeg filesystem
-      await ffmpeg.writeFile('sketch.png', await fetchFile(sketchBlob));
-      await ffmpeg.writeFile('generated.png', await fetchFile(generatedBlob));
+      ffmpeg.FS('writeFile', 'sketch.png', await fetchFile(sketchBlob));
+      ffmpeg.FS('writeFile', 'generated.png', await fetchFile(generatedBlob));
       
       // Add story image if available
       let hasStoryImage = false;
       if (historyItem.storyImageBase64) {
         const storyBlob = await fetch(`data:image/png;base64,${historyItem.storyImageBase64}`).then(r => r.blob());
-        await ffmpeg.writeFile('story.png', await fetchFile(storyBlob));
+        ffmpeg.FS('writeFile', 'story.png', await fetchFile(storyBlob));
         hasStoryImage = true;
       }
       
       // Write audio file
-      await ffmpeg.writeFile('audio.mp3', await fetchFile(generatedAudioBlob));
+      ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
       
       // Create video slideshow
       const imageDuration = hasStoryImage ? '3' : '4'; // Adjust duration based on number of images
       
-      let ffmpegCommand;
       if (hasStoryImage) {
         // Three images: sketch, generated, story
-        ffmpegCommand = [
+        await ffmpeg.run(
           '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
           '-loop', '1', '-t', imageDuration, '-i', 'generated.png', 
           '-loop', '1', '-t', imageDuration, '-i', 'story.png',
@@ -925,10 +944,10 @@ export const useAIDrawingBookLogic = () => {
           '-map', '[outv]', '-map', '3:a',
           '-c:v', 'libx264', '-c:a', 'aac',
           '-shortest', '-y', 'slideshow.mp4'
-        ];
+        );
       } else {
         // Two images: sketch and generated
-        ffmpegCommand = [
+        await ffmpeg.run(
           '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
           '-loop', '1', '-t', imageDuration, '-i', 'generated.png',
           '-i', 'audio.mp3',
@@ -939,14 +958,11 @@ export const useAIDrawingBookLogic = () => {
           '-map', '[outv]', '-map', '2:a',
           '-c:v', 'libx264', '-c:a', 'aac',
           '-shortest', '-y', 'slideshow.mp4'
-        ];
+        );
       }
       
-      // Execute FFmpeg command
-      await ffmpeg.exec(ffmpegCommand);
-      
       // Read the output video
-      const videoData = await ffmpeg.readFile('slideshow.mp4');
+      const videoData = ffmpeg.FS('readFile', 'slideshow.mp4');
       const videoBlob = new Blob([videoData], { type: 'video/mp4' });
       
       // Download the video
