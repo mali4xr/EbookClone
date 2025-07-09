@@ -850,7 +850,39 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
-// Generate and download video slideshow
+// Create a looping slideshow with fade transitions
+    const transitionDuration = 2; // 2 seconds for fade transition
+    const imageDuration = 4; // Each image displays for 4 seconds
+    const totalCycleDuration = hasStoryImage ? 18 : 12; // Total cycle time
+    
+    if (hasStoryImage) {
+      // Three images: sketch, generated, story with fade transitions
+      await ffmpeg.run(
+        '-loop', '1', '-t', totalCycleDuration, '-i', 'sketch.png',
+        '-loop', '1', '-t', totalCycleDuration, '-i', 'generated.png', 
+        '-loop', '1', '-t', totalCycleDuration, '-i', 'story.png',
+        '-i', 'audio.mp3',
+        '-filter_complex', 
+        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[img0];
+         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[img1];
+         [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration*2}/TB[img2];
+         [img0][img1]overlay=0:0:enable='between(t,${imageDuration-transitionDuration},${imageDuration+transitionDuration})'[ov1];
+         [ov1][img2]overlay=0:0:enable='between(t,${imageDuration*2-transitionDuration},${imageDuration*2+transitionDuration})'[ov2];
+         [ov2]loop=loop=-1:size=32:start=0[looped]`,
+        '-map', '[looped]', '-map', '3:a',
+        '-c:v', 'libx264', '-c:a', 'aac', '-r', '30',
+        '-shortest', '-y', 'slideshow.mp4'
+      );
+    } else {
+      // Two images: sketch and generated with fade transitions
+      await ffmpeg.run(
+        '-loop', '1', '-t', totalCycleDuration, '-i', 'sketch.png',
+        '-loop', '1', '-t', totalCycleDuration, '-i', 'generated.png',
+        '-i', 'audio.mp3',
+        '-filter_complex',
+        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[img0];
+         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[img1];
+         [img0][img// Generate and download video slideshow
 const generateAndDownloadVideo = useCallback(async () => {
   // Check if FFmpeg is still loading
   if (ffmpegLoading) {
@@ -934,42 +966,40 @@ const generateAndDownloadVideo = useCallback(async () => {
     // For now, we'll use a default duration and calculate based on audio
     
     // Create a looping slideshow with fade transitions
+    const imageDuration = 5; // Each image displays for 5 seconds
     const transitionDuration = 2; // 2 seconds for fade transition
     
     if (hasStoryImage) {
-      // Three images: sketch, generated, story
-      // Calculate how long each image should be visible (excluding transition time)
-      // We'll create a looping pattern that fits the audio duration
-      
+      // Three images: create a simple slideshow with crossfade
       await ffmpeg.run(
-        '-loop', '1', '-i', 'sketch.png',
-        '-loop', '1', '-i', 'generated.png', 
-        '-loop', '1', '-i', 'story.png',
+        '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
+        '-loop', '1', '-t', imageDuration, '-i', 'generated.png', 
+        '-loop', '1', '-t', imageDuration, '-i', 'story.png',
         '-i', 'audio.mp3',
         '-filter_complex', 
-        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img0];
-         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img1];
-         [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img2];
-         [img0][img1]xfade=transition=fade:duration=${transitionDuration}:offset=5[fade1];
-         [fade1][img2]xfade=transition=fade:duration=${transitionDuration}:offset=10[fade2];
-         [fade2]loop=loop=-1:size=1:start=0[looped]`,
+        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[v0];
+         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[v1];
+         [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[v2];
+         [v0][v1]xfade=transition=fade:duration=${transitionDuration}:offset=${imageDuration-transitionDuration}[x01];
+         [x01][v2]xfade=transition=fade:duration=${transitionDuration}:offset=${(imageDuration*2)-transitionDuration}[slideshow];
+         [slideshow]loop=loop=-1:size=32:start=0[looped]`,
         '-map', '[looped]', '-map', '3:a',
-        '-c:v', 'libx264', '-c:a', 'aac',
+        '-c:v', 'libx264', '-c:a', 'aac', '-r', '30',
         '-shortest', '-y', 'slideshow.mp4'
       );
     } else {
-      // Two images: sketch and generated
+      // Two images: create a simple slideshow with crossfade
       await ffmpeg.run(
-        '-loop', '1', '-i', 'sketch.png',
-        '-loop', '1', '-i', 'generated.png',
+        '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
+        '-loop', '1', '-t', imageDuration, '-i', 'generated.png',
         '-i', 'audio.mp3',
         '-filter_complex',
-        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img0];
-         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img1];
-         [img0][img1]xfade=transition=fade:duration=${transitionDuration}:offset=5[fade1];
-         [fade1]loop=loop=-1:size=1:start=0[looped]`,
+        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[v0];
+         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[v1];
+         [v0][v1]xfade=transition=fade:duration=${transitionDuration}:offset=${imageDuration-transitionDuration}[slideshow];
+         [slideshow]loop=loop=-1:size=32:start=0[looped]`,
         '-map', '[looped]', '-map', '2:a',
-        '-c:v', 'libx264', '-c:a', 'aac',
+        '-c:v', 'libx264', '-c:a', 'aac', '-r', '30',
         '-shortest', '-y', 'slideshow.mp4'
       );
     }
@@ -999,7 +1029,6 @@ const generateAndDownloadVideo = useCallback(async () => {
     setIsGeneratingVideo(false);
   }
 }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
-  
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
