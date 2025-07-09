@@ -1,4 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import confetti from 'canvas-confetti';
 import { GeminiService } from '../services/GeminiService';
 import { PollinationsService } from '../services/PollinationsService';
@@ -53,11 +55,18 @@ export const useAIDrawingBookLogic = () => {
   const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
   const [isWebcamReady, setIsWebcamReady] = useState(false);
 
+  // Video generation state
+  const [generatedAudioBlob, setGeneratedAudioBlob] = useState<Blob | null>(null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+
   // Color palette
   const colors = [
     "#FF0000", "#0000FF", "#00FF00", "#FFFF00", "#FF7F00",
     "#BF00BF", "#00FFFF", "#FFC0CB", "#8B4513", "#808080", "#FFFFFF"
   ];
+
+  const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
 
   // Confetti celebration function
   const celebrateWithConfetti = () => {
@@ -102,6 +111,33 @@ export const useAIDrawingBookLogic = () => {
       console.log('Error playing win sound:', error);
     }
   };
+
+  // Initialize FFmpeg
+  const loadFFmpeg = useCallback(async () => {
+    if (ffmpegLoaded) return;
+    
+    try {
+      const ffmpeg = ffmpegRef.current;
+      
+      // Load FFmpeg with CDN URLs
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      
+      setFfmpegLoaded(true);
+      console.log('FFmpeg loaded successfully');
+    } catch (error) {
+      console.error('Failed to load FFmpeg:', error);
+      throw new Error('Failed to initialize video processing. Please try again.');
+    }
+  }, [ffmpegLoaded]);
+
+  // Load FFmpeg on component mount
+  useEffect(() => {
+    loadFFmpeg().catch(console.error);
+  }, [loadFFmpeg]);
 
   // Typing effect function
   const typeStory = useCallback((fullStory: string) => {
@@ -706,6 +742,9 @@ export const useAIDrawingBookLogic = () => {
         console.log('🎤 Generated audio using Pollinations AI');
       }
       
+      // Store the audio blob for video generation
+      setGeneratedAudioBlob(audioBlob);
+      
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
 
@@ -792,6 +831,119 @@ export const useAIDrawingBookLogic = () => {
       cleanupStoryAnimation();
     }
   };
+
+  // Generate and download video slideshow
+  const generateAndDownloadVideo = useCallback(async () => {
+    if (!ffmpegLoaded) {
+      setError('Video processing is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
+      setError('Please select a drawing from your gallery first.');
+      return;
+    }
+
+    if (!generatedAudioBlob) {
+      setError('Please generate and play the story audio first.');
+      return;
+    }
+
+    const historyItem = history[selectedHistoryIndex];
+    if (!historyItem.sketch || !historyItem.generated) {
+      setError('Missing required images for video generation.');
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+    setError(null);
+
+    try {
+      const ffmpeg = ffmpegRef.current;
+      
+      // Convert base64 images to files
+      const sketchBlob = await fetch(`data:image/png;base64,${historyItem.sketch}`).then(r => r.blob());
+      const generatedBlob = await fetch(`data:image/png;base64,${historyItem.generated}`).then(r => r.blob());
+      
+      // Write images to FFmpeg filesystem
+      await ffmpeg.writeFile('sketch.png', await fetchFile(sketchBlob));
+      await ffmpeg.writeFile('generated.png', await fetchFile(generatedBlob));
+      
+      // Add story image if available
+      let hasStoryImage = false;
+      if (historyItem.storyImageBase64) {
+        const storyBlob = await fetch(`data:image/png;base64,${historyItem.storyImageBase64}`).then(r => r.blob());
+        await ffmpeg.writeFile('story.png', await fetchFile(storyBlob));
+        hasStoryImage = true;
+      }
+      
+      // Write audio file
+      await ffmpeg.writeFile('audio.mp3', await fetchFile(generatedAudioBlob));
+      
+      // Create video slideshow
+      const imageDuration = hasStoryImage ? '3' : '4'; // Adjust duration based on number of images
+      
+      let ffmpegCommand;
+      if (hasStoryImage) {
+        // Three images: sketch, generated, story
+        ffmpegCommand = [
+          '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
+          '-loop', '1', '-t', imageDuration, '-i', 'generated.png', 
+          '-loop', '1', '-t', imageDuration, '-i', 'story.png',
+          '-i', 'audio.mp3',
+          '-filter_complex', 
+          `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[v0];
+           [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[v1];
+           [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${parseInt(imageDuration)*2}/TB[v2];
+           [v0][v1][v2]concat=n=3:v=1:a=0[outv]`,
+          '-map', '[outv]', '-map', '3:a',
+          '-c:v', 'libx264', '-c:a', 'aac',
+          '-shortest', '-y', 'slideshow.mp4'
+        ];
+      } else {
+        // Two images: sketch and generated
+        ffmpegCommand = [
+          '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
+          '-loop', '1', '-t', imageDuration, '-i', 'generated.png',
+          '-i', 'audio.mp3',
+          '-filter_complex',
+          `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[v0];
+           [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[v1];
+           [v0][v1]concat=n=2:v=1:a=0[outv]`,
+          '-map', '[outv]', '-map', '2:a',
+          '-c:v', 'libx264', '-c:a', 'aac',
+          '-shortest', '-y', 'slideshow.mp4'
+        ];
+      }
+      
+      // Execute FFmpeg command
+      await ffmpeg.exec(ffmpegCommand);
+      
+      // Read the output video
+      const videoData = await ffmpeg.readFile('slideshow.mp4');
+      const videoBlob = new Blob([videoData], { type: 'video/mp4' });
+      
+      // Download the video
+      const url = URL.createObjectURL(videoBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai-story-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Celebrate successful video generation
+      celebrateWithConfetti();
+      playWinSound();
+      
+    } catch (err: any) {
+      console.error('Error generating video:', err);
+      setError(err.message || 'Failed to generate video. Please try again.');
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  }, [ffmpegLoaded, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
@@ -979,6 +1131,11 @@ export const useAIDrawingBookLogic = () => {
     selectedHistoryIndex,
     showWebcam,
     colors,
+    
+    // Video generation
+    generatedAudioBlob,
+    isGeneratingVideo,
+    generateAndDownloadVideo,
     
     // Drawing handlers
     startDrawing,

@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Zap,
+  Download,
 } from "lucide-react";
 import { GeminiService } from "../services/GeminiService";
 import { useAIDrawingBookLogic } from "../hooks/useAIDrawingBookLogic";
@@ -55,6 +56,11 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
     selectedHistoryIndex,
     showWebcam,
     colors,
+    
+    // Video generation
+    generatedAudioBlob,
+    isGeneratingVideo,
+    generateAndDownloadVideo,
     
     // Drawing handlers
     startDrawing,
@@ -218,6 +224,28 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                         <>
                           <Volume2 size={20} />
                           Read Aloud
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Video Download Button */}
+                  {!isTypingStory && story && generatedAudioBlob && (
+                    <button
+                      onClick={generateAndDownloadVideo}
+                      disabled={isGeneratingVideo || selectedHistoryIndex === null}
+                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      title={selectedHistoryIndex === null ? "Please select a drawing from your gallery first" : "Download video slideshow"}
+                    >
+                      {isGeneratingVideo ? (
+                        <>
+                          <Loader size={20} className="animate-spin" />
+                          Creating Video...
+                        </>
+                      ) : (
+                        <>
+                          <Download size={20} />
+                          Download Video
                         </>
                       )}
                     </button>
