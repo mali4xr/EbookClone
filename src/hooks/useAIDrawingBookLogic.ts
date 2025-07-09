@@ -923,6 +923,7 @@ export const useAIDrawingBookLogic = () => {
       const VIDEO_WIDTH = 1280;
       const VIDEO_HEIGHT = 720;
       const BACKGROUND_COLOR = '#1f2937'; // Dark gray background
+      const IMAGE_DISPLAY_DURATION = 2; // seconds per image in the slideshow
 
       const imagesData = [];
       if (historyItem.storyImageBase64) {
@@ -931,55 +932,54 @@ export const useAIDrawingBookLogic = () => {
       imagesData.push({ data: historyItem.sketch, name: 'sketch_image.png' });
       imagesData.push({ data: historyItem.generated, name: 'generated_image.png' });
 
-      const durationPerImage = audioDuration / imagesData.length;
-
       const ffmpegInputArgs: string[] = [];
       const filterComplexVideoInputs: string[] = [];
       const filterComplexVideoFilters: string[] = [];
 
-      // Process each image: write to FS, apply scaling/padding filters
+      // Process each image: write to FS, apply scaling/padding filters, and set individual duration
       for (let i = 0; i < imagesData.length; i++) {
           const { data, name } = imagesData[i];
           const imageBlob = await (await fetch(`data:image/png;base64,${data}`)).blob();
           await ffmpeg.FS('writeFile', name, await fetchFile(imageBlob));
 
-          ffmpegInputArgs.push('-loop', '1');
-          ffmpegInputArgs.push('-t', durationPerImage.toString());
-          ffmpegInputArgs.push('-i', name);
+          // Input arguments for FFmpeg. No loop or t here, duration handled by tpad in filter.
+          ffmpegInputArgs.push('-i', name); 
 
-          // FFmpeg filter to scale and pad without border
-          // Scale to fit within VIDEO_WIDTH x VIDEO_HEIGHT, maintaining aspect ratio
-          // Pad to VIDEO_WIDTH x VIDEO_HEIGHT, centering the image, with BACKGROUND_COLOR
+          // Filter for each image: scale, pad, and then set duration for this segment using tpad
           filterComplexVideoFilters.push(
             `[${i}:v]scale='min(${VIDEO_WIDTH},iw)':min'(${VIDEO_HEIGHT},ih)':force_original_aspect_ratio=decrease,` +
-            `setsar=1,pad=${VIDEO_WIDTH}:${VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=${BACKGROUND_COLOR}[v${i}]`
+            `setsar=1,pad=${VIDEO_WIDTH}:${VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=${BACKGROUND_COLOR},` +
+            `tpad=stop_mode=clone:stop_duration=${IMAGE_DISPLAY_DURATION}[v${i}]` // Set duration for each segment
           );
           filterComplexVideoInputs.push(`[v${i}]`); // Reference the output of this filter
       }
-      
-      // Write audio files
-      ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
-      
-      // Download and write background music
-      const bgMusicUrl = "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
-      const bgMusicResponse = await fetch(bgMusicUrl);
-      const bgMusicBlob = await bgMusicResponse.blob();
-      ffmpeg.FS('writeFile', 'bg_music.mp3', await fetchFile(bgMusicBlob));
-      
+
+      // Calculate the total duration of one full sequence of images
+      const totalSequenceDuration = imagesData.length * IMAGE_DISPLAY_DURATION;
+      const assumedFPS = 30; // Standard frame rate for video
+
       // Construct the FFmpeg filter_complex for video concatenation and audio mixing
-      const videoConcatFilter = `${filterComplexVideoInputs.join('')}concat=n=${imagesData.length}:v=1:a=0[v]`;
+      // 1. Individual image processing with duration set by tpad
+      // 2. Concatenate the timed video segments
+      // 3. Loop the concatenated video indefinitely using `loop` filter
+      const videoConcatAndLoopFilter = 
+        `${filterComplexVideoFilters.join(';')};` + // Individual image processing with tpad
+        `${filterComplexVideoInputs.join('')}concat=n=${imagesData.length}:v=1:a=0[concatenated_video];` + // Concatenate
+        `[concatenated_video]loop=-1:size=${Math.floor(totalSequenceDuration * assumedFPS)}:start=0[looped_video]`; // Loop indefinitely
+
       const audioMixFilter = `[${imagesData.length}:a]volume=1.0[story_a];[${imagesData.length + 1}:a]volume=0.1[bg_a];[story_a][bg_a]amix=inputs=2:duration=first:dropout_transition=3[mixed_a]`;
 
       await ffmpeg.run(
-        ...ffmpegInputArgs, // All the -loop -t -i arguments for images
+        ...ffmpegInputArgs, // All the -i arguments for images
         '-i', 'audio.mp3',
         '-stream_loop', '-1', '-i', 'bg_music.mp3',
-        '-filter_complex', `${filterComplexVideoFilters.join(';')};${videoConcatFilter};${audioMixFilter}`,
-        '-map', '[v]', // Map the concatenated video stream
+        '-filter_complex', `${videoConcatAndLoopFilter};${audioMixFilter}`,
+        '-map', '[looped_video]', // Map the looped video stream
         '-map', '[mixed_a]', // Map the mixed audio stream
         '-c:v', 'libx264', '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
-        '-shortest', '-y', 'final_video.mp4'
+        '-shortest', // This is crucial: stops video when the shortest input (audio) ends
+        '-y', 'final_video.mp4'
       );
       
       // Read the output video
