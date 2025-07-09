@@ -28,7 +28,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
   return (
     <div className="bg-white rounded-3xl shadow-xl border border-purple-200 overflow-hidden">
       <div className="bg-gradient-to-r from-purple-500 to-pink-500">
-        <h3 className="text-white font-bold text-xl flex items-center gap-2">
+        <h3 className="text-white font-bold text-xl flex items-center gap-1">
           🎨 Your Art Gallery ({history.length}/10)
         </h3>
       </div>
