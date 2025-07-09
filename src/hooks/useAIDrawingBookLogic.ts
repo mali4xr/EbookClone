@@ -134,7 +134,7 @@ export const useAIDrawingBookLogic = () => {
 
       const { createFFmpeg } = window.FFmpeg;
       const ffmpeg = createFFmpeg({
-        log: true, // Keep logging enabled for debugging
+        log: true,
         corePath: 'https://unpkg.com/@ffmpeg/core@0.8.5/dist/ffmpeg-core.js',
       });
       
@@ -850,166 +850,228 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
-  // Generate and download video slideshow without borders or client-side scaling
-  const generateAndDownloadVideo = useCallback(async () => {
-    // Check if FFmpeg is still loading
-    if (ffmpegLoading) {
-      setError('Video processing is still loading. Please wait a moment and try again.');
-      return;
-    }
+  // Generate and download video slideshow
+// Generate and download video with static layout
+const generateAndDownloadVideo = useCallback(async () => {
+  // Check if FFmpeg is still loading
+  if (ffmpegLoading) {
+    setError('Video processing is still loading. Please wait a moment and try again.');
+    return;
+  }
 
-    // If FFmpeg failed to load, try loading it again
-    if (!ffmpegLoaded) {
-      setError('Video processing not ready. Initializing...');
-      try {
-        await loadFFmpeg();
-        if (!ffmpegLoaded) {
-          setError('Failed to initialize video processing. Please refresh the page and try again.');
-          return;
-        }
-      } catch (error) {
+  // If FFmpeg failed to load, try loading it again
+  if (!ffmpegLoaded) {
+    setError('Video processing not ready. Initializing...');
+    try {
+      await loadFFmpeg();
+      if (!ffmpegLoaded) {
         setError('Failed to initialize video processing. Please refresh the page and try again.');
         return;
       }
-    }
-
-    // Double-check that FFmpeg is actually loaded
-    if (!ffmpegRef.current || !ffmpegLoaded) {
-      setError('Video processing not available. Please refresh the page and try again.');
-      return;
-    } 
-
-    if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
-      setError('Please select a drawing from your gallery first.');
+    } catch (error) {
+      setError('Failed to initialize video processing. Please refresh the page and try again.');
       return;
     }
+  }
 
-    if (!generatedAudioBlob) {
-      setError('Please generate and play the story audio first.');
-      return;
+  // Double-check that FFmpeg is actually loaded
+  if (!ffmpegRef.current || !ffmpegLoaded) {
+    setError('Video processing not available. Please refresh the page and try again.');
+    return;
+  } 
+
+  if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
+    setError('Please select a drawing from your gallery first.');
+    return;
+  }
+
+  if (!generatedAudioBlob) {
+    setError('Please generate and play the story audio first.');
+    return;
+  }
+
+  const historyItem = history[selectedHistoryIndex];
+  if (!historyItem.sketch || !historyItem.generated) {
+    setError('Missing required images for video generation.');
+    return;
+  }
+
+  setIsGeneratingVideo(true);
+  setError(null);
+
+  try {
+    const ffmpeg = ffmpegRef.current;
+    
+    if (!ffmpeg || !window.FFmpeg) {
+      throw new Error('FFmpeg not properly initialized');
     }
 
-    const historyItem = history[selectedHistoryIndex];
-    if (!historyItem.sketch || !historyItem.generated) {
-      setError('Missing required images for video generation.');
-      return;
-    }
-
-    setIsGeneratingVideo(true);
-    setError(null);
-
+    const { fetchFile } = window.FFmpeg;
+    
+    // Get audio duration using Web Audio API
+    let audioDuration = 10; // Default fallback
     try {
-      const ffmpeg = ffmpegRef.current;
-      
-      if (!ffmpeg || !window.FFmpeg) {
-        throw new Error('FFmpeg not properly initialized');
-      }
-
-      const { fetchFile } = window.FFmpeg;
-      
-      // Get audio duration using Web Audio API
-      let audioDuration = 10; // Default fallback
-      try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const arrayBuffer = await generatedAudioBlob.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        audioDuration = audioBuffer.duration;
-        audioContext.close();
-      } catch (error) {
-        console.warn('Could not get audio duration, using default:', error);
-        audioDuration = Math.max(10, generatedAudioBlob.size / 16000);
-      }
-
-      const VIDEO_WIDTH = 1280;
-      const VIDEO_HEIGHT = 720;
-      const BACKGROUND_COLOR = '#1f2937'; // Dark gray background
-      const IMAGE_DISPLAY_DURATION = 2; // seconds per image in the slideshow
-
-      const imagesData = [];
-      if (historyItem.storyImageBase64) {
-          imagesData.push({ data: historyItem.storyImageBase64, name: 'story_image.png' });
-      }
-      imagesData.push({ data: historyItem.sketch, name: 'sketch_image.png' });
-      imagesData.push({ data: historyItem.generated, name: 'generated_image.png' });
-
-      const ffmpegInputArgs: string[] = [];
-      const filterComplexVideoInputs: string[] = [];
-      const filterComplexVideoFilters: string[] = [];
-
-      // Process each image: write to FS, apply scaling/padding filters, and set individual duration
-      for (let i = 0; i < imagesData.length; i++) {
-          const { data, name } = imagesData[i];
-          const imageBlob = await (await fetch(`data:image/png;base64,${data}`)).blob();
-          await ffmpeg.FS('writeFile', name, await fetchFile(imageBlob));
-
-          // Input arguments for FFmpeg. No loop or t here, duration handled by tpad in filter.
-          ffmpegInputArgs.push('-i', name); 
-
-          // Filter for each image: scale, pad, and then set duration for this segment using tpad
-          filterComplexVideoFilters.push(
-            `[${i}:v]scale='min(${VIDEO_WIDTH},iw)':min'(${VIDEO_HEIGHT},ih)':force_original_aspect_ratio=decrease,` +
-            `setsar=1,pad=${VIDEO_WIDTH}:${VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=${BACKGROUND_COLOR},` +
-            `tpad=stop_mode=clone:stop_duration=${IMAGE_DISPLAY_DURATION}[v${i}]` // Set duration for each segment
-          );
-          filterComplexVideoInputs.push(`[v${i}]`); // Reference the output of this filter
-      }
-
-      // Calculate the total duration of one full sequence of images
-      const totalSequenceDuration = imagesData.length * IMAGE_DISPLAY_DURATION;
-      const assumedFPS = 30; // Standard frame rate for video
-
-      // Construct the FFmpeg filter_complex for video concatenation and audio mixing
-      // 1. Individual image processing with duration set by tpad
-      // 2. Concatenate the timed video segments
-      // 3. Loop the concatenated video indefinitely using `loop` filter
-      const videoConcatAndLoopFilter = 
-        `${filterComplexVideoFilters.join(';')};` + // Individual image processing with tpad
-        `${filterComplexVideoInputs.join('')}concat=n=${imagesData.length}:v=1:a=0[concatenated_video];` + // Concatenate
-        `[concatenated_video]loop=-1:size=${Math.floor(totalSequenceDuration * assumedFPS)}:start=0[looped_video]`; // Loop indefinitely
-
-      const audioMixFilter = `[${imagesData.length}:a]volume=1.0[story_a];[${imagesData.length + 1}:a]volume=0.1[bg_a];[story_a][bg_a]amix=inputs=2:duration=first:dropout_transition=3[mixed_a]`;
-
-      const fullFilterComplex = `${videoConcatAndLoopFilter};${audioMixFilter}`;
-      console.log('FFmpeg filter_complex string:', fullFilterComplex); // Log the filter complex for debugging
-
-      await ffmpeg.run(
-        ...ffmpegInputArgs, // All the -i arguments for images
-        '-i', 'audio.mp3',
-        '-stream_loop', '-1', '-i', 'bg_music.mp3',
-        '-filter_complex', fullFilterComplex, // Use the constructed filter complex
-        '-map', '[looped_video]', // Map the looped video stream
-        '-map', '[mixed_a]', // Map the mixed audio stream
-        '-c:v', 'libx264', '-c:a', 'aac',
-        '-pix_fmt', 'yuv420p',
-        '-shortest', // This is crucial: stops video when the shortest input (audio) ends
-        '-y', 'final_video.mp4'
-      );
-      
-      // Read the output video
-      const videoData = ffmpeg.FS('readFile', 'final_video.mp4');
-      const videoBlob = new Blob([videoData], { type: 'video/mp4' });
-      
-      // Download the video
-      const url = URL.createObjectURL(videoBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ai-story-${Date.now()}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Celebrate successful video generation
-      celebrateWithConfetti();
-      playWinSound();
-      
-    } catch (err) {
-      console.error('Error generating video:', err);
-      setError(err.message || 'Failed to generate video. Please try again.');
-    } finally {
-      setIsGeneratingVideo(false);
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await generatedAudioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      audioDuration = audioBuffer.duration;
+      audioContext.close();
+    } catch (error) {
+      console.warn('Could not get audio duration, using default:', error);
+      audioDuration = Math.max(10, generatedAudioBlob.size / 16000);
     }
-  }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+
+    // Create canvas for the video frame layout
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill background
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(0, 0, 1280, 720);
+    
+    // Create image loading promises
+    const loadImage = (src) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null); // Resolve null on error to not break Promise.all
+        img.src = src;
+      });
+    };
+    
+    // Load all images from the history item
+    const [storyImageLoaded, sketchImageLoaded, genImageLoaded] = await Promise.all([
+      historyItem.storyImageBase64 ? loadImage(`data:image/png;base64,${historyItem.storyImageBase64}`) : Promise.resolve(null),
+      loadImage(`data:image/png;base64,${historyItem.sketch}`),
+      loadImage(`data:image/png;base64,${historyItem.generated}`)
+    ]);
+    
+    // Enhanced drawing function from the preview
+    const drawImageWithBorder = (img, x, y, width, height, borderColor, placeholderText) => {
+        // Draw background for the container
+        ctx.fillStyle = '#374151'; // gray-700
+        ctx.fillRect(x, y, width, height);
+
+        // Draw border
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 6; // Using a thicker border for better visibility
+        ctx.strokeRect(x, y, width, height);
+
+        // Draw image if available
+        if (img) {
+            const padding = 12; // Padding inside the border
+            const imgX = x + padding;
+            const imgY = y + padding;
+            const imgW = width - padding * 2;
+            const imgH = height - padding * 2;
+
+            // Calculate aspect ratio to fit image within the container without stretching
+            const containerRatio = imgW / imgH;
+            const imgRatio = img.width / img.height;
+
+            let drawW, drawH, drawX, drawY;
+
+            if (imgRatio > containerRatio) {
+                drawW = imgW;
+                drawH = imgW / imgRatio;
+                drawX = imgX;
+                drawY = imgY + (imgH - drawH) / 2;
+            } else {
+                drawH = imgH;
+                drawW = imgH * imgRatio;
+                drawX = imgX + (imgW - drawW) / 2;
+                drawY = imgY;
+            }
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        } else {
+            // Draw placeholder text if an image is not available
+            ctx.fillStyle = '#9ca3af'; // gray-400
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(placeholderText, x + width / 2, y + height / 2);
+        }
+    };
+    
+    // --- SIDE-BY-SIDE LAYOUT CALCULATIONS ---
+    const PADDING = 20;
+    const GAP = 20;
+    const CONTAINER_COUNT = 3;
+    
+    const TOTAL_GAPS_WIDTH = GAP * (CONTAINER_COUNT - 1);
+    const TOTAL_CONTENT_WIDTH = canvas.width - (PADDING * 2);
+    const BOX_WIDTH = (TOTAL_CONTENT_WIDTH - TOTAL_GAPS_WIDTH) / CONTAINER_COUNT;
+
+    const BOX_HEIGHT = canvas.height - (PADDING * 2);
+    const BOX_Y = PADDING;
+
+    // --- DRAWING CALLS ---
+    // Draw story image (left)
+    const storyX = PADDING;
+    drawImageWithBorder(storyImageLoaded, storyX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#3b82f6', 'Story Image');
+
+    // Draw sketch image (middle)
+    const sketchX = PADDING + BOX_WIDTH + GAP;
+    drawImageWithBorder(sketchImageLoaded, sketchX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#10b981', 'Sketch');
+    
+    // Draw generated image (right)
+    const generatedX = PADDING + (BOX_WIDTH * 2) + (GAP * 2);
+    drawImageWithBorder(genImageLoaded, generatedX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#f59e0b', 'Generated Image');
+    
+    // Convert canvas to blob to be used by FFmpeg
+    const layoutBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    
+    // Write layout image to FFmpeg's virtual file system
+    ffmpeg.FS('writeFile', 'layout.png', await fetchFile(layoutBlob));
+    
+    // Write audio files
+    ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
+    
+    // Download and write background music
+    const bgMusicUrl = "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
+    const bgMusicResponse = await fetch(bgMusicUrl);
+    const bgMusicBlob = await bgMusicResponse.blob();
+    ffmpeg.FS('writeFile', 'bg_music.mp3', await fetchFile(bgMusicBlob));
+    
+    // Create video from static image with mixed audio
+    await ffmpeg.run(
+      '-loop', '1', '-t', audioDuration.toString(), '-i', 'layout.png',
+      '-i', 'audio.mp3',
+      '-stream_loop', '-1', '-i', 'bg_music.mp3',
+      '-filter_complex', `[1:a]volume=1.0[story];[2:a]volume=0.1[bg];[story][bg]amix=inputs=2:duration=first:dropout_transition=3[mixed]`,
+      '-map', '0:v', '-map', '[mixed]',
+      '-c:v', 'libx264', '-c:a', 'aac',
+      '-pix_fmt', 'yuv420p',
+      '-shortest', '-y', 'final_video.mp4'
+    );
+    
+    // Read the output video
+    const videoData = ffmpeg.FS('readFile', 'final_video.mp4');
+    const videoBlob = new Blob([videoData], { type: 'video/mp4' });
+    
+    // Download the video
+    const url = URL.createObjectURL(videoBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-story-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Celebrate successful video generation
+    celebrateWithConfetti();
+    playWinSound();
+    
+  } catch (err) {
+    console.error('Error generating video:', err);
+    setError(err.message || 'Failed to generate video. Please try again.');
+  } finally {
+    setIsGeneratingVideo(false);
+  }
+}, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
 
   
 
@@ -1052,11 +1114,11 @@ export const useAIDrawingBookLogic = () => {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(genImg, 0, 0, coloringCanvas.width, coloringCanvas.height);
+          ctx.drawImage(genImg, 0, 0, canvas.width, canvas.height);
         }
       }
     };
-    genImg.src = "data:image/png;base64," + item.generated; // Corrected base664 to base64
+    genImg.src = "data:image/png;base64," + item.generated;
 
     setShowStorySection(true);
   };
