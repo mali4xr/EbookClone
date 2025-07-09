@@ -176,7 +176,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
         {showStorySection && (
           <section className="animate__animated animate__fadeInUp">
             <div className="bg-white rounded-3xl shadow-xl border border-orange-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-400 to-pink-500 p-3">
+              <div className="bg-gradient-to-r from-orange-400 to-pink-500">
                 <h4 className="text-white font-bold text-xl flex items-center gap-2">
                   <BookOpen size={20} />
                   Your Story
