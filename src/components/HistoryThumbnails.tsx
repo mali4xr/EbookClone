@@ -38,7 +38,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
           {history.map((item, idx) => (
             <div key={idx} className="flex flex-col items-center flex-shrink-0">
               <div
-                className={`relative rounded-2xl border-4 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                className={`relative rounded-2xl border-4 cursor-pointer transition-all duration-300 transform hover:scale-100 ${
                   selectedHistoryIndex === idx
                     ? "border-purple-500 scale-105 shadow-xl"
                     : "border-gray-200 hover:border-purple-300 shadow-lg"
