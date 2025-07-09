@@ -850,7 +850,6 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
-  // Generate and download video slideshow
 // Generate and download video slideshow
 const generateAndDownloadVideo = useCallback(async () => {
   // Check if FFmpeg is still loading
@@ -943,50 +942,49 @@ const generateAndDownloadVideo = useCallback(async () => {
     
     // Calculate timing for looping slideshow
     const transitionDuration = 2; // 2 seconds fade transition
-    const slideBaseDuration = 4; // Base duration for each slide
+    const slideDisplayDuration = 4; // How long each slide shows
     const totalImages = hasStoryImage ? 3 : 2;
-    const cycleTime = (slideBaseDuration * totalImages) + (transitionDuration * totalImages);
+    const singleCycleDuration = slideDisplayDuration * totalImages;
+    const cyclesNeeded = Math.ceil(audioDuration / singleCycleDuration);
     
-    // Create video slideshow with looping and fade transitions
-    if (hasStoryImage) {
-      // Three images: sketch, generated, story
+    // Create individual slide videos first
+    const slideVideos = [];
+    const imageFiles = hasStoryImage ? ['sketch.png', 'generated.png', 'story.png'] : ['sketch.png', 'generated.png'];
+    
+    for (let i = 0; i < imageFiles.length; i++) {
+      const outputFile = `slide_${i}.mp4`;
       await ffmpeg.run(
-        '-loop', '1', '-i', 'sketch.png',
-        '-loop', '1', '-i', 'generated.png', 
-        '-loop', '1', '-i', 'story.png',
-        '-i', 'audio.mp3',
-        '-filter_complex', 
-        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img0];
-         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img1];
-         [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img2];
-         [img0]fade=t=in:st=0:d=${transitionDuration}:alpha=1,fade=t=out:st=${slideBaseDuration-transitionDuration}:d=${transitionDuration}:alpha=1,loop=loop=-1:size=1:start=0,setpts=PTS-STARTPTS[v0];
-         [img1]fade=t=in:st=0:d=${transitionDuration}:alpha=1,fade=t=out:st=${slideBaseDuration-transitionDuration}:d=${transitionDuration}:alpha=1,loop=loop=-1:size=1:start=0,setpts=PTS-STARTPTS+${slideBaseDuration}/TB[v1];
-         [img2]fade=t=in:st=0:d=${transitionDuration}:alpha=1,fade=t=out:st=${slideBaseDuration-transitionDuration}:d=${transitionDuration}:alpha=1,loop=loop=-1:size=1:start=0,setpts=PTS-STARTPTS+${slideBaseDuration*2}/TB[v2];
-         [v0][v1]overlay=enable='between(t,${slideBaseDuration-transitionDuration},${slideBaseDuration+transitionDuration})'[temp1];
-         [temp1][v2]overlay=enable='between(t,${slideBaseDuration*2-transitionDuration},${slideBaseDuration*2+transitionDuration})'[slideshow];
-         [slideshow]loop=loop=-1:size=${Math.ceil(audioDuration/cycleTime * 25)}:start=0,trim=duration=${audioDuration}[outv]`,
-        '-map', '[outv]', '-map', '3:a',
-        '-c:v', 'libx264', '-c:a', 'aac',
-        '-shortest', '-y', 'slideshow.mp4'
+        '-loop', '1', '-t', slideDisplayDuration.toString(), '-i', imageFiles[i],
+        '-vf', `scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fade=t=in:st=0:d=${transitionDuration},fade=t=out:st=${slideDisplayDuration-transitionDuration}:d=${transitionDuration}`,
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-y', outputFile
       );
-    } else {
-      // Two images: sketch and generated
-      await ffmpeg.run(
-        '-loop', '1', '-i', 'sketch.png',
-        '-loop', '1', '-i', 'generated.png',
-        '-i', 'audio.mp3',
-        '-filter_complex',
-        `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img0];
-         [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[img1];
-         [img0]fade=t=in:st=0:d=${transitionDuration}:alpha=1,fade=t=out:st=${slideBaseDuration-transitionDuration}:d=${transitionDuration}:alpha=1,loop=loop=-1:size=1:start=0,setpts=PTS-STARTPTS[v0];
-         [img1]fade=t=in:st=0:d=${transitionDuration}:alpha=1,fade=t=out:st=${slideBaseDuration-transitionDuration}:d=${transitionDuration}:alpha=1,loop=loop=-1:size=1:start=0,setpts=PTS-STARTPTS+${slideBaseDuration}/TB[v1];
-         [v0][v1]overlay=enable='between(t,${slideBaseDuration-transitionDuration},${slideBaseDuration+transitionDuration})'[slideshow];
-         [slideshow]loop=loop=-1:size=${Math.ceil(audioDuration/cycleTime * 25)}:start=0,trim=duration=${audioDuration}[outv]`,
-        '-map', '[outv]', '-map', '2:a',
-        '-c:v', 'libx264', '-c:a', 'aac',
-        '-shortest', '-y', 'slideshow.mp4'
-      );
+      slideVideos.push(outputFile);
     }
+    
+    // Create concat file for one complete cycle
+    let concatContent = '';
+    for (const video of slideVideos) {
+      concatContent += `file '${video}'\n`;
+    }
+    
+    // Write concat file
+    const concatData = new TextEncoder().encode(concatContent);
+    ffmpeg.FS('writeFile', 'concat.txt', concatData);
+    
+    // Create one cycle of the slideshow
+    await ffmpeg.run(
+      '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
+      '-c', 'copy', '-y', 'cycle.mp4'
+    );
+    
+    // Loop the cycle to match audio duration
+    await ffmpeg.run(
+      '-stream_loop', (cyclesNeeded - 1).toString(), '-i', 'cycle.mp4',
+      '-i', 'audio.mp3',
+      '-t', audioDuration.toString(),
+      '-c:v', 'libx264', '-c:a', 'aac',
+      '-shortest', '-y', 'slideshow.mp4'
+    );
     
     // Read the output video
     const videoData = ffmpeg.FS('readFile', 'slideshow.mp4');
@@ -1013,6 +1011,7 @@ const generateAndDownloadVideo = useCallback(async () => {
     setIsGeneratingVideo(false);
   }
 }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+  
   // History handlers
   const handleSelectHistory = (idx: number) => {
     console.log('📚 Selecting history item:', idx);
