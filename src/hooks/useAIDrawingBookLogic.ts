@@ -851,7 +851,7 @@ export const useAIDrawingBookLogic = () => {
   };
 
   // Generate and download video slideshow
- // Generate and download video slideshow
+// Generate and download video slideshow
 const generateAndDownloadVideo = useCallback(async () => {
   // Check if FFmpeg is still loading
   if (ffmpegLoading) {
@@ -927,17 +927,18 @@ const generateAndDownloadVideo = useCallback(async () => {
     // Write audio file
     ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
     
-    // Get audio duration first
-    await ffmpeg.run('-i', 'audio.mp3', '-f', 'null', '-');
-    const audioInfo = ffmpeg.getLastCommandOutput();
-    const durationMatch = audioInfo.match(/Duration: (\d{2}):(\d{2}):(\d{2}.\d{2})/);
-    
+    // Get audio duration using Web Audio API
     let audioDuration = 10; // Default fallback
-    if (durationMatch) {
-      const hours = parseInt(durationMatch[1]);
-      const minutes = parseInt(durationMatch[2]);
-      const seconds = parseFloat(durationMatch[3]);
-      audioDuration = hours * 3600 + minutes * 60 + seconds;
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await generatedAudioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      audioDuration = audioBuffer.duration;
+      audioContext.close();
+    } catch (error) {
+      console.warn('Could not get audio duration, using default:', error);
+      // Fallback: try to estimate from blob size (very rough estimate)
+      audioDuration = Math.max(10, generatedAudioBlob.size / 16000); // Rough estimate
     }
     
     // Calculate timing for looping slideshow
