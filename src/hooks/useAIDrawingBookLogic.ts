@@ -851,141 +851,293 @@ export const useAIDrawingBookLogic = () => {
   };
 
   // Generate and download video slideshow
-  const generateAndDownloadVideo = useCallback(async () => {
-    // Check if FFmpeg is still loading
-    if (ffmpegLoading) {
-      setError('Video processing is still loading. Please wait a moment and try again.');
-      return;
-    }
+// Generate and download video with static layout
+const generateAndDownloadVideo = useCallback(async () => {
+  // Check if FFmpeg is still loading
+  if (ffmpegLoading) {
+    setError('Video processing is still loading. Please wait a moment and try again.');
+    return;
+  }
 
-    // If FFmpeg failed to load, try loading it again
-    if (!ffmpegLoaded) {
-      setError('Video processing not ready. Initializing...');
-      try {
-        await loadFFmpeg();
-        if (!ffmpegLoaded) {
-          setError('Failed to initialize video processing. Please refresh the page and try again.');
-          return;
-        }
-      } catch (error) {
+  // If FFmpeg failed to load, try loading it again
+  if (!ffmpegLoaded) {
+    setError('Video processing not ready. Initializing...');
+    try {
+      await loadFFmpeg();
+      if (!ffmpegLoaded) {
         setError('Failed to initialize video processing. Please refresh the page and try again.');
         return;
       }
-    }
-
-    // Double-check that FFmpeg is actually loaded
-    if (!ffmpegRef.current || !ffmpegLoaded) {
-      setError('Video processing not available. Please refresh the page and try again.');
+    } catch (error) {
+      setError('Failed to initialize video processing. Please refresh the page and try again.');
       return;
     }
+  }
 
-    if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
-      setError('Please select a drawing from your gallery first.');
-      return;
+  // Double-check that FFmpeg is actually loaded
+  if (!ffmpegRef.current || !ffmpegLoaded) {
+    setError('Video processing not available. Please refresh the page and try again.');
+    return;
+  }
+
+  if (selectedHistoryIndex === null || !history[selectedHistoryIndex]) {
+    setError('Please select a drawing from your gallery first.');
+    return;
+  }
+
+  if (!generatedAudioBlob) {
+    setError('Please generate and play the story audio first.');
+    return;
+  }
+
+  const historyItem = history[selectedHistoryIndex];
+  if (!historyItem.sketch || !historyItem.generated) {
+    setError('Missing required images for video generation.');
+    return;
+  }
+
+  setIsGeneratingVideo(true);
+  setError(null);
+
+  try {
+    const ffmpeg = ffmpegRef.current;
+    
+    if (!ffmpeg || !window.FFmpeg) {
+      throw new Error('FFmpeg not properly initialized');
     }
 
-    if (!generatedAudioBlob) {
-      setError('Please generate and play the story audio first.');
-      return;
-    }
-
-    const historyItem = history[selectedHistoryIndex];
-    if (!historyItem.sketch || !historyItem.generated) {
-      setError('Missing required images for video generation.');
-      return;
-    }
-
-    setIsGeneratingVideo(true);
-    setError(null);
-
+    const { fetchFile } = window.FFmpeg;
+    
+    // Get audio duration using Web Audio API
+    let audioDuration = 10; // Default fallback
     try {
-      const ffmpeg = ffmpegRef.current;
-      
-      if (!ffmpeg || !window.FFmpeg) {
-        throw new Error('FFmpeg not properly initialized');
-      }
-
-      const { fetchFile } = window.FFmpeg;
-      
-      // Convert base64 images to files
-      const sketchBlob = await fetch(`data:image/png;base64,${historyItem.sketch}`).then(r => r.blob());
-      const generatedBlob = await fetch(`data:image/png;base64,${historyItem.generated}`).then(r => r.blob());
-      
-      // Write images to FFmpeg filesystem
-      ffmpeg.FS('writeFile', 'sketch.png', await fetchFile(sketchBlob));
-      ffmpeg.FS('writeFile', 'generated.png', await fetchFile(generatedBlob));
-      
-      // Add story image if available
-      let hasStoryImage = false;
-      if (historyItem.storyImageBase64) {
-        const storyBlob = await fetch(`data:image/png;base64,${historyItem.storyImageBase64}`).then(r => r.blob());
-        ffmpeg.FS('writeFile', 'story.png', await fetchFile(storyBlob));
-        hasStoryImage = true;
-      }
-      
-      // Write audio file
-      ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
-      
-      // Create video slideshow
-      const imageDuration = hasStoryImage ? '3' : '4'; // Adjust duration based on number of images
-      
-      if (hasStoryImage) {
-        // Three images: sketch, generated, story
-        await ffmpeg.run(
-          '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
-          '-loop', '1', '-t', imageDuration, '-i', 'generated.png', 
-          '-loop', '1', '-t', imageDuration, '-i', 'story.png',
-          '-i', 'audio.mp3',
-          '-filter_complex', 
-          `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[v0];
-           [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[v1];
-           [2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${parseInt(imageDuration)*2}/TB[v2];
-           [v0][v1][v2]concat=n=3:v=1:a=0[outv]`,
-          '-map', '[outv]', '-map', '3:a',
-          '-c:v', 'libx264', '-c:a', 'aac',
-          '-shortest', '-y', 'slideshow.mp4'
-        );
-      } else {
-        // Two images: sketch and generated
-        await ffmpeg.run(
-          '-loop', '1', '-t', imageDuration, '-i', 'sketch.png',
-          '-loop', '1', '-t', imageDuration, '-i', 'generated.png',
-          '-i', 'audio.mp3',
-          '-filter_complex',
-          `[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS[v0];
-           [1:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS+${imageDuration}/TB[v1];
-           [v0][v1]concat=n=2:v=1:a=0[outv]`,
-          '-map', '[outv]', '-map', '2:a',
-          '-c:v', 'libx264', '-c:a', 'aac',
-          '-shortest', '-y', 'slideshow.mp4'
-        );
-      }
-      
-      // Read the output video
-      const videoData = ffmpeg.FS('readFile', 'slideshow.mp4');
-      const videoBlob = new Blob([videoData], { type: 'video/mp4' });
-      
-      // Download the video
-      const url = URL.createObjectURL(videoBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ai-story-${Date.now()}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Celebrate successful video generation
-      celebrateWithConfetti();
-      playWinSound();
-      
-    } catch (err: any) {
-      console.error('Error generating video:', err);
-      setError(err.message || 'Failed to generate video. Please try again.');
-    } finally {
-      setIsGeneratingVideo(false);
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await generatedAudioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      audioDuration = audioBuffer.duration;
+      audioContext.close();
+    } catch (error) {
+      console.warn('Could not get audio duration, using default:', error);
+      audioDuration = Math.max(10, generatedAudioBlob.size / 16000);
     }
-  }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+
+    // Create temporary div with layout
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'fixed';
+    tempDiv.style.top = '-9999px';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '1280px';
+    tempDiv.style.height = '720px';
+    tempDiv.style.backgroundColor = '#1f2937'; // gray-800
+    tempDiv.style.padding = '20px';
+    tempDiv.style.boxSizing = 'border-box';
+    tempDiv.style.fontFamily = 'Arial, sans-serif';
+    
+    // Top half - story image (if available)
+    const topHalf = document.createElement('div');
+    topHalf.style.height = '45%';
+    topHalf.style.marginBottom = '20px';
+    topHalf.style.border = '3px solid #3b82f6'; // blue-500
+    topHalf.style.borderRadius = '12px';
+    topHalf.style.overflow = 'hidden';
+    topHalf.style.backgroundColor = '#374151'; // gray-700
+    topHalf.style.display = 'flex';
+    topHalf.style.alignItems = 'center';
+    topHalf.style.justifyContent = 'center';
+    
+    if (historyItem.storyImageBase64) {
+      const storyImg = document.createElement('img');
+      storyImg.src = `data:image/png;base64,${historyItem.storyImageBase64}`;
+      storyImg.style.maxWidth = '100%';
+      storyImg.style.maxHeight = '100%';
+      storyImg.style.objectFit = 'contain';
+      topHalf.appendChild(storyImg);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.style.color = '#9ca3af'; // gray-400
+      placeholder.style.fontSize = '24px';
+      placeholder.style.textAlign = 'center';
+      placeholder.textContent = 'Story Image';
+      topHalf.appendChild(placeholder);
+    }
+    
+    // Bottom half - sketch and generated images side by side
+    const bottomHalf = document.createElement('div');
+    bottomHalf.style.height = '45%';
+    bottomHalf.style.display = 'flex';
+    bottomHalf.style.gap = '20px';
+    
+    // Sketch image container
+    const sketchContainer = document.createElement('div');
+    sketchContainer.style.flex = '1';
+    sketchContainer.style.border = '3px solid #10b981'; // green-500
+    sketchContainer.style.borderRadius = '12px';
+    sketchContainer.style.overflow = 'hidden';
+    sketchContainer.style.backgroundColor = '#374151'; // gray-700
+    sketchContainer.style.display = 'flex';
+    sketchContainer.style.alignItems = 'center';
+    sketchContainer.style.justifyContent = 'center';
+    
+    const sketchImg = document.createElement('img');
+    sketchImg.src = `data:image/png;base64,${historyItem.sketch}`;
+    sketchImg.style.maxWidth = '100%';
+    sketchImg.style.maxHeight = '100%';
+    sketchImg.style.objectFit = 'contain';
+    sketchContainer.appendChild(sketchImg);
+    
+    // Generated image container
+    const generatedContainer = document.createElement('div');
+    generatedContainer.style.flex = '1';
+    generatedContainer.style.border = '3px solid #f59e0b'; // yellow-500
+    generatedContainer.style.borderRadius = '12px';
+    generatedContainer.style.overflow = 'hidden';
+    generatedContainer.style.backgroundColor = '#374151'; // gray-700
+    generatedContainer.style.display = 'flex';
+    generatedContainer.style.alignItems = 'center';
+    generatedContainer.style.justifyContent = 'center';
+    
+    const generatedImg = document.createElement('img');
+    generatedImg.src = `data:image/png;base64,${historyItem.generated}`;
+    generatedImg.style.maxWidth = '100%';
+    generatedImg.style.maxHeight = '100%';
+    generatedImg.style.objectFit = 'contain';
+    generatedContainer.appendChild(generatedImg);
+    
+    bottomHalf.appendChild(sketchContainer);
+    bottomHalf.appendChild(generatedContainer);
+    
+    tempDiv.appendChild(topHalf);
+    tempDiv.appendChild(bottomHalf);
+    document.body.appendChild(tempDiv);
+    
+    // Convert to canvas using html2canvas (you'll need to import this)
+    // For now, let's use a simpler approach with canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill background
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(0, 0, 1280, 720);
+    
+    // Create image loading promises
+    const loadImage = (src) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    };
+    
+    // Load all images
+    const [storyImg, sketchImg, genImg] = await Promise.all([
+      historyItem.storyImageBase64 ? loadImage(`data:image/png;base64,${historyItem.storyImageBase64}`) : null,
+      loadImage(`data:image/png;base64,${historyItem.sketch}`),
+      loadImage(`data:image/png;base64,${historyItem.generated}`)
+    ]);
+    
+    // Draw borders and images
+    const drawImageWithBorder = (img, x, y, width, height, borderColor) => {
+      // Draw border
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, width, height);
+      
+      // Draw image if available
+      if (img) {
+        const padding = 6;
+        const imgX = x + padding;
+        const imgY = y + padding;
+        const imgW = width - padding * 2;
+        const imgH = height - padding * 2;
+        
+        // Calculate aspect ratio
+        const aspectRatio = img.width / img.height;
+        const containerRatio = imgW / imgH;
+        
+        let drawW, drawH, drawX, drawY;
+        if (aspectRatio > containerRatio) {
+          drawW = imgW;
+          drawH = imgW / aspectRatio;
+          drawX = imgX;
+          drawY = imgY + (imgH - drawH) / 2;
+        } else {
+          drawW = imgH * aspectRatio;
+          drawH = imgH;
+          drawX = imgX + (imgW - drawW) / 2;
+          drawY = imgY;
+        }
+        
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      }
+    };
+    
+    // Draw story image (top half)
+    drawImageWithBorder(storyImg, 20, 20, 1240, 304, '#3b82f6');
+    
+    // Draw sketch and generated images (bottom half)
+    drawImageWithBorder(sketchImg, 20, 344, 610, 304, '#10b981');
+    drawImageWithBorder(genImg, 650, 344, 610, 304, '#f59e0b');
+    
+    // Clean up temp div
+    document.body.removeChild(tempDiv);
+    
+    // Convert canvas to blob
+    const layoutBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    
+    // Write layout image to FFmpeg
+    ffmpeg.FS('writeFile', 'layout.png', await fetchFile(layoutBlob));
+    
+    // Write audio files
+    ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
+    
+    // Download and write background music
+    const bgMusicUrl = "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
+    const bgMusicResponse = await fetch(bgMusicUrl);
+    const bgMusicBlob = await bgMusicResponse.blob();
+    ffmpeg.FS('writeFile', 'bg_music.mp3', await fetchFile(bgMusicBlob));
+    
+    // Create video from static image with mixed audio
+    await ffmpeg.run(
+      '-loop', '1', '-t', audioDuration.toString(), '-i', 'layout.png',
+      '-i', 'audio.mp3',
+      '-stream_loop', '-1', '-i', 'bg_music.mp3',
+      '-filter_complex', `[1:a]volume=1.0[story];[2:a]volume=0.1[bg];[story][bg]amix=inputs=2:duration=first:dropout_transition=3[mixed]`,
+      '-map', '0:v', '-map', '[mixed]',
+      '-c:v', 'libx264', '-c:a', 'aac',
+      '-pix_fmt', 'yuv420p',
+      '-shortest', '-y', 'final_video.mp4'
+    );
+    
+    // Read the output video
+    const videoData = ffmpeg.FS('readFile', 'final_video.mp4');
+    const videoBlob = new Blob([videoData], { type: 'video/mp4' });
+    
+    // Download the video
+    const url = URL.createObjectURL(videoBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-story-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Celebrate successful video generation
+    celebrateWithConfetti();
+    playWinSound();
+    
+  } catch (err: any) {
+    console.error('Error generating video:', err);
+    setError(err.message || 'Failed to generate video. Please try again.');
+  } finally {
+    setIsGeneratingVideo(false);
+  }
+}, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+
+  
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
