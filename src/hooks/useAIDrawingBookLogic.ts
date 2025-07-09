@@ -59,6 +59,7 @@ export const useAIDrawingBookLogic = () => {
   const [generatedAudioBlob, setGeneratedAudioBlob] = useState<Blob | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+  const [ffmpegLoading, setFfmpegLoading] = useState(false);
 
   // Color palette
   const colors = [
@@ -114,8 +115,9 @@ export const useAIDrawingBookLogic = () => {
 
   // Initialize FFmpeg
   const loadFFmpeg = useCallback(async () => {
-    if (ffmpegLoaded) return;
+    if (ffmpegLoaded || ffmpegLoading) return;
     
+    setFfmpegLoading(true);
     try {
       const ffmpeg = ffmpegRef.current;
       
@@ -130,9 +132,11 @@ export const useAIDrawingBookLogic = () => {
       console.log('FFmpeg loaded successfully');
     } catch (error) {
       console.error('Failed to load FFmpeg:', error);
-      throw new Error('Failed to initialize video processing. Please try again.');
+      setError('Failed to initialize video processing. Please refresh the page and try again.');
+    } finally {
+      setFfmpegLoading(false);
     }
-  }, [ffmpegLoaded]);
+  }, [ffmpegLoaded, ffmpegLoading]);
 
   // Load FFmpeg on component mount
   useEffect(() => {
@@ -724,19 +728,12 @@ export const useAIDrawingBookLogic = () => {
         console.log('🎤 Generated audio using ElevenLabs TTS');
       } else {
         // Use existing Pollinations AI
-        const pollinationsApiKey = import.meta.env.VITE_POLLINATIONS_API_KEY;
-        if (!pollinationsApiKey) {
-          throw new Error('Pollinations AI API key not configured. Please add VITE_POLLINATIONS_API_KEY to your .env file.');
-        }
-
         const encodedStory = encodeURIComponent(story);
         const voice = "alloy";
-        // Add the API key as a query parameter using Bearer token method
-        const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}&token=${pollinationsApiKey}`;
+        const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}`;
         const response = await fetch(url);
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to generate audio from Pollinations AI: ${response.status} ${response.statusText} - ${errorText}`);
+          throw new Error("Failed to generate audio.");
         }
         audioBlob = await response.blob();
         console.log('🎤 Generated audio using Pollinations AI');
@@ -834,8 +831,30 @@ export const useAIDrawingBookLogic = () => {
 
   // Generate and download video slideshow
   const generateAndDownloadVideo = useCallback(async () => {
-    if (!ffmpegLoaded) {
+    // Check if FFmpeg is still loading
+    if (ffmpegLoading) {
       setError('Video processing is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    // If FFmpeg failed to load, try loading it again
+    if (!ffmpegLoaded) {
+      setError('Video processing not ready. Initializing...');
+      try {
+        await loadFFmpeg();
+        if (!ffmpegLoaded) {
+          setError('Failed to initialize video processing. Please refresh the page and try again.');
+          return;
+        }
+      } catch (error) {
+        setError('Failed to initialize video processing. Please refresh the page and try again.');
+        return;
+      }
+    }
+
+    // Double-check that FFmpeg is actually loaded
+    if (!ffmpegRef.current || !ffmpegLoaded) {
+      setError('Video processing not available. Please refresh the page and try again.');
       return;
     }
 
@@ -943,7 +962,7 @@ export const useAIDrawingBookLogic = () => {
     } finally {
       setIsGeneratingVideo(false);
     }
-  }, [ffmpegLoaded, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+  }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
@@ -1135,6 +1154,8 @@ export const useAIDrawingBookLogic = () => {
     // Video generation
     generatedAudioBlob,
     isGeneratingVideo,
+    ffmpegLoaded,
+    ffmpegLoading,
     generateAndDownloadVideo,
     
     // Drawing handlers
