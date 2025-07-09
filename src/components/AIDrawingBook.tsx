@@ -225,7 +225,7 @@ const AIDrawingBook: React.FC<AIDrawingBookProps> = ({ onBack }) => {
                 </div>
 
                 {(story || displayedStory) && (
-                  <div className="mt-4 bg-gradient-to-br from-orange-50 to-pink-50 rounded-2xl p-4 border-2 border-orange-200">
+                  <div className=" bg-gradient-to-br from-orange-50 to-pink-50 rounded-2xl p-4 border-2 border-orange-200">
                     <div className="text-lg leading-relaxed text-gray-800">
                       {isTypingStory ? (
                         <span>
