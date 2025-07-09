@@ -850,8 +850,7 @@ export const useAIDrawingBookLogic = () => {
     }
   };
 
-  // Generate and download video slideshow
-// Generate and download video with static layout
+// Generate and download video with static layout and confetti animation
 const generateAndDownloadVideo = useCallback(async () => {
   // Check if FFmpeg is still loading
   if (ffmpegLoading) {
@@ -921,58 +920,46 @@ const generateAndDownloadVideo = useCallback(async () => {
       audioDuration = Math.max(10, generatedAudioBlob.size / 16000);
     }
 
-    // Create canvas for the video frame layout
-    const canvas = document.createElement('canvas');
-    canvas.width = 1280;
-    canvas.height = 720;
-    const ctx = canvas.getContext('2d');
+    // --- Create the static layout image first ---
+    const layoutCanvas = document.createElement('canvas');
+    layoutCanvas.width = 1280;
+    layoutCanvas.height = 720;
+    const layoutCtx = layoutCanvas.getContext('2d');
     
     // Fill background
-    ctx.fillStyle = '#1f2937';
-    ctx.fillRect(0, 0, 1280, 720);
+    layoutCtx.fillStyle = '#1f2937';
+    layoutCtx.fillRect(0, 0, 1280, 720);
     
-    // Create image loading promises
     const loadImage = (src) => {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => resolve(img);
-        img.onerror = () => resolve(null); // Resolve null on error to not break Promise.all
+        img.onerror = () => resolve(null);
         img.src = src;
       });
     };
     
-    // Load all images from the history item
     const [storyImageLoaded, sketchImageLoaded, genImageLoaded] = await Promise.all([
       historyItem.storyImageBase64 ? loadImage(`data:image/png;base64,${historyItem.storyImageBase64}`) : Promise.resolve(null),
       loadImage(`data:image/png;base64,${historyItem.sketch}`),
       loadImage(`data:image/png;base64,${historyItem.generated}`)
     ]);
     
-    // Enhanced drawing function from the preview
-    const drawImageWithBorder = (img, x, y, width, height, borderColor, placeholderText) => {
-        // Draw background for the container
-        ctx.fillStyle = '#374151'; // gray-700
+    const drawImageWithBorder = (ctx, img, x, y, width, height, borderColor, placeholderText) => {
+        ctx.fillStyle = '#374151';
         ctx.fillRect(x, y, width, height);
-
-        // Draw border
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 6; // Using a thicker border for better visibility
+        ctx.lineWidth = 6;
         ctx.strokeRect(x, y, width, height);
-
-        // Draw image if available
         if (img) {
-            const padding = 12; // Padding inside the border
+            const padding = 12;
             const imgX = x + padding;
             const imgY = y + padding;
             const imgW = width - padding * 2;
             const imgH = height - padding * 2;
-
-            // Calculate aspect ratio to fit image within the container without stretching
             const containerRatio = imgW / imgH;
             const imgRatio = img.width / img.height;
-
             let drawW, drawH, drawX, drawY;
-
             if (imgRatio > containerRatio) {
                 drawW = imgW;
                 drawH = imgW / imgRatio;
@@ -986,8 +973,7 @@ const generateAndDownloadVideo = useCallback(async () => {
             }
             ctx.drawImage(img, drawX, drawY, drawW, drawH);
         } else {
-            // Draw placeholder text if an image is not available
-            ctx.fillStyle = '#9ca3af'; // gray-400
+            ctx.fillStyle = '#9ca3af';
             ctx.font = '24px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -995,49 +981,107 @@ const generateAndDownloadVideo = useCallback(async () => {
         }
     };
     
-    // --- SIDE-BY-SIDE LAYOUT CALCULATIONS ---
     const PADDING = 20;
     const GAP = 20;
     const CONTAINER_COUNT = 3;
-    
     const TOTAL_GAPS_WIDTH = GAP * (CONTAINER_COUNT - 1);
-    const TOTAL_CONTENT_WIDTH = canvas.width - (PADDING * 2);
+    const TOTAL_CONTENT_WIDTH = layoutCanvas.width - (PADDING * 2);
     const BOX_WIDTH = (TOTAL_CONTENT_WIDTH - TOTAL_GAPS_WIDTH) / CONTAINER_COUNT;
-
-    const BOX_HEIGHT = canvas.height - (PADDING * 2);
+    const BOX_HEIGHT = layoutCanvas.height - (PADDING * 2);
     const BOX_Y = PADDING;
-
-    // --- DRAWING CALLS ---
-    // Draw story image (left)
+    
     const storyX = PADDING;
-    drawImageWithBorder(storyImageLoaded, storyX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#3b82f6', 'Story Image');
-
-    // Draw sketch image (middle)
+    drawImageWithBorder(layoutCtx, storyImageLoaded, storyX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#3b82f6', 'Story Image');
     const sketchX = PADDING + BOX_WIDTH + GAP;
-    drawImageWithBorder(sketchImageLoaded, sketchX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#10b981', 'Sketch');
-    
-    // Draw generated image (right)
+    drawImageWithBorder(layoutCtx, sketchImageLoaded, sketchX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#10b981', 'Sketch');
     const generatedX = PADDING + (BOX_WIDTH * 2) + (GAP * 2);
-    drawImageWithBorder(genImageLoaded, generatedX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#f59e0b', 'Generated Image');
+    drawImageWithBorder(layoutCtx, genImageLoaded, generatedX, BOX_Y, BOX_WIDTH, BOX_HEIGHT, '#f59e0b', 'Generated Image');
+
+    const layoutImage = await loadImage(layoutCanvas.toDataURL());
+
+    // --- Simple Confetti Particle System ---
+    let particles = [];
+    const confettiColors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899'];
+    const createConfettiBurst = () => {
+        for (let i = 0; i < 150; i++) {
+            particles.push({
+                x: Math.random() * 1280,
+                y: -20,
+                vx: (Math.random() - 0.5) * 15,
+                vy: Math.random() * 10 + 5,
+                size: Math.random() * 10 + 5,
+                color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+                life: 120 // frames
+            });
+        }
+    };
+
+    const updateAndDrawParticles = (ctx) => {
+        particles = particles.filter(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2; // gravity
+            p.life--;
+            return p.life > 0;
+        });
+
+        particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        });
+    };
+
+    // --- Generate all frames for the video ---
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = 1280;
+    frameCanvas.height = 720;
+    const frameCtx = frameCanvas.getContext('2d');
+    const FPS = 25;
+    const totalFrames = Math.ceil(audioDuration * FPS);
+    let burst1Fired = false, burst2Fired = false, burst3Fired = false;
+
+    for (let i = 0; i < totalFrames; i++) {
+        const currentTime = i / FPS;
+        
+        // Draw the static background layout
+        frameCtx.drawImage(layoutImage, 0, 0);
+
+        // Trigger confetti bursts in the last 3 seconds
+        if (audioDuration > 3) {
+            if (currentTime >= audioDuration - 3 && !burst1Fired) {
+                createConfettiBurst();
+                burst1Fired = true;
+            }
+            if (currentTime >= audioDuration - 2 && !burst2Fired) {
+                createConfettiBurst();
+                burst2Fired = true;
+            }
+            if (currentTime >= audioDuration - 1 && !burst3Fired) {
+                createConfettiBurst();
+                burst3Fired = true;
+            }
+        }
+        
+        // Update and draw the confetti particles for this frame
+        updateAndDrawParticles(frameCtx);
+
+        // Write the frame to FFmpeg's virtual file system
+        const frameBlob = await new Promise(resolve => frameCanvas.toBlob(resolve, 'image/png'));
+        const frameFileName = `frame_${i.toString().padStart(5, '0')}.png`;
+        ffmpeg.FS('writeFile', frameFileName, await fetchFile(frameBlob));
+    }
     
-    // Convert canvas to blob to be used by FFmpeg
-    const layoutBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    
-    // Write layout image to FFmpeg's virtual file system
-    ffmpeg.FS('writeFile', 'layout.png', await fetchFile(layoutBlob));
-    
+    // --- FFmpeg Command ---
     // Write audio files
     ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
-    
-    // Download and write background music
     const bgMusicUrl = "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
     const bgMusicResponse = await fetch(bgMusicUrl);
     const bgMusicBlob = await bgMusicResponse.blob();
     ffmpeg.FS('writeFile', 'bg_music.mp3', await fetchFile(bgMusicBlob));
     
-    // Create video from static image with mixed audio
+    // Create video from the generated frame sequence
     await ffmpeg.run(
-      '-loop', '1', '-t', audioDuration.toString(), '-i', 'layout.png',
+      '-framerate', FPS.toString(), '-i', 'frame_%05d.png',
       '-i', 'audio.mp3',
       '-stream_loop', '-1', '-i', 'bg_music.mp3',
       '-filter_complex', `[1:a]volume=1.0[story];[2:a]volume=0.1[bg];[story][bg]amix=inputs=2:duration=first:dropout_transition=3[mixed]`,
@@ -1054,15 +1098,14 @@ const generateAndDownloadVideo = useCallback(async () => {
     // Download the video
     const url = URL.createObjectURL(videoBlob);
     const a = document.createElement('a');
-    a.href = url;
+a.href = url;
     a.download = `ai-story-${Date.now()}.mp4`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    // Celebrate successful video generation
-    celebrateWithConfetti();
+    // No need to call celebrateWithConfetti() here anymore, it's in the video!
     playWinSound();
     
   } catch (err) {
@@ -1071,7 +1114,8 @@ const generateAndDownloadVideo = useCallback(async () => {
   } finally {
     setIsGeneratingVideo(false);
   }
-}, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+}, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, playWinSound]);
+
 
   
 
