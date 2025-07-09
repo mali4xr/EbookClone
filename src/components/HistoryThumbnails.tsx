@@ -46,7 +46,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 style={{
                   width: 75,
                   height: 75,
-                  minWidth: 70,
+                  minWidth: 75,
                   minHeight: 70,
                 }}
                 onClick={() => onSelectHistory(idx)}
