@@ -45,7 +45,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                 }`}
                 style={{
                   width: 70,
-                  height: 80,
+                  height: 70,
                   minWidth: 80,
                   minHeight: 80,
                 }}
