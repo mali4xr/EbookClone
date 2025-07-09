@@ -133,63 +133,44 @@ export const useAIDrawingBookLogic = () => {
     return () => clearInterval(typeInterval);
   }, []);
 
-  // SIMPLIFIED: Canvas setup without DPR complications
-  const setupCanvas = useCallback((canvas: HTMLCanvasElement, isSketchCanvas: boolean = false) => {
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    // Set canvas size to match display size * DPR for crisp rendering
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    // Scale canvas back to display size with CSS
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      // Scale context to handle DPR - this is the key part
-      ctx.scale(dpr, dpr);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      
-      if (isSketchCanvas) {
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 4;
-      }
-    }
-  }, []);
-
-  // Enhanced canvas setup with proper resolution handling
+  // Canvas setup effects
   useEffect(() => {
     const canvas = sketchCanvasRef.current;
     if (!canvas) return;
 
     const resizeCanvas = () => {
-      setupCanvas(canvas, true);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 4;
+      }
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, [setupCanvas]);
+  }, []);
 
   useEffect(() => {
     const canvas = coloringCanvasRef.current;
     if (!canvas) return;
 
     const resizeCanvas = () => {
-      setupCanvas(canvas, false);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, [setupCanvas]);
+  }, []);
 
   // Fixed: Improved webcam stream management
   useEffect(() => {
@@ -272,7 +253,9 @@ export const useAIDrawingBookLogic = () => {
   const resizeColoringCanvas = () => {
     const canvas = coloringCanvasRef.current;
     if (!canvas) return;
-    setupCanvas(canvas, false);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
   };
 
   const isSketchCanvasEmpty = useCallback((): boolean => {
@@ -304,7 +287,7 @@ export const useAIDrawingBookLogic = () => {
     return tempCanvas.toDataURL("image/png").split(",")[1];
   }, []);
 
-  // SIMPLIFIED: Drawing handlers - let canvas context handle DPR
+  // Drawing handlers
   const startDrawing = (
     e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
   ) => {
@@ -417,16 +400,14 @@ export const useAIDrawingBookLogic = () => {
     const sketchCanvas = sketchCanvasRef.current;
     const coloringCanvas = coloringCanvasRef.current;
     if (sketchCanvas) {
-      const ctx = sketchCanvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
-      }
+      sketchCanvas
+        .getContext("2d")
+        ?.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
     }
     if (coloringCanvas) {
-      const ctx = coloringCanvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
-      }
+      coloringCanvas
+        .getContext("2d")
+        ?.clearRect(0, 0, coloringCanvas.width, coloringCanvas.height);
     }
     setHasGeneratedContent(false);
     setCurrentPrompt("");
@@ -824,8 +805,6 @@ export const useAIDrawingBookLogic = () => {
     sketchImg.onload = () => {
       const canvas = sketchCanvasRef.current;
       if (canvas) {
-        // Ensure canvas is properly set up before drawing
-        setupCanvas(canvas, true);
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -892,8 +871,6 @@ export const useAIDrawingBookLogic = () => {
       // Set the captured image into the drawing area
       const sketchCanvas = sketchCanvasRef.current;
       if (sketchCanvas) {
-        // Ensure canvas is properly set up before drawing
-        setupCanvas(sketchCanvas, true);
         const sketchCtx = sketchCanvas.getContext("2d");
         if (sketchCtx) {
           sketchCtx.clearRect(0, 0, sketchCanvas.width, sketchCanvas.height);
