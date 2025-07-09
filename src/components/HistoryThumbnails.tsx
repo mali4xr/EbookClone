@@ -47,7 +47,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                   width: 70,
                   height: 70,
                   minWidth: 70,
-                  minHeight: 80,
+                  minHeight: 70,
                 }}
                 onClick={() => onSelectHistory(idx)}
                 title={item.recognizedImage || "Drawing"}
