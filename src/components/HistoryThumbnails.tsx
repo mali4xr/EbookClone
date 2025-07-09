@@ -44,7 +44,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                     : "border-gray-200 hover:border-purple-300 shadow-lg"
                 }`}
                 style={{
-                  width: 80,
+                  width: 70,
                   height: 80,
                   minWidth: 80,
                   minHeight: 80,
