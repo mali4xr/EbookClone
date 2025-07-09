@@ -21,7 +21,7 @@ interface HistoryItem {
   prompt: string;
   story: string;
   storyImageBase64?: string;
-}
+} 
 
 export const useAIDrawingBookLogic = () => {
   // Canvas refs
