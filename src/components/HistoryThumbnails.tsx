@@ -33,7 +33,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
         </h3>
       </div>
       
-      <div className="p-2">
+      <div className="">
         <div className="flex overflow-x-auto gap-4 pb-2">
           {history.map((item, idx) => (
             <div key={idx} className="flex flex-col items-center flex-shrink-0">
