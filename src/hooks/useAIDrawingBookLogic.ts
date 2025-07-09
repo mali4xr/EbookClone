@@ -851,6 +851,7 @@ export const useAIDrawingBookLogic = () => {
   };
 
 // Generate and download video slideshow
+// Generate and download video slideshow
 const generateAndDownloadVideo = useCallback(async () => {
   // Check if FFmpeg is still loading
   if (ffmpegLoading) {
@@ -926,6 +927,12 @@ const generateAndDownloadVideo = useCallback(async () => {
     // Write audio file
     ffmpeg.FS('writeFile', 'audio.mp3', await fetchFile(generatedAudioBlob));
     
+    // Download and write background music
+    const bgMusicUrl = "https://cdn.pixabay.com/download/audio/2025/06/20/audio_f144ebba0c.mp3?filename=babies-piano-45-seconds-362933.mp3";
+    const bgMusicResponse = await fetch(bgMusicUrl);
+    const bgMusicBlob = await bgMusicResponse.blob();
+    ffmpeg.FS('writeFile', 'bg_music.mp3', await fetchFile(bgMusicBlob));
+    
     // Get audio duration using Web Audio API
     let audioDuration = 10; // Default fallback
     try {
@@ -977,10 +984,13 @@ const generateAndDownloadVideo = useCallback(async () => {
       '-c', 'copy', '-y', 'cycle.mp4'
     );
     
-    // Loop the cycle to match audio duration
+    // Loop the cycle to match audio duration and mix with background music
     await ffmpeg.run(
       '-stream_loop', (cyclesNeeded - 1).toString(), '-i', 'cycle.mp4',
       '-i', 'audio.mp3',
+      '-stream_loop', '-1', '-i', 'bg_music.mp3',
+      '-filter_complex', `[1:a]volume=1.0[story];[2:a]volume=0.1[bg];[story][bg]amix=inputs=2:duration=first:dropout_transition=3[mixed]`,
+      '-map', '0:v', '-map', '[mixed]',
       '-t', audioDuration.toString(),
       '-c:v', 'libx264', '-c:a', 'aac',
       '-shortest', '-y', 'slideshow.mp4'
@@ -1011,6 +1021,7 @@ const generateAndDownloadVideo = useCallback(async () => {
     setIsGeneratingVideo(false);
   }
 }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
+  
   
   // History handlers
   const handleSelectHistory = (idx: number) => {
