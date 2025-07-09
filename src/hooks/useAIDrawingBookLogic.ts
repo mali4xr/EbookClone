@@ -1032,7 +1032,7 @@ const generateAndDownloadVideo = useCallback(async () => {
     };
     
     // Load all images
-    const [storyImg, sketchImg, genImg] = await Promise.all([
+    const [storyImageLoaded, sketchImageLoaded, genImageLoaded] = await Promise.all([
       historyItem.storyImageBase64 ? loadImage(`data:image/png;base64,${historyItem.storyImageBase64}`) : null,
       loadImage(`data:image/png;base64,${historyItem.sketch}`),
       loadImage(`data:image/png;base64,${historyItem.generated}`)
@@ -1075,11 +1075,11 @@ const generateAndDownloadVideo = useCallback(async () => {
     };
     
     // Draw story image (top half)
-    drawImageWithBorder(storyImg, 20, 20, 1240, 304, '#3b82f6');
+    drawImageWithBorder(storyImageLoaded, 20, 20, 1240, 304, '#3b82f6');
     
     // Draw sketch and generated images (bottom half)
-    drawImageWithBorder(sketchImg, 20, 344, 610, 304, '#10b981');
-    drawImageWithBorder(genImg, 650, 344, 610, 304, '#f59e0b');
+    drawImageWithBorder(sketchImageLoaded, 20, 344, 610, 304, '#10b981');
+    drawImageWithBorder(genImageLoaded, 650, 344, 610, 304, '#f59e0b');
     
     // Clean up temp div
     document.body.removeChild(tempDiv);
@@ -1136,8 +1136,6 @@ const generateAndDownloadVideo = useCallback(async () => {
     setIsGeneratingVideo(false);
   }
 }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, celebrateWithConfetti, playWinSound]);
-
-  
 
   // History handlers
   const handleSelectHistory = (idx: number) => {
