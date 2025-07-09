@@ -688,11 +688,20 @@ export const useAIDrawingBookLogic = () => {
         console.log('🎤 Generated audio using ElevenLabs TTS');
       } else {
         // Use existing Pollinations AI
+        const pollinationsApiKey = import.meta.env.VITE_POLLINATIONS_API_KEY;
+        if (!pollinationsApiKey) {
+          throw new Error('Pollinations AI API key not configured. Please add VITE_POLLINATIONS_API_KEY to your .env file.');
+        }
+
         const encodedStory = encodeURIComponent(story);
         const voice = "alloy";
-        const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}`;
+        // Add the API key as a query parameter using Bearer token method
+        const url = `https://text.pollinations.ai/'tell a 4 year old kid a moral story about '${encodedStory}?model=openai-audio&voice=${voice}&token=${pollinationsApiKey}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error("Failed to generate audio.");
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to generate audio from Pollinations AI: ${response.status} ${response.statusText} - ${errorText}`);
+        }
         audioBlob = await response.blob();
         console.log('🎤 Generated audio using Pollinations AI');
       }
