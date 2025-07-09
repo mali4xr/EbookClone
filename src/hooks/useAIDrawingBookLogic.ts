@@ -263,3 +263,4 @@ a.href = url;
     setIsGeneratingVideo(false);
   }
 }, [ffmpegLoaded, ffmpegLoading, loadFFmpeg, selectedHistoryIndex, history, generatedAudioBlob, playWinSound]);
+ 
