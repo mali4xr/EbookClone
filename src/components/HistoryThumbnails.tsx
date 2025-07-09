@@ -63,7 +63,7 @@ const HistoryThumbnails: React.FC<HistoryThumbnailsProps> = ({
                   onClick={(e) => onDeleteHistory(idx, e)}
                   aria-label="Delete"
                 >
-                  <Trash2 size={12} />
+                  <Close size={12} />
                 </button>
               </div>
               
