@@ -113,7 +113,7 @@ export class GeminiService {
   }
 
   static async recognizeImage(base64ImageData: string): Promise<string> {
-    const descriptionPrompt = "short description only, No colors. No intoductions, child sensitive, child safe. E.g. pencil line drawing of smiling sun, mushroom house with a girl";
+    const descriptionPrompt = "short subject focus common description only, No colors. No intoductions, child sensitive, child safe, starting with 'line sketch of' E.g: smiling sun, mushroom house with a girl";
     const payload = {
       contents: [
         {
@@ -163,7 +163,7 @@ export class GeminiService {
   }
 
   static async generateStory(recognizedImage: string): Promise<string> {
-    const prompt = `Write a very short (2-3 sentences), happy, and simple story for a young child (3-5 years old) about this: "${recognizedImage}"`;
+    const prompt = `Write a very short (2-3 sentences), happy, moral, simple story for a 3-5 years old child about this: "${recognizedImage}"`;
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
     };
